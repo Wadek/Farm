@@ -6,26 +6,30 @@
 <title>FARM NETWORK</title>
 <style>
   :root {
-    --green: #4ade80;
-    --dim: #166534;
-    --bg: #030712;
-    --surface: #0d1117;
-    --border: #1f2937;
-    --warn: #facc15;
-    --red: #f87171;
+    --green: #00ff88;
+    --green-dim: #00cc66;
+    --dim: #4d9970;
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --input-bg: #111a11;
+    --border: #1a3a1a;
+    --border-bright: #00ff88;
+    --warn: #ffe566;
+    --red: #ff6b6b;
+    --white: #e8ffe8;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: var(--bg);
     color: var(--green);
     font-family: 'Courier New', Courier, monospace;
-    font-size: 14px;
+    font-size: 15px;
     min-height: 100vh;
     padding: 0 0 4rem 0;
   }
   header {
     background: var(--surface);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 2px solid var(--green);
     padding: 1rem;
     display: flex;
     justify-content: space-between;
@@ -34,95 +38,102 @@
     top: 0;
     z-index: 10;
   }
-  header h1 { font-size: 1rem; letter-spacing: 0.2em; }
-  #user-line { font-size: 0.75rem; color: var(--dim); }
+  header h1 { font-size: 1.1rem; letter-spacing: 0.25em; color: var(--green); text-shadow: 0 0 10px var(--green); }
+  #user-line { font-size: 0.8rem; color: var(--dim); }
   .btn {
     background: transparent;
     border: 1px solid var(--green);
     color: var(--green);
     font-family: inherit;
-    font-size: 0.85rem;
-    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    padding: 0.7rem 1.3rem;
     cursor: pointer;
-    letter-spacing: 0.1em;
-    min-height: 44px;
-    min-width: 44px;
+    letter-spacing: 0.12em;
+    min-height: 48px;
+    min-width: 48px;
+    text-shadow: 0 0 6px var(--green);
   }
-  .btn:active { background: var(--green); color: var(--bg); }
-  .btn-sm { padding: 0.4rem 0.8rem; min-height: 36px; font-size: 0.75rem; }
-  .btn-danger { border-color: var(--red); color: var(--red); }
+  .btn:active, .btn:hover { background: var(--green); color: var(--bg); text-shadow: none; }
+  .btn-sm { padding: 0.5rem 1rem; min-height: 40px; font-size: 0.8rem; }
+  .btn-danger { border-color: var(--red); color: var(--red); text-shadow: 0 0 6px var(--red); }
+  .btn-danger:active, .btn-danger:hover { background: var(--red); color: var(--bg); }
   section { padding: 1rem; max-width: 680px; margin: 0 auto; }
   .panel {
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-bright);
     padding: 1rem;
     margin-bottom: 1rem;
   }
   .panel-title {
-    font-size: 0.7rem;
-    letter-spacing: 0.3em;
-    color: var(--dim);
-    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem;
+    letter-spacing: 0.35em;
+    color: var(--green);
+    border-bottom: 1px solid var(--border-bright);
     padding-bottom: 0.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.85rem;
+    text-shadow: 0 0 8px var(--green);
   }
-  label { display: block; font-size: 0.75rem; color: var(--dim); margin-bottom: 0.25rem; margin-top: 0.75rem; }
+  label { display: block; font-size: 0.8rem; color: var(--white); margin-bottom: 0.3rem; margin-top: 0.85rem; letter-spacing: 0.08em; }
   input, select {
     width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--green);
+    background: var(--input-bg);
+    border: 1px solid var(--green-dim);
+    color: var(--white);
     font-family: inherit;
-    font-size: 0.9rem;
-    padding: 0.6rem;
-    min-height: 44px;
+    font-size: 1rem;
+    padding: 0.75rem;
+    min-height: 48px;
   }
-  input:focus, select:focus { outline: 1px solid var(--green); }
+  input:focus, select:focus { outline: 2px solid var(--green); background: #0d1f0d; }
+  select option { background: var(--input-bg); color: var(--white); }
   .stat {
     display: flex;
     justify-content: space-between;
-    padding: 0.4rem 0;
+    padding: 0.5rem 0;
     border-bottom: 1px solid var(--border);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
   }
   .stat:last-child { border-bottom: none; }
   .stat-key { color: var(--dim); }
-  .stat-val { color: var(--green); }
-  .tip { padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; line-height: 1.5; }
+  .stat-val { color: var(--white); font-weight: normal; }
+  .tip { padding: 0.75rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; line-height: 1.6; }
   .tip:last-child { border-bottom: none; }
-  .tip-q { color: var(--dim); font-size: 0.72rem; margin-bottom: 0.25rem; }
-  .tip-r { color: var(--green); }
+  .tip-q { color: var(--dim); font-size: 0.75rem; margin-bottom: 0.3rem; }
+  .tip-r { color: var(--white); }
   .tip-pending { color: var(--warn); }
   .node-card {
-    border: 1px solid var(--border);
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
+    border: 1px solid var(--green-dim);
+    padding: 1rem;
+    margin-bottom: 0.6rem;
     cursor: pointer;
+    background: var(--surface);
   }
-  .node-card:active { border-color: var(--green); }
-  .node-name { font-size: 1rem; margin-bottom: 0.25rem; }
-  .node-meta { font-size: 0.72rem; color: var(--dim); }
+  .node-card:active, .node-card:hover { border-color: var(--green); background: #0d1f0d; }
+  .node-name { font-size: 1.05rem; margin-bottom: 0.3rem; color: var(--green); }
+  .node-meta { font-size: 0.78rem; color: var(--dim); }
   .temp-big {
-    font-size: 2.5rem;
+    font-size: 3rem;
     letter-spacing: -0.02em;
     line-height: 1;
     padding: 0.5rem 0;
+    color: var(--green);
+    text-shadow: 0 0 20px var(--green);
   }
   .hidden { display: none; }
-  .err { color: var(--red); font-size: 0.8rem; margin-top: 0.5rem; }
-  .ok { color: var(--green); font-size: 0.8rem; margin-top: 0.5rem; }
-  #loading { color: var(--dim); font-size: 0.8rem; }
+  .err { color: var(--red); font-size: 0.85rem; margin-top: 0.6rem; text-shadow: 0 0 6px var(--red); }
+  .ok { color: var(--green); font-size: 0.85rem; margin-top: 0.6rem; }
+  #loading { color: var(--dim); font-size: 0.85rem; }
   .tag {
     display: inline-block;
-    border: 1px solid var(--dim);
+    border: 1px solid var(--green-dim);
     color: var(--dim);
-    font-size: 0.65rem;
-    padding: 0.1rem 0.4rem;
+    font-size: 0.68rem;
+    padding: 0.15rem 0.4rem;
     letter-spacing: 0.1em;
     margin-left: 0.4rem;
     vertical-align: middle;
   }
-  nav { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  nav { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1rem; }
 </style>
 </head>
 <body>

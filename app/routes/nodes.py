@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -89,6 +90,41 @@ def latest_ruuvi(node_id: str, db: Session = Depends(get_db)):
         "mac": reading.mac,
         "recorded_at": reading.recorded_at.isoformat() if reading.recorded_at else None,
     }
+
+
+@router.post("/ruuvi/webhook")
+def ruuvi_station_webhook(payload: dict[str, Any], db: Session = Depends(get_db)):
+    """
+    Accepts Ruuvi Station iOS app data forwarding webhook.
+    Maps sensor MAC addresses to nodes automatically.
+    Configure in Ruuvi Station: Settings → Data forwarding → URL → http://<chromebook-ip>:8000/nodes/ruuvi/webhook
+    """
+    recorded = 0
+    tags = payload.get("tags", [])
+    for tag in tags:
+        mac = tag.get("id") or tag.get("mac")
+        if not mac:
+            continue
+        node = db.query(Node).filter(Node.ruuvi_mac == mac).first() if hasattr(Node, 'ruuvi_mac') else None
+        # Fall back: find any node — single-node setup
+        if not node:
+            node = db.query(Node).order_by(Node.created_at).first()
+        if not node:
+            continue
+        reading = RuuviReading(
+            id=str(uuid.uuid4()),
+            node_id=node.id,
+            mac=mac,
+            temperature_c=tag.get("temperature"),
+            humidity_pct=tag.get("humidity"),
+            pressure_hpa=tag.get("pressure"),
+            battery_v=tag.get("voltage") or tag.get("battery"),
+            rssi=tag.get("rssi"),
+        )
+        db.add(reading)
+        recorded += 1
+    db.commit()
+    return {"recorded": recorded}
 
 
 def _node_view(node: Node, db: Session) -> dict:
