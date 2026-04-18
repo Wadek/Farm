@@ -7,3 +7,4 @@ from app.models.message import Message
 from app.models.journal import JournalSession, JournalEntry
 from app.models.regional_config import RegionalConfig
 from app.models.sensor_reading import SensorReading
+from app.models.api_key import ApiKey

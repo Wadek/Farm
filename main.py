@@ -5,7 +5,7 @@ from app.db import engine
 from app.models import *  # noqa: ensure all models registered before create_all
 from app.models.ruuvi_reading import RuuviReading  # noqa
 from app.db import Base
-from app.routes import tips, transactions, auth, nodes, produce
+from app.routes import tips, transactions, auth, nodes, produce, agent
 
 Base.metadata.create_all(bind=engine)
 
@@ -15,6 +15,7 @@ app.include_router(nodes.router)
 app.include_router(tips.router)
 app.include_router(transactions.router)
 app.include_router(produce.router)
+app.include_router(agent.router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 

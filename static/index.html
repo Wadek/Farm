@@ -202,6 +202,7 @@
     <button class="btn btn-sm" onclick="loadNodes()">NODES</button>
     <button class="btn btn-sm" onclick="loadMarket()">MARKET</button>
     <button class="btn btn-sm" onclick="loadTips()">DAILY TIPS</button>
+    <button class="btn btn-sm" onclick="loadAgentSetup()">AI SETUP</button>
     <button class="btn btn-sm btn-danger" onclick="logout()">LOGOUT</button>
   </nav>
 
@@ -309,6 +310,47 @@
     </div>
   </div>
 
+  <!-- AI SETUP -->
+  <div id="view-agent" class="hidden">
+    <div class="panel">
+      <div class="panel-title">AI SETUP</div>
+      <p style="color:var(--dim);font-size:0.82rem;line-height:1.6;margin-bottom:0.75rem">
+        Generate an API key, then copy your Agent Card into Claude Projects, ChatGPT custom instructions, or any AI system prompt. Your AI can then manage your farm by conversation.
+      </p>
+      <button class="btn btn-sm" onclick="createApiKey()">GENERATE API KEY</button>
+      <div class="ok hidden" id="apikey-result" style="word-break:break-all;margin-top:0.5rem;font-size:0.8rem"></div>
+      <div style="margin-top:1rem">
+        <button class="btn btn-sm" onclick="loadAgentCard()">GET AGENT CARD</button>
+      </div>
+      <div id="agent-card-out" class="hidden" style="margin-top:0.75rem">
+        <div style="font-size:0.72rem;color:var(--dim);margin-bottom:0.4rem;letter-spacing:0.15em">COPY THIS INTO YOUR AI'S PROJECT INSTRUCTIONS</div>
+        <textarea id="agent-card-text" readonly style="width:100%;height:320px;background:var(--input-bg);border:1px solid var(--green-dim);color:var(--white);font-family:inherit;font-size:0.75rem;padding:0.75rem;line-height:1.5;resize:vertical"></textarea>
+        <button class="btn btn-sm" onclick="copyCard()" style="margin-top:0.5rem">COPY TO CLIPBOARD</button>
+        <div class="ok hidden" id="copy-ok">copied!</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">HOW TO USE WITH YOUR AI</div>
+      <div style="font-size:0.82rem;line-height:1.7;color:var(--dim)">
+        <div style="color:var(--white);margin-bottom:0.4rem">Claude (claude.ai)</div>
+        Create a new Project → paste Agent Card into Project Instructions → chat naturally.
+        <br><br>
+        <div style="color:var(--white);margin-bottom:0.4rem">ChatGPT</div>
+        Settings → Personalization → Custom Instructions → paste Agent Card.
+        <br><br>
+        <div style="color:var(--white);margin-bottom:0.4rem">Grok / others</div>
+        System prompt or memory → paste Agent Card.
+        <br><br>
+        <div style="color:var(--green);margin-bottom:0.4rem">Try saying:</div>
+        "Add 10kg of tomatoes to my farm node"<br>
+        "What produce is available within 10km of me?"<br>
+        "Create a free listing for my carrots"<br>
+        "What are my sensor readings?"
+      </div>
+    </div>
+  </div>
+
   <!-- TIPS -->
   <div id="view-tips" class="hidden">
     <div class="panel">
@@ -338,7 +380,7 @@ function showView(v) {
 }
 
 function showSubView(v) {
-  ['nodes','node-detail','market','tips'].forEach(id =>
+  ['nodes','node-detail','market','agent','tips'].forEach(id =>
     document.getElementById('view-' + id).classList.add('hidden'));
   document.getElementById('view-' + v).classList.remove('hidden');
 }
@@ -641,6 +683,33 @@ function renderTips(tips) {
       <div class="tip-q">[${String(i+1).padStart(2,'0')}] ${t.question.slice(0, 120)}...</div>
       <div class="${t.status === 'pending' ? 'tip-pending' : 'tip-r'}">${t.response || '⏳ pending...'}</div>
     </div>`).join('');
+}
+
+async function loadAgentSetup() {
+  showSubView('agent');
+}
+
+async function createApiKey() {
+  const label = prompt('Label for this key (e.g. "my phone"):') || 'default';
+  const res = await api('/auth/api-keys', { method: 'POST', body: JSON.stringify({ label }) });
+  if (res.key) {
+    show('apikey-result', '✓ KEY: ' + res.key + '\n\nStore this — it will not be shown again. Paste it into your Agent Card.');
+  }
+}
+
+async function loadAgentCard() {
+  const res = await api('/me/agent-card');
+  if (res.card) {
+    document.getElementById('agent-card-text').value = res.card;
+    document.getElementById('agent-card-out').classList.remove('hidden');
+  }
+}
+
+async function copyCard() {
+  const text = document.getElementById('agent-card-text').value;
+  await navigator.clipboard.writeText(text);
+  show('copy-ok', 'copied!');
+  setTimeout(() => hide('copy-ok'), 2000);
 }
 
 function show(id, msg) { const e = document.getElementById(id); e.textContent = msg; e.classList.remove('hidden'); }

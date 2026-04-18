@@ -21,3 +21,4 @@ class User(Base):
 
     nodes = relationship("Node", back_populates="owner")
     messages_sent = relationship("Message", foreign_keys="Message.sender_id", back_populates="sender")
+    api_keys = relationship("ApiKey", back_populates="user")
