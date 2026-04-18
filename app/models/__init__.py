@@ -4,3 +4,4 @@ from app.models.produce import Produce
 from app.models.listing import Listing, ListingStatus
 from app.models.transaction import Transaction
 from app.models.message import Message
+from app.models.journal import JournalSession, JournalEntry
