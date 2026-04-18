@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>FARM NETWORK</title>
+<style>
+  :root {
+    --green: #4ade80;
+    --dim: #166534;
+    --bg: #030712;
+    --surface: #0d1117;
+    --border: #1f2937;
+    --warn: #facc15;
+    --red: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    min-height: 100vh;
+    padding: 0 0 4rem 0;
+  }
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 { font-size: 1rem; letter-spacing: 0.2em; }
+  #user-line { font-size: 0.75rem; color: var(--dim); }
+  .btn {
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 0.6rem 1.2rem;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .btn:active { background: var(--green); color: var(--bg); }
+  .btn-sm { padding: 0.4rem 0.8rem; min-height: 36px; font-size: 0.75rem; }
+  .btn-danger { border-color: var(--red); color: var(--red); }
+  section { padding: 1rem; max-width: 680px; margin: 0 auto; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  .panel-title {
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: var(--dim);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  label { display: block; font-size: 0.75rem; color: var(--dim); margin-bottom: 0.25rem; margin-top: 0.75rem; }
+  input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--green);
+    font-family: inherit;
+    font-size: 0.9rem;
+    padding: 0.6rem;
+    min-height: 44px;
+  }
+  input:focus, select:focus { outline: 1px solid var(--green); }
+  .stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .stat:last-child { border-bottom: none; }
+  .stat-key { color: var(--dim); }
+  .stat-val { color: var(--green); }
+  .tip { padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; line-height: 1.5; }
+  .tip:last-child { border-bottom: none; }
+  .tip-q { color: var(--dim); font-size: 0.72rem; margin-bottom: 0.25rem; }
+  .tip-r { color: var(--green); }
+  .tip-pending { color: var(--warn); }
+  .node-card {
+    border: 1px solid var(--border);
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+  }
+  .node-card:active { border-color: var(--green); }
+  .node-name { font-size: 1rem; margin-bottom: 0.25rem; }
+  .node-meta { font-size: 0.72rem; color: var(--dim); }
+  .temp-big {
+    font-size: 2.5rem;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    padding: 0.5rem 0;
+  }
+  .hidden { display: none; }
+  .err { color: var(--red); font-size: 0.8rem; margin-top: 0.5rem; }
+  .ok { color: var(--green); font-size: 0.8rem; margin-top: 0.5rem; }
+  #loading { color: var(--dim); font-size: 0.8rem; }
+  .tag {
+    display: inline-block;
+    border: 1px solid var(--dim);
+    color: var(--dim);
+    font-size: 0.65rem;
+    padding: 0.1rem 0.4rem;
+    letter-spacing: 0.1em;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+  }
+  nav { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⬡ FARM NETWORK</h1>
+  <div id="user-line">not logged in</div>
+</header>
+
+<section id="view-login">
+  <div class="panel" style="margin-top:1rem">
+    <div class="panel-title">LOGIN</div>
+    <label>EMAIL</label>
+    <input id="login-email" type="email" autocomplete="email">
+    <label>PASSWORD</label>
+    <input id="login-pass" type="password" autocomplete="current-password">
+    <div style="margin-top:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+      <button class="btn" onclick="login()">LOGIN</button>
+      <button class="btn" onclick="showView('register')">REGISTER</button>
+    </div>
+    <div class="err hidden" id="login-err"></div>
+  </div>
+</section>
+
+<section id="view-register" class="hidden">
+  <div class="panel" style="margin-top:1rem">
+    <div class="panel-title">REGISTER</div>
+    <label>NAME</label>
+    <input id="reg-name" type="text">
+    <label>EMAIL</label>
+    <input id="reg-email" type="email">
+    <label>PASSWORD</label>
+    <input id="reg-pass" type="password">
+    <label>ROLE</label>
+    <select id="reg-role">
+      <option value="farmer">FARMER</option>
+      <option value="buyer">BUYER</option>
+    </select>
+    <div style="margin-top:1rem; display:flex; gap:0.5rem;">
+      <button class="btn" onclick="register()">CREATE ACCOUNT</button>
+      <button class="btn" onclick="showView('login')">BACK</button>
+    </div>
+    <div class="err hidden" id="reg-err"></div>
+    <div class="ok hidden" id="reg-ok"></div>
+  </div>
+</section>
+
+<section id="view-main" class="hidden">
+  <nav style="margin-top:1rem">
+    <button class="btn btn-sm" onclick="loadNodes()">NODES</button>
+    <button class="btn btn-sm" onclick="loadTips()">DAILY TIPS</button>
+    <button class="btn btn-sm btn-danger" onclick="logout()">LOGOUT</button>
+  </nav>
+
+  <!-- NODES -->
+  <div id="view-nodes">
+    <div class="panel">
+      <div class="panel-title">MY NODES</div>
+      <div id="node-list"><span id="loading">loading...</span></div>
+      <button class="btn btn-sm" onclick="showAddNode()" style="margin-top:0.75rem">+ ADD NODE</button>
+    </div>
+
+    <div class="panel hidden" id="add-node-form">
+      <div class="panel-title">NEW NODE</div>
+      <label>NAME</label><input id="n-name" type="text">
+      <label>TYPE</label>
+      <select id="n-type">
+        <option value="garden_bed">GARDEN BED</option>
+        <option value="backyard">BACKYARD</option>
+        <option value="hobby_farm">HOBBY FARM</option>
+        <option value="farm">FARM</option>
+      </select>
+      <label>LAT</label><input id="n-lat" type="number" step="0.0001" value="60.5522">
+      <label>LNG</label><input id="n-lng" type="number" step="0.0001" value="24.7050">
+      <label>AREA (m²)</label><input id="n-area" type="number" step="0.1" value="0">
+      <label>DESCRIPTION</label><input id="n-desc" type="text">
+      <div style="margin-top:1rem; display:flex; gap:0.5rem;">
+        <button class="btn" onclick="createNode()">CREATE</button>
+        <button class="btn" onclick="document.getElementById('add-node-form').classList.add('hidden')">CANCEL</button>
+      </div>
+      <div class="err hidden" id="node-err"></div>
+    </div>
+  </div>
+
+  <!-- NODE DETAIL -->
+  <div id="view-node-detail" class="hidden">
+    <button class="btn btn-sm" onclick="loadNodes()" style="margin-bottom:0.75rem">← BACK</button>
+
+    <div class="panel">
+      <div class="panel-title">NODE INFO</div>
+      <div id="node-detail-info"></div>
+    </div>
+
+    <div class="panel" id="ruuvi-panel">
+      <div class="panel-title">RUUVI SENSOR <span class="tag" id="ruuvi-mac"></span></div>
+      <div id="ruuvi-data"><span style="color:var(--dim)">no data — POST to /nodes/{id}/ruuvi</span></div>
+      <button class="btn btn-sm" onclick="refreshRuuvi()" style="margin-top:0.75rem">REFRESH</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">TOKEN LEDGER</div>
+      <div id="node-ledger"><span style="color:var(--dim)">loading...</span></div>
+    </div>
+  </div>
+
+  <!-- TIPS -->
+  <div id="view-tips" class="hidden">
+    <div class="panel">
+      <div class="panel-title">DAILY TIPS</div>
+      <div id="tips-content"><span style="color:var(--dim)">loading...</span></div>
+      <button class="btn btn-sm" onclick="generateTips()" style="margin-top:0.75rem">GENERATE TODAY'S TIPS</button>
+      <div class="ok hidden" id="tips-ok"></div>
+    </div>
+  </div>
+</section>
+
+<script>
+const API = '';
+let token = localStorage.getItem('farm_token') || '';
+let currentNodeId = '';
+
+function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  return fetch(API + path, { headers, ...opts }).then(r => r.json());
+}
+
+function showView(v) {
+  ['login','register','main'].forEach(id =>
+    document.getElementById('view-' + id).classList.add('hidden'));
+  document.getElementById('view-' + v).classList.remove('hidden');
+}
+
+function showSubView(v) {
+  ['nodes','node-detail','tips'].forEach(id =>
+    document.getElementById('view-' + id).classList.add('hidden'));
+  document.getElementById('view-' + v).classList.remove('hidden');
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value;
+  const pass = document.getElementById('login-pass').value;
+  const form = new URLSearchParams({ username: email, password: pass });
+  const res = await fetch(API + '/auth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form,
+  }).then(r => r.json());
+  if (res.access_token) {
+    token = res.access_token;
+    localStorage.setItem('farm_token', token);
+    afterLogin();
+  } else {
+    show('login-err', res.detail || 'login failed');
+  }
+}
+
+async function afterLogin() {
+  const me = await api('/auth/me');
+  document.getElementById('user-line').textContent = me.name + ' [' + me.role + ']';
+  showView('main');
+  loadNodes();
+}
+
+async function register() {
+  const res = await api('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: document.getElementById('reg-name').value,
+      email: document.getElementById('reg-email').value,
+      password: document.getElementById('reg-pass').value,
+      role: document.getElementById('reg-role').value,
+    }),
+  });
+  if (res.id) {
+    show('reg-ok', 'account created — log in');
+    hide('reg-err');
+  } else {
+    show('reg-err', res.detail || 'error');
+  }
+}
+
+function logout() {
+  token = '';
+  localStorage.removeItem('farm_token');
+  document.getElementById('user-line').textContent = 'not logged in';
+  showView('login');
+}
+
+async function loadNodes() {
+  showSubView('nodes');
+  const nodes = await api('/nodes');
+  const el = document.getElementById('node-list');
+  if (!nodes.length) { el.innerHTML = '<span style="color:var(--dim)">no nodes yet</span>'; return; }
+  el.innerHTML = nodes.map(n => `
+    <div class="node-card" onclick="openNode('${n.id}')">
+      <div class="node-name">${n.name} <span class="tag">${n.type}</span></div>
+      <div class="node-meta">
+        ${n.area_m2}m² · ${n.lat.toFixed(4)}, ${n.lng.toFixed(4)} · ⬡ ${n.myc_tokens} MYC
+        ${n.ruuvi ? `· 🌡 ${n.ruuvi.temperature_c}°C` : ''}
+      </div>
+    </div>`).join('');
+}
+
+async function openNode(id) {
+  currentNodeId = id;
+  showSubView('node-detail');
+  const node = await api('/nodes/' + id);
+  document.getElementById('node-detail-info').innerHTML = `
+    <div class="stat"><span class="stat-key">NAME</span><span class="stat-val">${node.name}</span></div>
+    <div class="stat"><span class="stat-key">TYPE</span><span class="stat-val">${node.type}</span></div>
+    <div class="stat"><span class="stat-key">AREA</span><span class="stat-val">${node.area_m2} m²</span></div>
+    <div class="stat"><span class="stat-key">COORDS</span><span class="stat-val">${node.lat}, ${node.lng}</span></div>
+    <div class="stat"><span class="stat-key">MYC BALANCE</span><span class="stat-val">⬡ ${node.myc_tokens}</span></div>
+    ${node.description ? `<div class="stat"><span class="stat-key">DESC</span><span class="stat-val">${node.description}</span></div>` : ''}
+  `;
+  refreshRuuvi();
+  loadLedger(id);
+}
+
+async function refreshRuuvi() {
+  const r = await api('/nodes/' + currentNodeId + '/ruuvi/latest');
+  const el = document.getElementById('ruuvi-data');
+  if (r.status === 'no data') {
+    el.innerHTML = `<span style="color:var(--dim)">no readings yet</span>
+      <div style="margin-top:0.5rem;font-size:0.72rem;color:var(--dim)">
+        POST to /nodes/${currentNodeId}/ruuvi from desktop or phone
+      </div>`;
+    return;
+  }
+  document.getElementById('ruuvi-mac').textContent = r.mac || '';
+  el.innerHTML = `
+    <div class="temp-big">${r.temperature_c != null ? r.temperature_c.toFixed(1) + '°C' : '--'}</div>
+    <div class="stat"><span class="stat-key">HUMIDITY</span><span class="stat-val">${r.humidity_pct != null ? r.humidity_pct.toFixed(1) + ' %' : '--'}</span></div>
+    <div class="stat"><span class="stat-key">PRESSURE</span><span class="stat-val">${r.pressure_hpa != null ? r.pressure_hpa.toFixed(1) + ' hPa' : '--'}</span></div>
+    <div class="stat"><span class="stat-key">BATTERY</span><span class="stat-val">${r.battery_v != null ? r.battery_v.toFixed(2) + ' V' : '--'}</span></div>
+    <div class="stat"><span class="stat-key">RSSI</span><span class="stat-val">${r.rssi != null ? r.rssi + ' dBm' : '--'}</span></div>
+    <div class="stat"><span class="stat-key">RECORDED</span><span class="stat-val">${r.recorded_at ? r.recorded_at.replace('T',' ').slice(0,19) : '--'}</span></div>
+  `;
+}
+
+async function loadLedger(id) {
+  const data = await api('/transactions/node/' + id);
+  const el = document.getElementById('node-ledger');
+  if (!data.ledger || !data.ledger.length) {
+    el.innerHTML = '<span style="color:var(--dim)">no transactions yet</span>'; return;
+  }
+  el.innerHTML = data.ledger.map(tx => `
+    <div class="stat">
+      <span class="stat-key">${tx.created_at ? tx.created_at.slice(0,10) : '?'} ${tx.quantity_kg}kg</span>
+      <span class="stat-val">+⬡ ${tx.myc_tokens_minted}</span>
+    </div>`).join('');
+}
+
+function showAddNode() {
+  document.getElementById('add-node-form').classList.remove('hidden');
+}
+
+async function createNode() {
+  const res = await api('/nodes', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: document.getElementById('n-name').value,
+      type: document.getElementById('n-type').value,
+      lat: parseFloat(document.getElementById('n-lat').value),
+      lng: parseFloat(document.getElementById('n-lng').value),
+      area_m2: parseFloat(document.getElementById('n-area').value),
+      description: document.getElementById('n-desc').value,
+    }),
+  });
+  if (res.id) { loadNodes(); }
+  else { show('node-err', res.detail || 'error'); }
+}
+
+async function loadTips() {
+  showSubView('tips');
+  const today = await api('/tips/today');
+  renderTips(today.tips || []);
+}
+
+async function generateTips() {
+  show('tips-ok', 'generating... this may take a minute');
+  const res = await api('/tips/daily?lat=60.5522&lng=24.7050', { method: 'POST' });
+  if (res.session_id) {
+    pollTips(res.session_id);
+  }
+}
+
+async function pollTips(sessionId) {
+  const res = await api('/tips/session/' + sessionId);
+  renderTips(res.tips || []);
+  if (res.status === 'running') setTimeout(() => pollTips(sessionId), 5000);
+  else { hide('tips-ok'); }
+}
+
+function renderTips(tips) {
+  const el = document.getElementById('tips-content');
+  if (!tips.length) { el.innerHTML = '<span style="color:var(--dim)">no tips — press GENERATE</span>'; return; }
+  el.innerHTML = tips.map((t, i) => `
+    <div class="tip">
+      <div class="tip-q">[${String(i+1).padStart(2,'0')}] ${t.question.slice(0, 120)}...</div>
+      <div class="${t.status === 'pending' ? 'tip-pending' : 'tip-r'}">${t.response || '⏳ pending...'}</div>
+    </div>`).join('');
+}
+
+function show(id, msg) { const e = document.getElementById(id); e.textContent = msg; e.classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+// init
+if (token) { afterLogin(); } else { showView('login'); }
+</script>
+</body>
+</html>
