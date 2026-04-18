@@ -6,8 +6,10 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Node, NodeType
 from app.models.ruuvi_reading import RuuviReading
+from app.models.sensor_reading import SensorReading
 from app.models.user import User
 from app.dependencies import get_current_user
+from app.services import ruuvi_cloud, ajax_cloud
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
 
@@ -125,6 +127,44 @@ def ruuvi_station_webhook(payload: dict[str, Any], db: Session = Depends(get_db)
         recorded += 1
     db.commit()
     return {"recorded": recorded}
+
+
+@router.post("/{node_id}/sync")
+def sync_sensors(node_id: str, current_user: User = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
+    """Pull latest readings from Ruuvi Cloud and Ajax Cloud into this node."""
+    node = db.query(Node).filter(Node.id == node_id).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    ruuvi_count = ruuvi_cloud.sync(node_id, db)
+    ajax_count = ajax_cloud.sync(node_id, db)
+    return {"ruuvi_readings": ruuvi_count, "ajax_readings": ajax_count}
+
+
+@router.get("/{node_id}/sensors")
+def get_sensors(node_id: str, db: Session = Depends(get_db)):
+    """Latest reading per sensor type for this node."""
+    readings = (
+        db.query(SensorReading)
+        .filter(SensorReading.node_id == node_id)
+        .order_by(SensorReading.recorded_at.desc())
+        .all()
+    )
+    seen = {}
+    for r in readings:
+        key = (r.source, r.sensor_type, r.device_id)
+        if key not in seen:
+            seen[key] = {
+                "source": r.source,
+                "sensor_type": r.sensor_type,
+                "device_id": r.device_id,
+                "device_name": r.device_name,
+                "value": r.value,
+                "unit": r.unit,
+                "status": r.status,
+                "recorded_at": r.recorded_at.isoformat() if r.recorded_at else None,
+            }
+    return list(seen.values())
 
 
 def _node_view(node: Node, db: Session) -> dict:

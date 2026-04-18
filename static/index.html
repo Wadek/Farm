@@ -227,10 +227,11 @@
       <div id="node-detail-info"></div>
     </div>
 
-    <div class="panel" id="ruuvi-panel">
-      <div class="panel-title">RUUVI SENSOR <span class="tag" id="ruuvi-mac"></span></div>
-      <div id="ruuvi-data"><span style="color:var(--dim)">no data — POST to /nodes/{id}/ruuvi</span></div>
-      <button class="btn btn-sm" onclick="refreshRuuvi()" style="margin-top:0.75rem">REFRESH</button>
+    <div class="panel">
+      <div class="panel-title">SENSORS
+        <button class="btn btn-sm" onclick="syncSensors()" style="float:right;margin-top:-0.25rem">↻ SYNC</button>
+      </div>
+      <div id="sensor-data"><span style="color:var(--dim)">press SYNC to pull from Ruuvi Cloud + Ajax</span></div>
     </div>
 
     <div class="panel">
@@ -350,29 +351,51 @@ async function openNode(id) {
     <div class="stat"><span class="stat-key">MYC BALANCE</span><span class="stat-val">⬡ ${node.myc_tokens}</span></div>
     ${node.description ? `<div class="stat"><span class="stat-key">DESC</span><span class="stat-val">${node.description}</span></div>` : ''}
   `;
-  refreshRuuvi();
+  loadSensors(id);
   loadLedger(id);
 }
 
-async function refreshRuuvi() {
-  const r = await api('/nodes/' + currentNodeId + '/ruuvi/latest');
-  const el = document.getElementById('ruuvi-data');
-  if (r.status === 'no data') {
-    el.innerHTML = `<span style="color:var(--dim)">no readings yet</span>
-      <div style="margin-top:0.5rem;font-size:0.72rem;color:var(--dim)">
-        POST to /nodes/${currentNodeId}/ruuvi from desktop or phone
-      </div>`;
+const SENSOR_ICONS = {
+  temperature: '🌡', humidity: '💧', pressure: '⬇', battery: '🔋',
+  door: '🚪', motion: '👁', fence: '⚡', fire: '🔥', leak: '💧', alarm: '🚨'
+};
+
+async function loadSensors(id) {
+  const sensors = await api('/nodes/' + id + '/sensors');
+  const el = document.getElementById('sensor-data');
+  if (!sensors.length) {
+    el.innerHTML = '<span style="color:var(--dim)">no readings — press SYNC (requires Ruuvi/Ajax credentials in .env)</span>';
     return;
   }
-  document.getElementById('ruuvi-mac').textContent = r.mac || '';
-  el.innerHTML = `
-    <div class="temp-big">${r.temperature_c != null ? r.temperature_c.toFixed(1) + '°C' : '--'}</div>
-    <div class="stat"><span class="stat-key">HUMIDITY</span><span class="stat-val">${r.humidity_pct != null ? r.humidity_pct.toFixed(1) + ' %' : '--'}</span></div>
-    <div class="stat"><span class="stat-key">PRESSURE</span><span class="stat-val">${r.pressure_hpa != null ? r.pressure_hpa.toFixed(1) + ' hPa' : '--'}</span></div>
-    <div class="stat"><span class="stat-key">BATTERY</span><span class="stat-val">${r.battery_v != null ? r.battery_v.toFixed(2) + ' V' : '--'}</span></div>
-    <div class="stat"><span class="stat-key">RSSI</span><span class="stat-val">${r.rssi != null ? r.rssi + ' dBm' : '--'}</span></div>
-    <div class="stat"><span class="stat-key">RECORDED</span><span class="stat-val">${r.recorded_at ? r.recorded_at.replace('T',' ').slice(0,19) : '--'}</span></div>
-  `;
+  const ruuvi = sensors.filter(s => s.source === 'ruuvi');
+  const ajax = sensors.filter(s => s.source === 'ajax');
+
+  let html = '';
+  if (ruuvi.length) {
+    const temp = ruuvi.find(s => s.sensor_type === 'temperature');
+    if (temp) html += `<div class="temp-big">${temp.value.toFixed(1)}°C</div>`;
+    html += ruuvi.map(s => `
+      <div class="stat">
+        <span class="stat-key">${SENSOR_ICONS[s.sensor_type]||''} ${s.sensor_type.toUpperCase()} <span style="font-size:0.7rem;color:var(--dim)">${s.device_name||''}</span></span>
+        <span class="stat-val">${s.value != null ? s.value + (s.unit||'') : s.status||'--'}</span>
+      </div>`).join('');
+  }
+  if (ajax.length) {
+    html += `<div style="margin-top:0.75rem;font-size:0.72rem;color:var(--dim);letter-spacing:0.2em">AJAX SECURITY</div>`;
+    html += ajax.map(s => `
+      <div class="stat">
+        <span class="stat-key">${SENSOR_ICONS[s.sensor_type]||''} ${(s.device_name||s.sensor_type).toUpperCase()}</span>
+        <span class="stat-val" style="color:${s.status==='triggered'||s.status==='open'?'var(--warn)':'var(--green)'}">${s.status||'--'}</span>
+      </div>`).join('');
+  }
+  el.innerHTML = html;
+}
+
+async function syncSensors() {
+  const el = document.getElementById('sensor-data');
+  el.innerHTML = '<span style="color:var(--dim)">syncing...</span>';
+  await api('/nodes/' + currentNodeId + '/sync', { method: 'POST' });
+  loadSensors(currentNodeId);
 }
 
 async function loadLedger(id) {
