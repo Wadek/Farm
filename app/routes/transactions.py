@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Listing, ListingStatus, Transaction, Node, User
-from app.services import token_engine, geo
+from app.services import token_engine, geo, regional_service
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -47,6 +47,9 @@ def complete_listing(req: CompleteListingRequest, db: Session = Depends(get_db))
         )
 
     produce = listing.produce
+    regional = regional_service.get_or_refresh(seller_node.lat, seller_node.lng, db)
+    constants = token_engine.constants_from_regional(regional)
+
     result = token_engine.calculate(
         kcal_per_kg=produce.kcal_per_kg,
         store_co2_per_kg=produce.co2_kg_per_kg,
@@ -54,6 +57,7 @@ def complete_listing(req: CompleteListingRequest, db: Session = Depends(get_db))
         mass_kg=req.quantity_kg,
         distance_km=distance_km,
         is_walking=req.is_walking,
+        constants=constants,
     )
 
     # Append-only ledger entry

@@ -1,15 +1,28 @@
 import math
 from dataclasses import dataclass
+from typing import Optional
 
-# Finland context constants — Hyvinkää baseline
-KWH_PRICE_EUR = 0.22          # €/kWh
-CARBON_VALUE_EUR = 0.09       # €/kg CO2 (€90/tonne)
-KCAL_TO_KWH = 0.001162        # conversion factor
-KCAL_DENSITY_MULTIPLIER = 10  # energy density multiplier per spec
-IMPORT_DISTANCE_KM = 2500.0   # avg industrial supply chain distance to Finland
-STORE_TRANSPORT_FACTOR = 0.00015   # kg CO2 per km per kg of produce
-LOCAL_TRANSPORT_FACTOR = 0.00005   # kg CO2 per km per kg (local vehicle)
-DECAY_RATE = 0.15             # hyperlocal signal boost decay coefficient
+# Physical constants — these do not change with region
+KCAL_TO_KWH = 0.001162
+KCAL_DENSITY_MULTIPLIER = 10
+DECAY_RATE = 0.15  # hyperlocal signal boost decay coefficient
+
+# Finland fallback constants — used only when no RegionalConstants provided
+# These are replaced by regional_service.fetch_constants() in production
+_FI_FALLBACK_KWH_PRICE = 0.12
+_FI_FALLBACK_CARBON_VALUE = 0.065
+_FI_FALLBACK_IMPORT_DISTANCE = 2500.0
+_FI_FALLBACK_STORE_TRANSPORT = 0.00015   # PLACEHOLDER: needs supply chain engine
+_FI_FALLBACK_LOCAL_TRANSPORT = 0.00005   # PLACEHOLDER: needs supply chain engine
+
+
+@dataclass
+class RegionalConstants:
+    kwh_price_eur: float
+    carbon_value_eur_per_kg: float
+    import_distance_km: float
+    store_transport_factor: float
+    local_transport_factor: float
 
 
 @dataclass
@@ -21,6 +34,28 @@ class TokenResult:
     myc_tokens: float
     distance_km: float
     is_walking: bool
+    constants_used: RegionalConstants
+
+
+def _fi_fallback() -> RegionalConstants:
+    return RegionalConstants(
+        kwh_price_eur=_FI_FALLBACK_KWH_PRICE,
+        carbon_value_eur_per_kg=_FI_FALLBACK_CARBON_VALUE,
+        import_distance_km=_FI_FALLBACK_IMPORT_DISTANCE,
+        store_transport_factor=_FI_FALLBACK_STORE_TRANSPORT,
+        local_transport_factor=_FI_FALLBACK_LOCAL_TRANSPORT,
+    )
+
+
+def constants_from_regional(regional) -> RegionalConstants:
+    """Convert a RegionalConfig DB record to a RegionalConstants dataclass."""
+    return RegionalConstants(
+        kwh_price_eur=regional.kwh_spot_eur,
+        carbon_value_eur_per_kg=regional.carbon_value_eur_per_kg,
+        import_distance_km=regional.import_distance_km,
+        store_transport_factor=regional.store_transport_factor,
+        local_transport_factor=regional.local_transport_factor,
+    )
 
 
 def calculate(
@@ -30,29 +65,35 @@ def calculate(
     mass_kg: float,
     distance_km: float,
     is_walking: bool,
+    constants: Optional[RegionalConstants] = None,
 ) -> TokenResult:
     """
-    Port of HyphaeLogic.calculateNutrientFlow from mycelium (Dart).
-    Calculates MYC tokens minted for a hyperlocal food exchange.
+    Calculate MYC tokens minted for a hyperlocal food exchange.
 
+    Port of HyphaeLogic.calculateNutrientFlow (mycelium, Dart).
     Token value = (energy value of food) + (ecological value of CO2 saved)
-    boosted by a distance decay factor — closer trades earn more.
+    boosted by distance decay — closer trades earn more.
+
+    Pass a RegionalConstants instance for accurate regional pricing.
+    Falls back to Finland defaults if not provided.
     """
+    c = constants or _fi_fallback()
+
     # 1. Carbon: industrial supply chain vs local delivery
-    store_transport = IMPORT_DISTANCE_KM * STORE_TRANSPORT_FACTOR * mass_kg
+    store_transport = c.import_distance_km * c.store_transport_factor * mass_kg
     total_store_co2 = (store_co2_per_kg * mass_kg) + store_transport
 
-    local_transport = 0.0 if is_walking else (distance_km * LOCAL_TRANSPORT_FACTOR * mass_kg)
+    local_transport = 0.0 if is_walking else (distance_km * c.local_transport_factor * mass_kg)
     total_local_co2 = (local_co2_per_kg * mass_kg) + local_transport
 
     co2_saved = total_store_co2 - total_local_co2
 
     # 2. Energy value of the food exchanged
     food_kwh = (kcal_per_kg * KCAL_DENSITY_MULTIPLIER * mass_kg) * KCAL_TO_KWH
-    energy_value = food_kwh * KWH_PRICE_EUR
+    energy_value = food_kwh * c.kwh_price_eur
 
     # 3. Ecological value — only positive CO2 savings count
-    eco_value = max(0.0, co2_saved) * CARBON_VALUE_EUR
+    eco_value = max(0.0, co2_saved) * c.carbon_value_eur_per_kg
 
     # 4. Hyperlocal signal boost — exponential decay with distance
     decay_factor = math.exp(-DECAY_RATE * distance_km)
@@ -66,4 +107,5 @@ def calculate(
         myc_tokens=myc_tokens,
         distance_km=distance_km,
         is_walking=is_walking,
+        constants_used=c,
     )

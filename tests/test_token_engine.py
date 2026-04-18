@@ -1,7 +1,9 @@
 import math
 import uuid
 import bcrypt
-from app.services.token_engine import calculate, DECAY_RATE, IMPORT_DISTANCE_KM
+from app.services.token_engine import calculate, DECAY_RATE
+from app.services.regional_service import _FI_DEFAULTS
+IMPORT_DISTANCE_KM = _FI_DEFAULTS["import_distance_km"]
 from app.services.geo import haversine
 from app.models import User, UserRole, Node, NodeType, Produce, Listing, ListingStatus
 
