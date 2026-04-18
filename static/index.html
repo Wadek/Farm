@@ -134,6 +134,22 @@
     vertical-align: middle;
   }
   nav { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .produce-card {
+    border: 1px solid var(--border);
+    padding: 0.65rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.85rem;
+  }
+  .produce-name { color: var(--white); margin-bottom: 0.2rem; }
+  .produce-meta { color: var(--dim); font-size: 0.75rem; }
+  .listing-card {
+    border: 1px solid var(--green-dim);
+    padding: 0.65rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.85rem;
+  }
+  .listing-card.reserved { border-color: var(--warn); }
+  .listing-card.completed { border-color: var(--border); opacity: 0.5; }
 </style>
 </head>
 <body>
@@ -184,6 +200,7 @@
 <section id="view-main" class="hidden">
   <nav style="margin-top:1rem">
     <button class="btn btn-sm" onclick="loadNodes()">NODES</button>
+    <button class="btn btn-sm" onclick="loadMarket()">MARKET</button>
     <button class="btn btn-sm" onclick="loadTips()">DAILY TIPS</button>
     <button class="btn btn-sm btn-danger" onclick="logout()">LOGOUT</button>
   </nav>
@@ -235,8 +252,60 @@
     </div>
 
     <div class="panel">
+      <div class="panel-title">PRODUCE
+        <button class="btn btn-sm" onclick="showAddProduce()" style="float:right;margin-top:-0.25rem">+ ADD</button>
+      </div>
+      <div id="produce-list"><span style="color:var(--dim)">loading...</span></div>
+      <div class="hidden" id="add-produce-form" style="margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.75rem">
+        <label>NAME</label><input id="p-name" type="text" placeholder="e.g. Tomatoes">
+        <label>CATEGORY</label><input id="p-category" type="text" placeholder="e.g. vegetable">
+        <label>QUANTITY (kg)</label><input id="p-qty" type="number" step="0.1" value="0">
+        <label>KCAL/kg</label><input id="p-kcal" type="number" step="1" value="0">
+        <label>LOCAL CO₂ (kg CO₂/kg produce)</label><input id="p-co2" type="number" step="0.01" value="0">
+        <div style="margin-top:0.75rem;display:flex;gap:0.5rem">
+          <button class="btn btn-sm" onclick="createProduce()">SAVE</button>
+          <button class="btn btn-sm" onclick="document.getElementById('add-produce-form').classList.add('hidden')">CANCEL</button>
+        </div>
+        <div class="err hidden" id="produce-err"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">LISTINGS</div>
+      <div id="listing-list"><span style="color:var(--dim)">loading...</span></div>
+      <div id="add-listing-form" class="hidden" style="margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.75rem">
+        <div style="font-size:0.75rem;color:var(--dim);margin-bottom:0.5rem" id="listing-produce-label"></div>
+        <label>QUANTITY (kg)</label><input id="l-qty" type="number" step="0.1" value="1">
+        <label>PRICE/kg (€, 0 = free)</label><input id="l-price" type="number" step="0.1" value="0">
+        <label>PICKUP POINT</label><input id="l-pickup" type="text" placeholder="leave blank = node location">
+        <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem">
+          <input type="checkbox" id="l-free" style="width:auto;min-height:auto"> FREE / BARTER
+        </label>
+        <div style="margin-top:0.75rem;display:flex;gap:0.5rem">
+          <button class="btn btn-sm" onclick="createListing()">LIST IT</button>
+          <button class="btn btn-sm" onclick="document.getElementById('add-listing-form').classList.add('hidden')">CANCEL</button>
+        </div>
+        <div class="err hidden" id="listing-err"></div>
+      </div>
+    </div>
+
+    <div class="panel">
       <div class="panel-title">TOKEN LEDGER</div>
       <div id="node-ledger"><span style="color:var(--dim)">loading...</span></div>
+    </div>
+  </div>
+
+  <!-- MARKETPLACE -->
+  <div id="view-market" class="hidden">
+    <div class="panel">
+      <div class="panel-title">MARKETPLACE</div>
+      <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
+        <input id="mkt-lat" type="number" step="0.0001" placeholder="lat" value="60.5522" style="width:120px">
+        <input id="mkt-lng" type="number" step="0.0001" placeholder="lng" value="24.7050" style="width:120px">
+        <input id="mkt-radius" type="number" value="20" placeholder="km" style="width:80px">
+        <button class="btn btn-sm" onclick="loadMarket()">SEARCH</button>
+      </div>
+      <div id="market-list"><span style="color:var(--dim)">loading...</span></div>
     </div>
   </div>
 
@@ -269,7 +338,7 @@ function showView(v) {
 }
 
 function showSubView(v) {
-  ['nodes','node-detail','tips'].forEach(id =>
+  ['nodes','node-detail','market','tips'].forEach(id =>
     document.getElementById('view-' + id).classList.add('hidden'));
   document.getElementById('view-' + v).classList.remove('hidden');
 }
@@ -353,6 +422,118 @@ async function openNode(id) {
   `;
   loadSensors(id);
   loadLedger(id);
+  loadProduce(id);
+}
+
+let listingProduceId = '';
+
+async function loadProduce(id) {
+  const items = await api('/nodes/' + id + '/produce');
+  const el = document.getElementById('produce-list');
+  const lel = document.getElementById('listing-list');
+  if (!items.length) {
+    el.innerHTML = '<span style="color:var(--dim)">no produce — add what you grow</span>';
+    lel.innerHTML = '<span style="color:var(--dim)">add produce first</span>';
+    return;
+  }
+  el.innerHTML = items.map(p => `
+    <div class="produce-card">
+      <div class="produce-name">${p.name} <span class="tag">${p.category}</span></div>
+      <div class="produce-meta">${p.quantity_kg} kg · ${p.kcal_per_kg} kcal/kg · CO₂ ${p.co2_kg_per_kg} kg/kg</div>
+      <button class="btn btn-sm" onclick="showAddListing('${p.id}','${p.name}')" style="margin-top:0.4rem">LIST →</button>
+    </div>`).join('');
+  loadListings(id);
+}
+
+async function loadListings(id) {
+  const data = await api('/listings');
+  const el = document.getElementById('listing-list');
+  const mine = data.filter(l => l.node_id === id);
+  if (!mine.length) { el.innerHTML = '<span style="color:var(--dim)">no active listings</span>'; return; }
+  el.innerHTML = mine.map(l => `
+    <div class="listing-card ${l.status}">
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:var(--white)">${l.produce_name} — ${l.quantity_kg} kg</span>
+        <span style="color:var(--dim)">${l.is_free ? 'FREE' : l.price_per_kg + ' €/kg'}</span>
+      </div>
+      <div style="font-size:0.75rem;color:var(--dim);margin-top:0.2rem">${l.pickup_point} · <span style="color:${l.status==='active'?'var(--green)':'var(--warn)'}">${l.status.toUpperCase()}</span></div>
+      ${l.status === 'active' ? `<button class="btn btn-sm" onclick="setListingStatus('${l.id}','reserved')" style="margin-top:0.4rem">RESERVE</button>
+      <button class="btn btn-sm" onclick="setListingStatus('${l.id}','completed')" style="margin-top:0.4rem;margin-left:0.3rem">COMPLETE</button>` : ''}
+    </div>`).join('');
+}
+
+function showAddProduce() {
+  document.getElementById('add-produce-form').classList.remove('hidden');
+}
+
+function showAddListing(produceId, produceName) {
+  listingProduceId = produceId;
+  document.getElementById('listing-produce-label').textContent = 'LISTING FOR: ' + produceName;
+  document.getElementById('add-listing-form').classList.remove('hidden');
+  document.getElementById('add-listing-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function createProduce() {
+  const res = await api('/nodes/' + currentNodeId + '/produce', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: document.getElementById('p-name').value,
+      category: document.getElementById('p-category').value,
+      quantity_kg: parseFloat(document.getElementById('p-qty').value) || 0,
+      kcal_per_kg: parseFloat(document.getElementById('p-kcal').value) || 0,
+      co2_kg_per_kg: parseFloat(document.getElementById('p-co2').value) || 0,
+    }),
+  });
+  if (res.id) {
+    document.getElementById('add-produce-form').classList.add('hidden');
+    loadProduce(currentNodeId);
+  } else {
+    show('produce-err', res.detail || 'error');
+  }
+}
+
+async function createListing() {
+  const res = await api('/nodes/' + currentNodeId + '/produce/' + listingProduceId + '/listings', {
+    method: 'POST',
+    body: JSON.stringify({
+      quantity_kg: parseFloat(document.getElementById('l-qty').value) || 1,
+      price_per_kg: parseFloat(document.getElementById('l-price').value) || 0,
+      pickup_point: document.getElementById('l-pickup').value,
+      is_free: document.getElementById('l-free').checked,
+    }),
+  });
+  if (res.id) {
+    document.getElementById('add-listing-form').classList.add('hidden');
+    loadListings(currentNodeId);
+  } else {
+    show('listing-err', res.detail || 'error');
+  }
+}
+
+async function setListingStatus(listingId, status) {
+  await api('/listings/' + listingId + '/status?status=' + status, { method: 'PATCH' });
+  loadListings(currentNodeId);
+}
+
+async function loadMarket() {
+  showSubView('market');
+  const lat = document.getElementById('mkt-lat')?.value || '60.5522';
+  const lng = document.getElementById('mkt-lng')?.value || '24.7050';
+  const radius = document.getElementById('mkt-radius')?.value || '20';
+  const data = await api(`/listings?lat=${lat}&lng=${lng}&radius_km=${radius}`);
+  const el = document.getElementById('market-list');
+  if (!data.length) { el.innerHTML = '<span style="color:var(--dim)">no active listings within ' + radius + ' km</span>'; return; }
+  el.innerHTML = data.map(l => `
+    <div class="listing-card">
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:var(--white)">${l.produce_name} — ${l.quantity_kg} kg</span>
+        <span style="color:var(--dim)">${l.is_free ? 'FREE' : l.price_per_kg + ' €/kg'}</span>
+      </div>
+      <div style="font-size:0.75rem;color:var(--dim);margin-top:0.2rem">
+        📍 ${l.pickup_point}
+        ${l.distance_km != null ? ' · ' + l.distance_km + ' km' : ''}
+      </div>
+    </div>`).join('');
 }
 
 const SENSOR_ICONS = {
