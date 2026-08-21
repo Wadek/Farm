@@ -172,6 +172,30 @@ def test_admin_can_send_pickup_request(client):
     assert asked.status_code == 201, asked.text
 
 
+def test_pickup_can_be_undone_for_five_minutes_and_orders_can_withdraw(client):
+    farmer = _token(client, "undo-farmer@t.fi", "Farmer", "farmer")
+    buyer = _token(client, "undo-buyer@t.fi", "Buyer", "buyer")
+    node = client.post("/nodes", json={"name": "Beds", "type": "farm", "lat": 60.5, "lng": 24.7},
+                       headers=_auth(farmer)).json()
+    listing = client.post("/stalls", json={
+        "node_id": node["id"], "available_from": "2026-08-22T10:00:00",
+        "available_until": "2026-08-22T14:00:00", "pickup_point": "gate",
+        "lots": [{"produce_name": "Beans", "quantity_kg": 4}],
+    }, headers=_auth(farmer)).json()["lots"][0]
+    ask = client.post("/asks", json={"listing_id": listing["id"], "quantity": 1},
+                      headers=_auth(buyer)).json()
+    client.post(f"/asks/{ask['id']}/available", json={"when_text": "today"}, headers=_auth(farmer))
+    picked = client.post(f"/asks/{ask['id']}/picked-up", headers=_auth(buyer))
+    assert picked.json()["status"] == "picked_up"
+    undone = client.post(f"/asks/{ask['id']}/undo-pickup", headers=_auth(buyer))
+    assert undone.status_code == 200
+    assert undone.json()["status"] == "confirmed"
+
+    withdrawn = client.post(f"/asks/{ask['id']}/withdraw", headers=_auth(buyer))
+    assert withdrawn.status_code == 200
+    assert withdrawn.json()["status"] == "withdrawn"
+
+
 def test_sold_out_then_customer_requests_and_farmer_replies(client):
     farmer = _token(client, "f@t.fi", "Maija", "farmer", phone="+358401111111")
     buyer = _token(client, "c@t.fi", "Anna", "buyer")

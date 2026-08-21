@@ -10,6 +10,7 @@ class AskStatus(str, enum.Enum):
     confirmed = "confirmed"
     picked_up = "picked_up"
     declined = "declined"
+    withdrawn = "withdrawn"
 
 
 class PickupAsk(Base):

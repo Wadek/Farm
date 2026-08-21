@@ -64,6 +64,7 @@ def _ask_view(ask: PickupAsk) -> dict:
         "status": ask.status.value if ask.status else "asked",
         "offer_text": ask.offer_text,
         "picked_up_by": ask.picked_up_by,
+        "picked_up_at": _iso(ask.picked_up_at),
         "created_at": _iso(ask.created_at),
         "reply_url": f"{settings.public_base_url.rstrip('/')}/r/{ask.token}",
     }
@@ -314,6 +315,47 @@ def confirm_picked_up(
     ask.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ask)
+    return _ask_view(_load_token(ask.token, db))
+
+
+def _undo_pickup(ask: PickupAsk, current_user: User, db: Session) -> PickupAsk:
+    if ask.status != AskStatus.picked_up:
+        raise HTTPException(status_code=409, detail="Pickup is not marked complete")
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if ask.picked_up_at is None or (now - ask.picked_up_at).total_seconds() > 300:
+        raise HTTPException(status_code=409, detail="Pickup can only be undone for five minutes")
+    if current_user.role != UserRole.organizer and current_user.id not in (ask.buyer_id, ask.farmer_id):
+        raise HTTPException(status_code=403, detail="Not your pickup")
+    ask.status = AskStatus.confirmed
+    ask.picked_up_by = None
+    ask.picked_up_at = None
+    ask.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(ask)
+    return ask
+
+
+@router.post("/asks/{ask_id}/undo-pickup")
+def undo_pickup(ask_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    ask = db.query(PickupAsk).filter(PickupAsk.id == ask_id).first()
+    if not ask:
+        raise HTTPException(status_code=404, detail="Ask not found")
+    return _ask_view(_load_token(_undo_pickup(ask, current_user, db).token, db))
+
+
+@router.post("/asks/{ask_id}/withdraw")
+def withdraw_ask(ask_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    ask = db.query(PickupAsk).filter(PickupAsk.id == ask_id).first()
+    if not ask:
+        raise HTTPException(status_code=404, detail="Ask not found")
+    if current_user.role != UserRole.organizer and current_user.id not in (ask.buyer_id, ask.farmer_id):
+        raise HTTPException(status_code=403, detail="Not your order")
+    if ask.status in (AskStatus.picked_up, AskStatus.withdrawn):
+        raise HTTPException(status_code=409, detail="Order is already closed")
+    ask.status = AskStatus.withdrawn
+    ask.offer_text = "Withdrawn by " + current_user.name
+    ask.updated_at = datetime.now(timezone.utc)
+    db.commit()
     return _ask_view(_load_token(ask.token, db))
 
 

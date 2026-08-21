@@ -513,6 +513,7 @@ def public_ledger(
             "status": (
                 "pending" if ask.status == AskStatus.asked
                 else "declined" if ask.status == AskStatus.declined
+                else "withdrawn" if ask.status == AskStatus.withdrawn
                 else "picked_up" if ask.status == AskStatus.picked_up
                 else "completed"
             ),
@@ -523,6 +524,8 @@ def public_ledger(
             "unit": ask.unit,
             "note": ask.note,
             "picked_up_by": ask.picked_up_by,
+            "picked_up_at": _iso(ask.picked_up_at),
+            "offer_text": ask.offer_text,
             "created_at": _iso(ask.created_at),
         }
         for ask in asks
@@ -539,5 +542,22 @@ def public_ledger(
             "claim_id": node.claim_id,
             "created_at": _iso(node.created_at),
         } for node in db.query(Node).order_by(Node.created_at.desc()).limit(limit).all())
+    inventory_query = db.query(Listing).options(
+        joinedload(Listing.produce), joinedload(Listing.node)
+    ).order_by(Listing.created_at.desc())
+    if current_user.role != UserRole.organizer:
+        inventory_query = inventory_query.filter(Listing.node.has(Node.owner_id == current_user.id))
+    rows.extend({
+        "id": listing.id,
+        "type": "inventory",
+        "direction": "incoming",
+        "status": listing.status.value if listing.status else "active",
+        "from_farm": listing.node.name if listing.node else "",
+        "produce": listing.produce.name if listing.produce else "",
+        "buyer": "",
+        "quantity_kg": listing.quantity_kg,
+        "unit": listing.unit,
+        "created_at": _iso(listing.created_at),
+    } for listing in inventory_query.limit(limit).all())
     rows.sort(key=lambda row: row["created_at"] or "", reverse=True)
     return rows[:limit]
