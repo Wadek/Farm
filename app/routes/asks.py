@@ -65,6 +65,8 @@ def _ask_view(ask: PickupAsk) -> dict:
         "offer_text": ask.offer_text,
         "picked_up_by": ask.picked_up_by,
         "picked_up_at": _iso(ask.picked_up_at),
+        "buyer_verified_at": _iso(ask.buyer_verified_at),
+        "farmer_verified_at": _iso(ask.farmer_verified_at),
         "created_at": _iso(ask.created_at),
         "reply_url": f"{settings.public_base_url.rstrip('/')}/r/{ask.token}",
     }
@@ -309,9 +311,17 @@ def confirm_picked_up(
         raise HTTPException(status_code=403, detail="Only the customer can confirm pickup")
     if ask.status not in (AskStatus.confirmed, AskStatus.offered):
         raise HTTPException(status_code=409, detail="Pickup is not confirmed")
-    ask.status = AskStatus.picked_up
+    ask.buyer_verified_at = datetime.now(timezone.utc)
     ask.picked_up_by = current_user.name
-    ask.picked_up_at = datetime.now(timezone.utc)
+    ask.picked_up_at = ask.buyer_verified_at
+    if ask.farmer_verified_at:
+        ask.status = AskStatus.picked_up
+    else:
+        ask.status = AskStatus.confirmed
+        db.add(Message(
+            id=str(uuid.uuid4()), sender_id=ask.buyer_id, recipient_id=ask.farmer_id,
+            listing_id=ask.listing_id, body="Customer verified pickup. Please verify the handoff to complete the transaction."
+        ))
     ask.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ask)
@@ -329,6 +339,8 @@ def _undo_pickup(ask: PickupAsk, current_user: User, db: Session) -> PickupAsk:
     ask.status = AskStatus.confirmed
     ask.picked_up_by = None
     ask.picked_up_at = None
+    ask.buyer_verified_at = None
+    ask.farmer_verified_at = None
     ask.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ask)
@@ -372,9 +384,17 @@ def farmer_confirm_picked_up(
         raise HTTPException(status_code=403, detail="Not your ask")
     if ask.status not in (AskStatus.confirmed, AskStatus.offered):
         raise HTTPException(status_code=409, detail="Pickup is not confirmed")
-    ask.status = AskStatus.picked_up
+    ask.farmer_verified_at = datetime.now(timezone.utc)
     ask.picked_up_by = current_user.name
-    ask.picked_up_at = datetime.now(timezone.utc)
+    ask.picked_up_at = ask.farmer_verified_at
+    if ask.buyer_verified_at:
+        ask.status = AskStatus.picked_up
+    else:
+        ask.status = AskStatus.confirmed
+        db.add(Message(
+            id=str(uuid.uuid4()), sender_id=ask.farmer_id, recipient_id=ask.buyer_id,
+            listing_id=ask.listing_id, body="Farmer verified pickup. Please verify the handoff to complete the transaction."
+        ))
     ask.updated_at = datetime.now(timezone.utc)
     db.commit()
     return _ask_view(_load_token(ask.token, db))

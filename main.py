@@ -33,6 +33,10 @@ def _ensure_ask_pickup_columns():
             conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN picked_up_by VARCHAR"))
         if "picked_up_at" not in cols:
             conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN picked_up_at DATETIME"))
+        if "buyer_verified_at" not in cols:
+            conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN buyer_verified_at DATETIME"))
+        if "farmer_verified_at" not in cols:
+            conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN farmer_verified_at DATETIME"))
 
 
 def _ensure_node_claim_columns():

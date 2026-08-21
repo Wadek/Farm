@@ -53,11 +53,14 @@ def test_ask_to_pickup_and_farmer_replies(client):
     assert inbox[0]["offer_text"] == "la 10"
     ledger = client.get("/ledger", headers=_auth(admin)).json()
     confirmed = next(row for row in ledger if row["id"] == body["id"])
-    assert confirmed["status"] == "completed"
+    assert confirmed["status"] == "pickup_ready"
 
     picked_up = client.post(f"/asks/{body['id']}/picked-up", headers=_auth(buyer))
     assert picked_up.status_code == 200, picked_up.text
-    assert picked_up.json()["status"] == "picked_up"
+    assert picked_up.json()["status"] == "confirmed"
+    farmer_verified = client.post(f"/asks/{body['id']}/farmer-picked-up", headers=_auth(farmer))
+    assert farmer_verified.status_code == 200
+    assert farmer_verified.json()["status"] == "picked_up"
     ledger = client.get("/ledger", headers=_auth(admin)).json()
     completed = next(row for row in ledger if row["id"] == body["id"])
     assert completed["status"] == "picked_up"
@@ -186,7 +189,9 @@ def test_pickup_can_be_undone_for_five_minutes_and_orders_can_withdraw(client):
                       headers=_auth(buyer)).json()
     client.post(f"/asks/{ask['id']}/available", json={"when_text": "today"}, headers=_auth(farmer))
     picked = client.post(f"/asks/{ask['id']}/picked-up", headers=_auth(buyer))
-    assert picked.json()["status"] == "picked_up"
+    assert picked.json()["status"] == "confirmed"
+    completed = client.post(f"/asks/{ask['id']}/farmer-picked-up", headers=_auth(farmer))
+    assert completed.json()["status"] == "picked_up"
     undone = client.post(f"/asks/{ask['id']}/undo-pickup", headers=_auth(buyer))
     assert undone.status_code == 200
     assert undone.json()["status"] == "confirmed"

@@ -514,7 +514,9 @@ def public_ledger(
                 "pending" if ask.status == AskStatus.asked
                 else "declined" if ask.status == AskStatus.declined
                 else "withdrawn" if ask.status == AskStatus.withdrawn
+                else "pending_verification" if ask.status == AskStatus.confirmed and (ask.buyer_verified_at or ask.farmer_verified_at)
                 else "picked_up" if ask.status == AskStatus.picked_up
+                else "pickup_ready" if ask.status == AskStatus.confirmed
                 else "completed"
             ),
             "from_farm": ask.listing.node.name if ask.listing and ask.listing.node else "",
@@ -527,6 +529,8 @@ def public_ledger(
             "note": ask.note,
             "picked_up_by": ask.picked_up_by,
             "picked_up_at": _iso(ask.picked_up_at),
+            "buyer_verified_at": _iso(ask.buyer_verified_at),
+            "farmer_verified_at": _iso(ask.farmer_verified_at),
             "offer_text": ask.offer_text,
             "created_at": _iso(ask.created_at),
         }

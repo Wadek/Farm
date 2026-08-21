@@ -82,6 +82,7 @@
       <h3>Basket</h3>
       <p class="meta">A list of what you want to pick up. Not a purchase.</p>
       <div id="basket"></div>
+      <div id="buyer-ledger" class="hidden"></div>
       <button class="btn primary hidden" data-account-link>Log in or create account</button>
     </div>
   </section>
@@ -229,7 +230,7 @@ function navItems() {
     ["basket", "Basket"],
   ];
   if (r === "guest") items.push(["account", "Log in"]);
-  if (r !== "guest") items.push(["ledger", "Ledger"]);
+  if (r !== "guest" && r !== "buyer") items.push(["ledger", "Ledger"]);
   if (r === "organizer") {
     items.push(["visit", "Add farm"]);
   }
@@ -591,13 +592,16 @@ async function loadMyListings() {
 }
 async function loadLedger() {
   const rows = await api("/ledger");
-  const el = document.getElementById("ledger");
+  const el = document.getElementById(role() === "buyer" ? "buyer-ledger" : "ledger");
+  if (role() === "buyer") el.classList.remove("hidden");
   if (!rows.length) { el.innerHTML = `<p class="meta">No trades or pending requests yet.</p>`; return; }
   el.innerHTML = rows.map(r => `
     <div class="basket-line">
       <div><b>${r.type === "inventory" ? "INVENTORY" : r.type === "request" ? r.status === "pending" ? "PENDING REQUEST" : r.status === "picked_up" ? "PICKED UP" : r.status === "withdrawn" ? "WITHDRAWN" : r.status === "declined" ? "DECLINED REQUEST" : "CONFIRMED REQUEST" : r.from_farm}</b>${r.type !== "trade" ? ` · ${r.from_farm}` : ""}${r.buyer ? ` → ${r.buyer}` : ""}
         <div class="meta">${r.produce || ""}${r.quantity_kg != null ? ` · ${r.quantity_kg} ${r.unit || "kg"}` : ""} · event ${fmtTimestamp(r.created_at)}${r.note ? " · " + r.note : ""}${r.picked_up_by ? " · marked by " + r.picked_up_by : ""}</div></div>
-      <div>${r.type === "inventory" ? r.status : r.type === "request" ? r.status === "pending" ? "Awaiting reply" : r.status === "picked_up" ? "Pickup complete" : r.status === "withdrawn" ? "Withdrawn" : r.status === "declined" ? "Declined" : "Pickup confirmed" : r.myc_tokens_minted + " MYC"}
+      <div>${r.type === "inventory" ? r.status : r.type === "request" ? r.status === "pending" ? "Awaiting reply" : r.status === "pending_verification" ? "Awaiting second verification" : r.status === "picked_up" ? "Transaction complete" : r.status === "withdrawn" ? "Withdrawn" : r.status === "declined" ? "Declined" : "Pickup ready" : r.myc_tokens_minted + " MYC"}
+        ${r.type === "request" && (r.status === "pickup_ready" || r.status === "pending_verification") && r.buyer_id === me.id && !r.buyer_verified_at ? `<button class="btn primary" data-verify-buyer="${r.id}">Confirm pickup</button>` : ""}
+        ${r.type === "request" && r.status === "pending_verification" && r.farmer_id === me.id && !r.farmer_verified_at ? `<button class="btn primary" data-verify-farmer="${r.id}">Verify handoff</button>` : ""}
         ${r.type === "request" && r.status === "pending" && r.farmer_id === me.id ? `<form class="row" data-ledger-reply="${r.id}"><input name="when" placeholder="Pickup time" required><button class="btn primary">Reply and fulfill</button></form>` : ""}
         ${role() === "organizer" && r.type === "request" && r.farmer_id !== me.id && r.status !== "picked_up" ? `<button class="btn ghost" data-remind="${r.id}">Prompt trade</button>` : ""}
         ${r.type === "request" && (r.status === "confirmed" || r.status === "completed") ? `<button class="btn ghost" data-withdraw="${r.id}">Withdraw order</button>` : ""}
@@ -605,6 +609,14 @@ async function loadLedger() {
     </div>`).join("");
   el.querySelectorAll("[data-remind]").forEach(b => b.onclick = async () => {
     try { await api(`/asks/${b.dataset.remind}/remind`, { method: "POST" }); toast("Reminder sent"); }
+    catch (e) { toast(e.message); }
+  });
+  el.querySelectorAll("[data-verify-buyer]").forEach(b => b.onclick = async () => {
+    try { await api(`/asks/${b.dataset.verifyBuyer}/picked-up`, { method: "POST" }); toast("Pickup verified"); loadLedger(); }
+    catch (e) { toast(e.message); }
+  });
+  el.querySelectorAll("[data-verify-farmer]").forEach(b => b.onclick = async () => {
+    try { await api(`/asks/${b.dataset.verifyFarmer}/farmer-picked-up`, { method: "POST" }); toast("Handoff verified"); loadLedger(); }
     catch (e) { toast(e.message); }
   });
   el.querySelectorAll("[data-ledger-reply]").forEach(form => form.onsubmit = async (e) => {
@@ -692,7 +704,7 @@ function show(name) {
   renderNav(name);
   if (name === "browse") loadCatalog();
   if (name === "farms") loadFarms();
-  if (name === "basket") renderBasket();
+  if (name === "basket") { renderBasket(); if (role() === "buyer") loadLedger(); }
   if (name === "visit") { ensureVisitMap(); setTimeout(() => visitMap && visitMap.invalidateSize(), 80); }
   if (name === "ledger") loadLedger();
   if (name === "ledger") mountLedgerTools();
