@@ -81,6 +81,28 @@
       <h3>Basket</h3>
       <p class="meta">A list of what you want to pick up. Not a purchase.</p>
       <div id="basket"></div>
+      <button class="btn primary" data-account-link>Log in or create account</button>
+    </div>
+  </section>
+  <section id="view-account" class="hidden">
+    <div class="card grid">
+      <h3>Log in or create account</h3>
+      <div class="row">
+        <form id="login-form" class="grid">
+          <h4>Log in</h4>
+          <label>Email <input name="email" type="email" required></label>
+          <label>Password <input name="password" type="password" required></label>
+          <button class="btn primary">Log in</button>
+        </form>
+        <form id="register-form" class="grid">
+          <h4>Create account</h4>
+          <label>Name <input name="name" required></label>
+          <label>Email <input name="email" type="email" required></label>
+          <label>Password <input name="password" type="password" minlength="6" required></label>
+          <label>Account type <select name="role"><option value="buyer">Customer</option><option value="farmer">Farmer</option></select></label>
+          <button class="btn primary">Create account</button>
+        </form>
+      </div>
     </div>
   </section>
   <section id="view-listings" class="hidden">
@@ -191,11 +213,12 @@ function navItems() {
     ["farms", "Farms"],
     ["basket", "Basket"],
   ];
+  if (r === "guest") items.push(["account", "Log in"]);
   if (r !== "guest") items.push(["asks", "Requests"]);
   if (r === "farmer" || r === "organizer") items.push(["listings", "My listings"]);
+  if (r !== "guest") items.push(["ledger", "My ledger"]);
   if (r === "organizer") {
     items.push(["visit", "Add farm"]);
-    items.push(["ledger", "Ledger"]);
   }
   return items;
 }
@@ -231,11 +254,8 @@ function renderAuth() {
     box.querySelector("#logout").onclick = logout;
     return;
   }
-  box.innerHTML = `
-    <button class="btn primary" data-e="wade@kariniemi.farm" data-p="farmgate">Admin</button>
-    <button class="btn" data-e="maija@naapuri.fi" data-p="farmgate">Farmer</button>
-    <button class="btn copper" data-e="anna@hyvinkaa.fi" data-p="market">Customer</button>`;
-  box.querySelectorAll("button").forEach(b => b.onclick = () => login(b.dataset.e, b.dataset.p));
+  box.innerHTML = `<button class="btn primary" data-account-link>Log in</button>`;
+  box.querySelector("[data-account-link]").onclick = () => show("account");
 }
 function logout() {
   clearOrderAlerts();
@@ -263,6 +283,11 @@ async function login(email, password) {
   show(defaultView());
   toast(me.role === "organizer" ? "Admin view" : me.role === "farmer" ? "Farmer view" : "Customer view");
 }
+async function registerAccount(payload) {
+  const res = await fetch("/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  if (!res.ok) { let detail = "Account creation failed"; try { detail = (await res.json()).detail || detail; } catch {} throw new Error(detail); }
+  return login(payload.email, payload.password);
+}
 function saveBasket() {
   localStorage.setItem("sk_basket", JSON.stringify(basket));
   const n = document.getElementById("basket-n");
@@ -279,7 +304,7 @@ function addToBasket(item) {
 }
 function renderBasket() {
   const el = document.getElementById("basket");
-  if (!basket.length) { el.innerHTML = `<p class="meta">Empty. Add items from What's available.</p>`; return; }
+  if (!basket.length) { el.innerHTML = `<p class="meta">Empty. Add items from What's available.</p>`; document.querySelectorAll("[data-account-link]").forEach(b => b.onclick = () => show("account")); return; }
   const byFarm = {};
   basket.forEach(b => { (byFarm[b.farm_name] ||= []).push(b); });
   el.innerHTML = Object.entries(byFarm).map(([farm, items]) => `
@@ -291,6 +316,7 @@ function renderBasket() {
     basket = basket.filter(x => x.listing_id !== btn.dataset.id);
     saveBasket(); renderBasket();
   });
+  document.querySelectorAll("[data-account-link]").forEach(b => b.onclick = () => show("account"));
 }
 async function loadCatalog() {
   const data = await api(`/catalog?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=40`);
@@ -320,10 +346,11 @@ async function loadCatalog() {
     </article>`;
   }).join("");
   root.querySelectorAll("[data-ask]").forEach(b => b.onclick = () => openAsk(catalogById[b.dataset.ask]));
-  root.querySelectorAll("[data-needlogin]").forEach(b => b.onclick = () => toast("Sign in first"));
+  root.querySelectorAll("[data-needlogin]").forEach(b => b.onclick = () => show("account"));
 }
 function openAsk(item) {
   if (!item) return;
+  if (role() === "guest") { show("account"); toast("Create an account or log in to ask for pickup"); return; }
   const box = document.getElementById("ask-box");
   box.classList.remove("hidden");
   box.innerHTML = `
@@ -371,19 +398,29 @@ async function loadAsks() {
         ${(!farmerish || a.farmer_id === me.id) && (a.status === "confirmed" || a.status === "offered") ? `<button class="btn primary" data-picked-up="${a.id}">${farmerish ? "Mark picked up" : "Picked up"}</button>` : ""}
       ${farmerish && a.farmer_id === me.id && a.status === "asked" ? `
         <form class="row" data-reply="${a.id}">
-          <label>Amount <input name="quantity" type="number" min="0.1" step="0.1" value="${a.quantity}" required></label>
           <label>Pickup time <input name="when" placeholder="${a.sold_out ? "next sat 10" : "la 10"}" required></label>
-          <button class="btn primary" type="submit">Ready for pickup</button>
+          <input name="partial_qty" type="number" min="0.1" max="${a.quantity}" step="0.1" placeholder="Partial amount" hidden>
+          <button class="btn primary" type="submit" data-mode="full">Fulfill in full</button>
+          <button class="btn ghost" type="button" data-partial>Fulfill partial</button>
         </form>
         <button class="btn ghost" data-no="${a.id}">Can't do it</button>` : ""}
     </article>`).join("");
   el.querySelectorAll("[data-reply]").forEach(f => f.onsubmit = async (e) => {
     e.preventDefault();
     try {
-      await api(`/asks/${f.dataset.reply}/available`, { method: "POST", body: JSON.stringify({ quantity: Number(f.quantity.value), when_text: f.when.value }) });
+      const quantity = f.dataset.mode === "partial" ? Number(f.partial_qty.value) : Number(rows.find(a => a.id === f.dataset.reply).quantity);
+      if (!quantity) { toast("Enter a partial amount"); return; }
+      await api(`/asks/${f.dataset.reply}/available`, { method: "POST", body: JSON.stringify({ quantity, when_text: f.when.value }) });
       toast("Ready for pickup");
       loadAsks();
     } catch (err) { toast(err.message); }
+  });
+  el.querySelectorAll("[data-partial]").forEach(b => b.onclick = () => {
+    const form = b.closest("form");
+    form.partial_qty.hidden = false;
+    form.dataset.mode = "partial";
+    b.textContent = "Fulfill partial";
+    form.querySelector("[data-mode]").textContent = "Confirm partial fulfillment";
   });
   el.querySelectorAll("[data-no]").forEach(b => b.onclick = async () => {
     try {
@@ -502,7 +539,7 @@ async function loadMyListings() {
     <article class="card">
       <h3>${g.produce_name}${soldOut ? " · sold out" : ""}</h3>
       <div class="meta">${soldOut ? "Sold out" : qtyLabel(g) + " left"} · ${priceLabel(g)} · ${s.farm_name}</div>
-      ${soldOut ? `<p class="meta">Customers can still request this. Reply in Requests.</p>` : `
+      ${soldOut ? `<p class="meta">Customers can still request this. Reply in Requests.</p><button class="btn primary" type="button" data-relist="${g.id}">Relist same amount</button>` : `
       <div class="meta">Sold</div>
       <div>${chips}</div>
       <form class="row" data-custom="${g.id}" style="margin-top:.5rem">
@@ -533,6 +570,10 @@ async function loadMyListings() {
       loadMyListings();
     } catch (e) { toast(e.message); }
   });
+  list.querySelectorAll("[data-relist]").forEach(b => b.onclick = async () => {
+    try { await api(`/listings/${b.dataset.relist}/relist`, { method: "POST", body: JSON.stringify({}) }); toast("Relisted"); loadMyListings(); }
+    catch (e) { toast(e.message); }
+  });
 }
 async function loadLedger() {
   const rows = await api("/ledger");
@@ -542,11 +583,25 @@ async function loadLedger() {
     <div class="basket-line">
       <div><b>${r.type === "request" ? r.status === "pending" ? "PENDING REQUEST" : r.status === "picked_up" ? "PICKED UP" : r.status === "declined" ? "DECLINED REQUEST" : "CONFIRMED REQUEST" : r.from_farm}</b>${r.type === "request" ? ` · ${r.from_farm}` : ""} → ${r.buyer}
         <div class="meta">${r.produce} · ${r.quantity_kg} ${r.unit || "kg"}${r.note ? " · " + r.note : ""}${r.picked_up_by ? " · marked by " + r.picked_up_by : ""}</div></div>
-      <div>${r.type === "request" ? r.status === "pending" ? "Awaiting reply" : r.status === "picked_up" ? "Pickup complete" : r.status === "declined" ? "Declined" : "Pickup confirmed" : r.myc_tokens_minted + " MYC"}</div>
+      <div>${r.type === "request" ? r.status === "pending" ? "Awaiting reply" : r.status === "picked_up" ? "Pickup complete" : r.status === "declined" ? "Declined" : "Pickup confirmed" : r.myc_tokens_minted + " MYC"}
+        ${role() === "organizer" && r.type === "request" && r.status !== "picked_up" ? `<button class="btn ghost" data-remind="${r.id}">Prompt trade</button>` : ""}</div>
     </div>`).join("");
+  el.querySelectorAll("[data-remind]").forEach(b => b.onclick = async () => {
+    try { await api(`/asks/${b.dataset.remind}/remind`, { method: "POST" }); toast("Reminder sent"); }
+    catch (e) { toast(e.message); }
+  });
 }
 document.getElementById("add-lot").onclick = () => lotRow(document.getElementById("lots"));
 document.getElementById("v-add-lot").onclick = () => lotRow(document.getElementById("v-lots"));
+document.getElementById("login-form").onsubmit = async (e) => {
+  e.preventDefault();
+  try { await login(e.target.email.value, e.target.password.value); } catch (err) { toast(err.message); }
+};
+document.getElementById("register-form").onsubmit = async (e) => {
+  e.preventDefault();
+  try { await registerAccount({ name: e.target.name.value, email: e.target.email.value, password: e.target.password.value, role: e.target.role.value }); }
+  catch (err) { toast(err.message); }
+};
 document.getElementById("stall-form").onsubmit = async (e) => {
   e.preventDefault();
   const nodeId = document.getElementById("stall-node").value;
@@ -602,7 +657,7 @@ function show(name) {
   if (name === "visit") { ensureVisitMap(); setTimeout(() => visitMap && visitMap.invalidateSize(), 80); }
   if (name === "asks") loadAsks();
   if (name === "ledger") loadLedger();
-  if (role() === "buyer") loadOrderAlerts();
+  if (role() !== "guest") loadOrderAlerts();
 }
 function clearOrderAlerts() {
   const el = document.getElementById("order-alerts");
@@ -612,16 +667,17 @@ async function loadOrderAlerts() {
   const el = document.getElementById("order-alerts");
   const customerId = me && me.id;
   try {
-    const rows = await api("/asks");
-    if (!me || me.id !== customerId || role() !== "buyer") return;
+    const [rows, alerts] = await Promise.all([api("/asks"), api("/alerts")]);
+    if (!me || me.id !== customerId || role() === "guest") return;
     const confirmed = rows.filter(a => a.status === "confirmed" || a.status === "offered");
-    if (!confirmed.length) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+    if (!confirmed.length && !alerts.some(a => !a.read)) { el.classList.add("hidden"); el.innerHTML = ""; return; }
     el.classList.remove("hidden");
-    el.innerHTML = `<div class="order-alert"><h2>Pickup confirmed</h2>
+    el.innerHTML = `${confirmed.length ? `<div class="order-alert"><h2>Pickup confirmed</h2>
       <p class="meta">The farmer has confirmed these orders:</p>
       ${confirmed.map(a => `<div class="order"><b>${a.produce}</b> · ${a.quantity} ${a.unit}<br>
         <span>${a.farm_name} · ${a.offer_text}</span>${a.pickup_point ? `<br><span class="meta">Pickup: ${a.pickup_point}</span>` : ""}</div>`).join("")}
-    </div>`;
+    </div>` : ""}${alerts.filter(a => !a.read).map(a => `<div class="order-alert"><b>Alert</b><div>${a.body}</div><button class="btn ghost" data-read-alert="${a.id}">Clear</button></div>`).join("")}`;
+    el.querySelectorAll("[data-read-alert]").forEach(b => b.onclick = async () => { await api(`/alerts/${b.dataset.readAlert}/read`, { method: "POST" }); loadOrderAlerts(); });
   } catch (err) { el.classList.add("hidden"); }
 }
 function nextSaturday(hour) {

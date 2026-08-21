@@ -158,6 +158,20 @@ def test_farmer_can_make_request_ready_with_extra_inventory(client):
     assert picked.json()["picked_up_by"] == "Farmer"
 
 
+def test_admin_can_send_pickup_request(client):
+    admin = _token(client, "request-admin@t.fi", "Admin", "organizer")
+    farmer = _token(client, "request-farmer@t.fi", "Farmer", "farmer")
+    node = client.post("/nodes", json={"name": "Beds", "type": "farm", "lat": 60.5, "lng": 24.7},
+                       headers=_auth(farmer)).json()
+    listing = client.post("/stalls", json={
+        "node_id": node["id"], "available_from": "2026-08-22T10:00:00",
+        "available_until": "2026-08-22T14:00:00", "pickup_point": "gate",
+        "lots": [{"produce_name": "Beans", "quantity_kg": 4}],
+    }, headers=_auth(farmer)).json()["lots"][0]
+    asked = client.post("/asks", json={"listing_id": listing["id"], "quantity": 1}, headers=_auth(admin))
+    assert asked.status_code == 201, asked.text
+
+
 def test_sold_out_then_customer_requests_and_farmer_replies(client):
     farmer = _token(client, "f@t.fi", "Maija", "farmer", phone="+358401111111")
     buyer = _token(client, "c@t.fi", "Anna", "buyer")

@@ -12,6 +12,7 @@ from app.db import get_db
 from app.config import settings
 from app.models import Listing, ListingStatus, Node, User, UserRole
 from app.models.ask import PickupAsk, AskStatus, SmsLog
+from app.models.message import Message
 from app.dependencies import get_current_user
 from app.services import sms as sms_svc
 
@@ -97,6 +98,10 @@ def _apply_reply(ask: PickupAsk, when_text: str, decline: bool, db: Session) -> 
     if decline or text.lower() in DECLINE:
         ask.status = AskStatus.declined
         ask.offer_text = text or "ei"
+        db.add(Message(
+            id=str(uuid.uuid4()), sender_id=ask.farmer_id, recipient_id=ask.buyer_id,
+            listing_id=ask.listing_id, body=f"The farmer cannot fulfill {ask.quantity:g} {ask.unit} {ask.listing.produce.name if ask.listing and ask.listing.produce else ''}."
+        ))
     else:
         if not text:
             raise HTTPException(status_code=400, detail="Send a time, e.g. la 10")
@@ -132,8 +137,8 @@ def create_ask(
     farmer = listing.node.owner
     if farmer.role not in (UserRole.farmer, UserRole.organizer):
         raise HTTPException(status_code=409, detail="Listing owner cannot receive pickup requests")
-    if current_user.role not in (UserRole.buyer, UserRole.farmer):
-        raise HTTPException(status_code=403, detail="Only customers and farmers can send pickup requests")
+    if current_user.role not in (UserRole.buyer, UserRole.farmer, UserRole.organizer):
+        raise HTTPException(status_code=403, detail="Only customers, farmers, and admins can send pickup requests")
     if farmer.id == current_user.id:
         raise HTTPException(status_code=400, detail="That's your own listing")
     ask = PickupAsk(
@@ -253,6 +258,40 @@ def mark_available(
     if ask.buyer and ask.buyer.phone:
         sms_svc.send_sms(db, ask.buyer.phone, _buyer_sms(ask), ask.id)
     return _ask_view(_load_token(ask.token, db))
+
+
+@router.get("/alerts")
+def list_alerts(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    rows = db.query(Message).filter(Message.recipient_id == current_user.id).order_by(Message.created_at.desc()).limit(30).all()
+    return [{"id": row.id, "body": row.body, "read": row.read, "created_at": _iso(row.created_at)} for row in rows]
+
+
+@router.post("/alerts/{alert_id}/read")
+def read_alert(alert_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    row = db.query(Message).filter(Message.id == alert_id, Message.recipient_id == current_user.id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    row.read = True
+    db.commit()
+    return {"id": row.id, "read": True}
+
+
+@router.post("/asks/{ask_id}/remind")
+def remind_trade(ask_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != UserRole.organizer:
+        raise HTTPException(status_code=403, detail="Admin only")
+    ask = db.query(PickupAsk).filter(PickupAsk.id == ask_id).first()
+    if not ask:
+        raise HTTPException(status_code=404, detail="Ask not found")
+    produce = ask.listing.produce.name if ask.listing and ask.listing.produce else "the order"
+    db.add_all([
+        Message(id=str(uuid.uuid4()), sender_id=current_user.id, recipient_id=ask.buyer_id,
+                listing_id=ask.listing_id, body=f"Reminder: do you still need {ask.quantity:g} {ask.unit} {produce}?"),
+        Message(id=str(uuid.uuid4()), sender_id=current_user.id, recipient_id=ask.farmer_id,
+                listing_id=ask.listing_id, body=f"Reminder: do you have {ask.quantity:g} {ask.unit} {produce} ready?"),
+    ])
+    db.commit()
+    return {"status": "sent", "ask_id": ask.id}
 
 
 @router.post("/asks/{ask_id}/picked-up")
