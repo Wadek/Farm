@@ -596,7 +596,7 @@ async function loadLedger() {
   el.innerHTML = rows.map(r => `
     <div class="basket-line">
       <div><b>${r.type === "inventory" ? "INVENTORY" : r.type === "request" ? r.status === "pending" ? "PENDING REQUEST" : r.status === "picked_up" ? "PICKED UP" : r.status === "withdrawn" ? "WITHDRAWN" : r.status === "declined" ? "DECLINED REQUEST" : "CONFIRMED REQUEST" : r.from_farm}</b>${r.type !== "trade" ? ` · ${r.from_farm}` : ""}${r.buyer ? ` → ${r.buyer}` : ""}
-        <div class="meta">${r.produce || ""}${r.quantity_kg != null ? ` · ${r.quantity_kg} ${r.unit || "kg"}` : ""} · event ${fmtTimestamp(r.created_at)}${r.note ? " · " + r.note : ""}${r.picked_up_by ? " · marked by " + r.picked_up_by : ""}</div>
+        <div class="meta">${r.produce || ""}${r.quantity_kg != null ? ` · ${r.quantity_kg} ${r.unit || "kg"}` : ""} · event ${fmtTimestamp(r.created_at)}${r.note ? " · " + r.note : ""}${r.picked_up_by ? " · marked by " + r.picked_up_by : ""}</div></div>
       <div>${r.type === "inventory" ? r.status : r.type === "request" ? r.status === "pending" ? "Awaiting reply" : r.status === "picked_up" ? "Pickup complete" : r.status === "withdrawn" ? "Withdrawn" : r.status === "declined" ? "Declined" : "Pickup confirmed" : r.myc_tokens_minted + " MYC"}
         ${r.type === "request" && r.status === "pending" && r.farmer_id === me.id ? `<form class="row" data-ledger-reply="${r.id}"><input name="when" placeholder="Pickup time" required><button class="btn primary">Reply and fulfill</button></form>` : ""}
         ${role() === "organizer" && r.type === "request" && r.farmer_id !== me.id && r.status !== "picked_up" ? `<button class="btn ghost" data-remind="${r.id}">Prompt trade</button>` : ""}
