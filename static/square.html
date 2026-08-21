@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Satokori — lähiverkon sato</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --paper: #f7f1e4;
+    --ink: #241c12;
+    --moss: #2f5d3a;
+    --sage: #6f844c;
+    --copper: #b86132;
+    --line: #d9ccb3;
+    --gold: #d4a017;
+    --chalk: #17241c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Source Sans 3", system-ui, sans-serif; background: var(--paper); color: var(--ink); }
+  header { background: var(--chalk); color: #f7f1e4; padding: 1rem 1.2rem; }
+  header .eyebrow { letter-spacing: .28em; font-size: .68rem; color: var(--gold); text-transform: uppercase; }
+  header h1 { font-family: Fraunces, Georgia, serif; font-size: 1.7rem; }
+  header p { color: #c9d6c4; font-size: .95rem; }
+  header .bar { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+  nav { display: flex; gap: .4rem; padding: .7rem 1rem; background: #efe4c8; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; overflow-x: auto; }
+  nav button, .btn { font-family: inherit; border: 1px solid var(--moss); background: transparent; color: var(--moss); padding: .55rem .9rem; border-radius: 999px; cursor: pointer; min-height: 44px; font-weight: 600; }
+  nav button.active, .btn.primary { background: var(--moss); color: #f7f1e4; }
+  .btn.copper { border-color: var(--copper); color: var(--copper); }
+  .btn.copper.primary, .btn.copper:hover { background: var(--copper); color: #fff; }
+  .btn.ghost { border-color: var(--line); color: var(--ink); }
+  main { max-width: 980px; margin: 0 auto; padding: 1.1rem; }
+  .hidden { display: none !important; }
+  .note { background: #efe0c4; border: 1px solid var(--line); border-radius: 12px; padding: .8rem 1rem; margin-bottom: 1rem; font-size: .92rem; }
+  .grid { display: grid; gap: .8rem; }
+  .card { background: #fffdf7; border: 1px solid var(--line); border-radius: 14px; padding: .9rem; }
+  .card.golden { border-color: var(--gold); }
+  .card h3 { font-family: Fraunces, serif; }
+  .meta { color: #5c5140; font-size: .88rem; margin: .2rem 0 .5rem; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+  label { font-size: .82rem; font-weight: 600; color: #5c5140; display: block; }
+  input, select, textarea { width: 100%; font: inherit; padding: .7rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; min-height: 44px; margin-top: .2rem; }
+  #map { height: 260px; border-radius: 14px; margin-bottom: 1rem; border: 1px solid var(--line); }
+  .item { display: grid; grid-template-columns: 1fr auto; gap: .6rem; align-items: center; }
+  .price { color: var(--moss); font-weight: 600; }
+  .price.free { color: var(--copper); }
+  .toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); background: var(--chalk); color: #f7f1e4; padding: .7rem 1rem; border-radius: 999px; z-index: 50; max-width: 90%; }
+  .auth { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+  .auth small { color: #c9d6c4; }
+  .basket-line { display: flex; justify-content: space-between; gap: .6rem; padding: .5rem 0; border-bottom: 1px dashed var(--line); }
+  @media (max-width: 640px) { .row, .item { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div>
+      <div class="eyebrow">Hyvinkää · farmer network</div>
+      <h1>Satokori</h1>
+      <p>Skip the shop. Who has what, when, and where — pay cash at the gate if you want.</p>
+    </div>
+    <div class="auth" id="auth-box"></div>
+  </div>
+</header>
+<nav>
+  <button class="active" data-view="kori">Sato</button>
+  <button data-view="farms">Farms</button>
+  <button data-view="basket">Basket <span id="basket-n"></span></button>
+  <button data-view="stall">My table</button>
+  <button data-view="visit">Field visit</button>
+</nav>
+<main>
+  <section id="view-kori">
+    <p class="note">This is a chalkboard, not a till. Cash at the farm gate is between you and the farmer. Satokori does not write a sale.</p>
+    <div class="grid" id="catalog"></div>
+  </section>
+  <section id="view-farms" class="hidden">
+    <div id="map"></div>
+    <div class="grid" id="farms"></div>
+  </section>
+  <section id="view-basket" class="hidden">
+    <div class="card">
+      <h3>Your basket</h3>
+      <p class="meta">A shopping list. Nothing here is a purchase. Take it to the farm and settle however you already do.</p>
+      <div id="basket"></div>
+      <p class="meta" id="basket-hint"></p>
+    </div>
+  </section>
+  <section id="view-stall" class="hidden">
+    <form id="stall-form" class="card grid">
+      <h3>What’s on the table this week</h3>
+      <label>Farm <select id="stall-node" required></select></label>
+      <div class="row">
+        <label>From <input type="datetime-local" id="stall-from" required></label>
+        <label>Until <input type="datetime-local" id="stall-until" required></label>
+      </div>
+      <label>Where to meet <input id="stall-where" required></label>
+      <div id="lots"></div>
+      <button type="button" class="btn ghost" id="add-lot">Add a lot</button>
+      <button class="btn primary" type="submit">Put it on the network</button>
+    </form>
+    <div id="my-table" class="grid" style="margin-top:1rem"></div>
+  </section>
+  <section id="view-visit" class="hidden">
+    <form id="visit-form" class="card grid">
+      <h3>Field visit — add a farm</h3>
+      <p class="meta">Use this standing at the gate. One form, farmer is on the network, login written on paper.</p>
+      <div class="row">
+        <label>Farmer <input id="v-farmer" required></label>
+        <label>Farm <input id="v-farm" required></label>
+      </div>
+      <div class="row">
+        <label>Phone <input id="v-phone" placeholder="040…"></label>
+        <label>Meet where <input id="v-where" required placeholder="Farm gate, painted sign"></label>
+      </div>
+      <div class="row">
+        <label>Lat <input id="v-lat" value="60.5522" required></label>
+        <label>Lng <input id="v-lng" value="24.7050" required></label>
+      </div>
+      <div class="row">
+        <label>From <input type="datetime-local" id="v-from" required></label>
+        <label>Until <input type="datetime-local" id="v-until" required></label>
+      </div>
+      <div id="v-lots"></div>
+      <button type="button" class="btn ghost" id="v-add-lot">Add a lot</button>
+      <button class="btn primary" type="submit">Add this farm</button>
+    </form>
+    <div id="visit-result" class="card hidden" style="margin-top:1rem"></div>
+  </section>
+</main>
+<div id="toast" class="toast hidden"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const HERE = { lat: 60.5522, lng: 24.7050 };
+let token = localStorage.getItem("sk_token") || "";
+let me = JSON.parse(localStorage.getItem("sk_me") || "null");
+let basket = JSON.parse(localStorage.getItem("sk_basket") || "[]");
+let map, markers = [];
+let catalogById = {};
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+  setTimeout(() => el.classList.add("hidden"), 3200);
+}
+async function api(path, opts = {}) {
+  const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+  if (token) headers.Authorization = "Bearer " + token;
+  const res = await fetch(path, { ...opts, headers });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail || detail; } catch {}
+    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+function saveBasket() {
+  localStorage.setItem("sk_basket", JSON.stringify(basket));
+  document.getElementById("basket-n").textContent = basket.length ? `(${basket.length})` : "";
+}
+function fmtWhen(from, until) {
+  if (!from && !until) return "Hours not posted";
+  const a = from ? new Date(from) : null;
+  const b = until ? new Date(until) : null;
+  const day = a ? a.toLocaleDateString("fi", { weekday: "short", day: "numeric", month: "short" }) : "";
+  const t1 = a ? a.toLocaleTimeString("fi", { hour: "2-digit", minute: "2-digit" }) : "";
+  const t2 = b ? b.toLocaleTimeString("fi", { hour: "2-digit", minute: "2-digit" }) : "";
+  return `${day} · ${t1}–${t2}`;
+}
+function priceLabel(item) {
+  if (item.is_free || item.price_per_kg === 0) return "barter / ask at gate";
+  return item.price_per_kg.toFixed(2) + " €/kg · cash at gate";
+}
+function renderAuth() {
+  const box = document.getElementById("auth-box");
+  if (me) {
+    box.innerHTML = `<small>${me.name} · ${me.role}</small><button class="btn ghost" id="logout">Out</button>`;
+    box.querySelector("#logout").onclick = () => {
+      token = ""; me = null;
+      localStorage.removeItem("sk_token"); localStorage.removeItem("sk_me");
+      renderAuth();
+    };
+    return;
+  }
+  box.innerHTML = `
+    <button class="btn primary" data-e="wade@kariniemi.farm" data-p="farmgate">Organizer</button>
+    <button class="btn" data-e="maija@naapuri.fi" data-p="farmgate">Farmer</button>
+    <button class="btn copper" data-e="anna@hyvinkaa.fi" data-p="market">Customer</button>`;
+  box.querySelectorAll("button").forEach(b => b.onclick = () => login(b.dataset.e, b.dataset.p));
+}
+async function login(email, password) {
+  const res = await fetch("/auth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ username: email, password }),
+  });
+  if (!res.ok) { toast("Login failed"); return; }
+  token = (await res.json()).access_token;
+  me = await api("/auth/me");
+  localStorage.setItem("sk_token", token);
+  localStorage.setItem("sk_me", JSON.stringify(me));
+  renderAuth();
+  toast("Signed in as " + me.name);
+}
+function addToBasket(item) {
+  basket.push({
+    listing_id: item.id,
+    produce_name: item.produce_name,
+    farm_name: item.farm_name,
+    pickup_point: item.pickup_point,
+    available_from: item.available_from,
+    available_until: item.available_until,
+    quantity_kg: 1,
+  });
+  saveBasket();
+  toast("In the basket — still not a purchase");
+}
+function renderBasket() {
+  const el = document.getElementById("basket");
+  if (!basket.length) {
+    el.innerHTML = `<p class="meta">Empty. Add goods from Sato.</p>`;
+    document.getElementById("basket-hint").textContent = "";
+    return;
+  }
+  const byFarm = {};
+  basket.forEach(b => { (byFarm[b.farm_name] ||= []).push(b); });
+  el.innerHTML = Object.entries(byFarm).map(([farm, items]) => `
+    <div class="basket-line"><b>${farm}</b><span>${fmtWhen(items[0].available_from, items[0].available_until)}</span></div>
+    ${items.map((b,i) => `<div class="basket-line">${b.produce_name}<button class="btn ghost" data-i="${basket.indexOf(b)}">Remove</button></div>`).join("")}
+    <p class="meta">${items[0].pickup_point} · pay cash at the gate</p>
+  `).join("");
+  el.querySelectorAll("[data-i]").forEach(btn => btn.onclick = () => {
+    basket.splice(Number(btn.dataset.i), 1); saveBasket(); renderBasket();
+  });
+  document.getElementById("basket-hint").textContent = "Show this list at the farm. The farmer can tick stock down without recording who you are.";
+}
+async function loadCatalog() {
+  const data = await api(`/catalog?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=40`);
+  const root = document.getElementById("catalog");
+  if (!data.items.length) { root.innerHTML = `<p class="meta">Nothing on the tables yet.</p>`; return; }
+  catalogById = {};
+  data.items.forEach(item => { catalogById[item.id] = item; });
+  root.innerHTML = data.items.map(item => `
+    <article class="card ${item.golden ? "golden" : ""}">
+      <div class="item">
+        <div>
+          <h3>${item.produce_name}</h3>
+          <div class="meta">${item.farm_name} · ${fmtWhen(item.available_from, item.available_until)}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}</div>
+          <div class="price ${item.is_free ? "free" : ""}">${item.quantity_kg} kg · ${priceLabel(item)}</div>
+        </div>
+        <button class="btn primary" data-add="${item.id}">Into basket</button>
+      </div>
+    </article>`).join("");
+  root.querySelectorAll("[data-add]").forEach(b => b.onclick = () => addToBasket(catalogById[b.dataset.add]));
+}
+function ensureMap() {
+  if (map) return;
+  map = L.map("map").setView([HERE.lat, HERE.lng], 10);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(map);
+}
+async function loadFarms() {
+  const square = await api(`/square?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=40`);
+  ensureMap();
+  markers.forEach(m => map.removeLayer(m));
+  markers = square.stalls.map(s => L.marker([s.lat, s.lng]).addTo(map).bindPopup(`<b>${s.farm_name}</b><br>${fmtWhen(s.available_from, s.available_until)}`));
+  if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.3));
+  setTimeout(() => map.invalidateSize(), 80);
+  document.getElementById("farms").innerHTML = square.stalls.map(s => `
+    <article class="card ${s.matched_flares.length ? "golden" : ""}">
+      <h3>${s.farm_name}</h3>
+      <div class="meta">${s.farmer_name} · ${fmtWhen(s.available_from, s.available_until)}<br>${s.pickup_point}</div>
+      ${s.goods.map(g => `<div>${g.produce_name} · ${g.quantity_kg} kg</div>`).join("")}
+    </article>`).join("");
+}
+function lotRow(target) {
+  const wrap = document.createElement("div");
+  wrap.className = "row lot-row";
+  wrap.innerHTML = `
+    <label>What’s on the table <input name="name" required></label>
+    <label>Kg <input name="qty" type="number" min="0.1" step="0.1" value="5" required></label>
+    <label>Ask €/kg <input name="price" type="number" min="0" step="0.1" value="0"></label>
+    <label>Kind
+      <select name="cat"><option>greens</option><option>root</option><option>eggs</option><option>dairy</option><option>preserve</option><option>feed</option><option>vegetable</option></select>
+    </label>`;
+  target.appendChild(wrap);
+}
+function lotsFrom(root) {
+  return [...root.querySelectorAll(".lot-row")].map(row => ({
+    produce_name: row.querySelector("[name=name]").value,
+    category: row.querySelector("[name=cat]").value,
+    quantity_kg: Number(row.querySelector("[name=qty]").value),
+    price_per_kg: Number(row.querySelector("[name=price]").value),
+    is_free: Number(row.querySelector("[name=price]").value) === 0,
+  }));
+}
+async function loadNodes() {
+  const sel = document.getElementById("stall-node");
+  sel.innerHTML = "";
+  if (!me || (me.role !== "farmer" && me.role !== "organizer")) {
+    sel.innerHTML = `<option>Sign in as a farmer</option>`;
+    return;
+  }
+  const nodes = await api("/nodes");
+  nodes.forEach(n => {
+    const o = document.createElement("option");
+    o.value = n.id; o.textContent = n.name; sel.appendChild(o);
+  });
+  if (nodes[0]) document.getElementById("stall-where").value = nodes[0].description || nodes[0].name;
+  const square = await api("/square");
+  const mine = square.stalls.filter(s => nodes.some(n => n.id === s.node_id));
+  const table = document.getElementById("my-table");
+  table.innerHTML = mine.flatMap(s => s.goods.map(g => `
+    <article class="card">
+      <h3>${g.produce_name}</h3>
+      <div class="meta">${g.quantity_kg} kg on the table</div>
+      <button class="btn copper" data-gate="${g.id}">Sold cash at gate (1 kg)</button>
+    </article>`)).join("") || `<p class="meta">Nothing listed yet.</p>`;
+  table.querySelectorAll("[data-gate]").forEach(b => b.onclick = async () => {
+    try {
+      await api(`/listings/${b.dataset.gate}/gate`, { method: "POST", body: JSON.stringify({ quantity_kg: 1 }) });
+      toast("Stock down. No sale written.");
+      loadNodes();
+    } catch (e) { toast(e.message); }
+  });
+}
+document.getElementById("add-lot").onclick = () => lotRow(document.getElementById("lots"));
+document.getElementById("v-add-lot").onclick = () => lotRow(document.getElementById("v-lots"));
+document.getElementById("stall-form").onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    await api("/stalls", { method: "POST", body: JSON.stringify({
+      node_id: document.getElementById("stall-node").value,
+      available_from: new Date(document.getElementById("stall-from").value).toISOString(),
+      available_until: new Date(document.getElementById("stall-until").value).toISOString(),
+      pickup_point: document.getElementById("stall-where").value,
+      lots: lotsFrom(document.getElementById("lots")),
+    })});
+    toast("On the network");
+    show("kori");
+  } catch (err) { toast(err.message); }
+};
+document.getElementById("visit-form").onsubmit = async (e) => {
+  e.preventDefault();
+  if (!me || me.role !== "organizer") { toast("Field visits are for the organizer"); return; }
+  try {
+    const body = await api("/onboard", { method: "POST", body: JSON.stringify({
+      farmer_name: document.getElementById("v-farmer").value,
+      farm_name: document.getElementById("v-farm").value,
+      phone: document.getElementById("v-phone").value,
+      pickup_point: document.getElementById("v-where").value,
+      lat: Number(document.getElementById("v-lat").value),
+      lng: Number(document.getElementById("v-lng").value),
+      available_from: new Date(document.getElementById("v-from").value).toISOString(),
+      available_until: new Date(document.getElementById("v-until").value).toISOString(),
+      lots: lotsFrom(document.getElementById("v-lots")),
+    })});
+    const box = document.getElementById("visit-result");
+    box.classList.remove("hidden");
+    box.innerHTML = `<h3>${body.farm_name} is on the network</h3>
+      <p>Write this down and leave it with ${body.farmer_name}:</p>
+      <p><b>${body.email}</b><br><b>${body.password}</b></p>
+      <p class="meta">${body.note}</p>`;
+    toast("Farm added");
+  } catch (err) { toast(err.message); }
+};
+function show(name) {
+  document.querySelectorAll("main > section").forEach(s => s.classList.add("hidden"));
+  document.getElementById("view-" + name).classList.remove("hidden");
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.view === name));
+  if (name === "kori") loadCatalog();
+  if (name === "farms") loadFarms();
+  if (name === "basket") renderBasket();
+  if (name === "stall") loadNodes();
+}
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => show(b.dataset.view));
+function nextSaturday(hour) {
+  const d = new Date();
+  d.setMinutes(0,0,0);
+  d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7));
+  d.setHours(hour);
+  return d;
+}
+const sat10 = nextSaturday(10), sat14 = nextSaturday(14);
+["stall-from","v-from"].forEach(id => document.getElementById(id).value = sat10.toISOString().slice(0,16));
+["stall-until","v-until"].forEach(id => document.getElementById(id).value = sat14.toISOString().slice(0,16));
+lotRow(document.getElementById("lots"));
+lotRow(document.getElementById("v-lots"));
+saveBasket();
+renderAuth();
+loadCatalog().catch(e => toast(e.message));
+</script>
+</body>
+</html>

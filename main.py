@@ -4,23 +4,31 @@ from fastapi.responses import FileResponse
 from app.db import engine
 from app.models import *  # noqa: ensure all models registered before create_all
 from app.models.ruuvi_reading import RuuviReading  # noqa
+from app.models.flare import DemandFlare  # noqa
 from app.db import Base
-from app.routes import tips, transactions, auth, nodes, produce, agent
+from app.routes import tips, transactions, auth, nodes, produce, agent, square, onboard
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Farm Network API", version="0.1.0")
+app = FastAPI(title="Satokori", version="0.3.0")
 app.include_router(auth.router)
 app.include_router(nodes.router)
 app.include_router(tips.router)
 app.include_router(transactions.router)
 app.include_router(produce.router)
 app.include_router(agent.router)
+app.include_router(square.router)
+app.include_router(onboard.router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 @app.get("/")
 def index():
+    return FileResponse("static/square.html")
+
+
+@app.get("/console")
+def console():
     return FileResponse("static/index.html")
 
 

@@ -54,8 +54,14 @@ def get_current_user(
 
 
 def require_farmer(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role != UserRole.farmer:
+    if current_user.role not in (UserRole.farmer, UserRole.organizer):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Farmers only")
+    return current_user
+
+
+def require_organizer(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != UserRole.organizer:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Organizers only")
     return current_user
 
 

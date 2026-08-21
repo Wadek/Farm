@@ -20,6 +20,8 @@ class Listing(Base):
     price_per_kg = Column(Float, default=0.0)   # 0 = free / barter
     pickup_point = Column(String, nullable=False)  # defaults to node location
     is_free = Column(Boolean, default=False)
+    available_from = Column(DateTime, nullable=True)
+    available_until = Column(DateTime, nullable=True)
     status = Column(Enum(ListingStatus), default=ListingStatus.active)
     created_at = Column(DateTime, server_default=func.now())
 

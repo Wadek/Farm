@@ -5,6 +5,7 @@ import enum
 
 
 class UserRole(str, enum.Enum):
+    organizer = "organizer"
     farmer = "farmer"
     buyer = "buyer"
 
@@ -17,6 +18,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     name = Column(String, nullable=False)
     role = Column(Enum(UserRole), nullable=False)
+    phone = Column(String, default="")
     created_at = Column(DateTime, server_default=func.now())
 
     nodes = relationship("Node", back_populates="owner")

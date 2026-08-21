@@ -1,0 +1,51 @@
+{
+  "root": "D:\\wakalabs\\satokori",
+  "name": "satokori",
+  "kind": "app_compose",
+  "confidence": "high",
+  "reasons": [
+    "docker-compose + app layout (ui/data/server)"
+  ],
+  "has_git": true,
+  "has_compose": true,
+  "compose_services": [
+    "satokori"
+  ],
+  "lang_counts": {
+    ".html": 2,
+    ".py": 40,
+    ".sh": 1,
+    ".yml": 1
+  },
+  "manifests": [
+    "Dockerfile",
+    "docker-compose.yml",
+    "requirements.txt"
+  ],
+  "top_entries": [
+    ".dockerignore",
+    ".env",
+    ".env.example",
+    ".frontier/",
+    ".git/",
+    ".gitignore",
+    ".pytest_cache/",
+    "CLAUDE.md",
+    "Dockerfile",
+    "README.md",
+    "__pycache__/",
+    "app/",
+    "data/",
+    "docker-compose.yml",
+    "entrypoint.sh",
+    "main.py",
+    "requirements.txt",
+    "scripts/",
+    "seed.py",
+    "static/",
+    "tests/",
+    "venv/"
+  ],
+  "file_count_approx": 58,
+  "stamp": "20260821T064417Z"
+}

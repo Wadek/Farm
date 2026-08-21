@@ -1,0 +1,23 @@
+name: satokori
+
+# Sibling app under D:\wakalabs (moved off C:).
+# Joins external docker network waka-net for gateway routing.
+
+services:
+  satokori:
+    build: .
+    container_name: satokori
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: sqlite:////data/farm.db
+      SECRET_KEY: ${SATOKORI_SECRET_KEY:-satokori-local}
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:8791:8080"
+    networks:
+      - waka-net
+
+networks:
+  waka-net:
+    external: true
