@@ -538,9 +538,9 @@ async function loadLedger() {
   if (!rows.length) { el.innerHTML = `<p class="meta">No trades or pending requests yet.</p>`; return; }
   el.innerHTML = rows.map(r => `
     <div class="basket-line">
-      <div><b>${r.type === "request" ? "PENDING REQUEST" : r.from_farm}</b>${r.type === "request" ? ` · ${r.from_farm}` : ""} → ${r.buyer}
+      <div><b>${r.type === "request" ? r.status === "pending" ? "PENDING REQUEST" : r.status === "picked_up" ? "PICKED UP" : r.status === "declined" ? "DECLINED REQUEST" : "CONFIRMED REQUEST" : r.from_farm}</b>${r.type === "request" ? ` · ${r.from_farm}` : ""} → ${r.buyer}
         <div class="meta">${r.produce} · ${r.quantity_kg} ${r.unit || "kg"}${r.note ? " · " + r.note : ""}</div></div>
-      <div>${r.type === "request" ? "Awaiting reply" : r.myc_tokens_minted + " MYC"}</div>
+      <div>${r.type === "request" ? r.status === "pending" ? "Awaiting reply" : r.status === "picked_up" ? "Pickup complete" : r.status === "declined" ? "Declined" : "Pickup confirmed" : r.myc_tokens_minted + " MYC"}</div>
     </div>`).join("");
 }
 document.getElementById("add-lot").onclick = () => lotRow(document.getElementById("lots"));
