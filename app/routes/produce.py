@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -20,9 +21,12 @@ class ProduceCreate(BaseModel):
 
 class ListingCreate(BaseModel):
     quantity_kg: float
+    unit: str = "kg"
     price_per_kg: float = 0.0
     pickup_point: str = ""
     is_free: bool = False
+    available_from: datetime | None = None
+    available_until: datetime | None = None
 
 
 def _assert_node_owner(node_id: str, user: User, db: Session) -> Node:
@@ -87,9 +91,12 @@ def create_listing(node_id: str, produce_id: str, payload: ListingCreate,
         node_id=node_id,
         produce_id=produce_id,
         quantity_kg=payload.quantity_kg,
+        unit=payload.unit or "kg",
         price_per_kg=payload.price_per_kg,
         pickup_point=pickup,
         is_free=payload.is_free,
+        available_from=payload.available_from,
+        available_until=payload.available_until,
         status=ListingStatus.active,
     )
     db.add(listing)
@@ -150,10 +157,16 @@ def _listing_view(l: Listing) -> dict:
         "produce_id": l.produce_id,
         "produce_name": l.produce.name if l.produce else None,
         "quantity_kg": l.quantity_kg,
+        "unit": getattr(l, "unit", None) or "kg",
         "price_per_kg": l.price_per_kg,
         "is_free": l.is_free,
         "pickup_point": l.pickup_point,
+        "available_from": l.available_from.isoformat() if l.available_from else None,
+        "available_until": l.available_until.isoformat() if l.available_until else None,
         "status": l.status,
+        "node_name": l.node.name if l.node else None,
+        "farmer_id": l.node.owner_id if l.node else None,
+        "farmer_name": l.node.owner.name if l.node and l.node.owner else None,
         "node_lat": l.node.lat if l.node else None,
         "node_lng": l.node.lng if l.node else None,
     }

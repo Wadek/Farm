@@ -7,6 +7,7 @@ class UserCreate(BaseModel):
     password: str
     name: str
     role: UserRole
+    phone: str = ""
 
 
 class UserResponse(BaseModel):
@@ -14,6 +15,7 @@ class UserResponse(BaseModel):
     email: str
     name: str
     role: UserRole
+    phone: str = ""
 
     model_config = {"from_attributes": True}
 

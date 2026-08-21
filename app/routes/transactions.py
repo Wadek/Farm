@@ -25,8 +25,8 @@ def complete_listing(req: CompleteListingRequest, db: Session = Depends(get_db))
     listing = db.query(Listing).filter(Listing.id == req.listing_id).first()
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
-    if listing.status != ListingStatus.active:
-        raise HTTPException(status_code=409, detail="Listing is not active")
+    if listing.status not in (ListingStatus.active, ListingStatus.reserved):
+        raise HTTPException(status_code=409, detail="Listing is not available")
     if req.quantity_kg > listing.quantity_kg:
         raise HTTPException(status_code=400, detail="Quantity exceeds listing amount")
 
