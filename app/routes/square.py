@@ -10,7 +10,7 @@ from app.models import Node, Produce, Listing, ListingStatus, Transaction
 from app.models.ask import PickupAsk, AskStatus
 from app.models.flare import DemandFlare, FlareStatus
 from app.models.user import User, UserRole
-from app.dependencies import get_current_user, require_organizer
+from app.dependencies import get_current_user
 from app.routes.produce import _haversine, _listing_view
 
 router = APIRouter(tags=["square"])
@@ -49,6 +49,10 @@ class ClaimRequest(BaseModel):
 
 class GateSale(BaseModel):
     quantity_kg: float
+
+
+class RelistRequest(BaseModel):
+    quantity_kg: float | None = None
 
 
 def _matches(item: str, produce_name: str) -> bool:
@@ -282,7 +286,7 @@ def gate_sale(
     )
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
-    if listing.node.owner_id != current_user.id and current_user.role != UserRole.organizer:
+    if listing.node.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not your stall")
     if listing.status not in (ListingStatus.active, ListingStatus.reserved):
         raise HTTPException(status_code=409, detail="Nothing left on the table")
@@ -316,10 +320,37 @@ def mark_sold_out(
     )
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
-    if listing.node.owner_id != current_user.id and current_user.role != UserRole.organizer:
+    if listing.node.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not your stall")
     listing.quantity_kg = 0
     listing.status = ListingStatus.sold_out
+    db.commit()
+    db.refresh(listing)
+    return _listing_view(listing)
+
+
+@router.post("/listings/{listing_id}/relist")
+def relist_listing(
+    listing_id: str,
+    payload: RelistRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    listing = (
+        db.query(Listing)
+        .options(joinedload(Listing.node), joinedload(Listing.produce))
+        .filter(Listing.id == listing_id)
+        .first()
+    )
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    if listing.node.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your stall")
+    quantity = payload.quantity_kg if payload.quantity_kg is not None else listing.produce.quantity_kg
+    if quantity <= 0:
+        raise HTTPException(status_code=400, detail="Quantity must be positive")
+    listing.quantity_kg = quantity
+    listing.status = ListingStatus.active
     db.commit()
     db.refresh(listing)
     return _listing_view(listing)
@@ -427,23 +458,27 @@ def close_flare(
 @router.get("/ledger")
 def public_ledger(
     limit: int = 20,
-    current_user: User = Depends(require_organizer),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Admin ledger of trades and every pickup request outcome."""
-    txs = (
+    tx_query = (
         db.query(Transaction)
         .options(joinedload(Transaction.listing).joinedload(Listing.produce),
                  joinedload(Transaction.listing).joinedload(Listing.node),
                  joinedload(Transaction.buyer))
         .order_by(Transaction.created_at.desc())
-        .limit(limit)
-        .all()
     )
+    if current_user.role != UserRole.organizer:
+        tx_query = tx_query.filter(
+            (Transaction.buyer_id == current_user.id) | (Listing.node.has(Node.owner_id == current_user.id))
+        )
+    txs = tx_query.limit(limit).all()
     rows = [
         {
             "id": tx.id,
             "type": "trade",
+            "direction": "outgoing" if tx.buyer_id == current_user.id else "incoming",
             "status": "completed",
             "from_farm": tx.listing.node.name if tx.listing and tx.listing.node else "",
             "produce": tx.listing.produce.name if tx.listing and tx.listing.produce else "",
@@ -456,7 +491,7 @@ def public_ledger(
         }
         for tx in txs
     ]
-    asks = (
+    ask_query = (
         db.query(PickupAsk)
         .options(
             joinedload(PickupAsk.listing).joinedload(Listing.produce),
@@ -464,28 +499,67 @@ def public_ledger(
             joinedload(PickupAsk.buyer),
         )
         .order_by(PickupAsk.created_at.desc())
-        .limit(limit)
-        .all()
     )
+    if current_user.role != UserRole.organizer:
+        ask_query = ask_query.filter(
+            (PickupAsk.buyer_id == current_user.id) | (PickupAsk.farmer_id == current_user.id)
+        )
+    asks = ask_query.limit(limit).all()
     rows.extend(
         {
             "id": ask.id,
             "type": "request",
+            "direction": "outgoing" if ask.buyer_id == current_user.id else "incoming",
             "status": (
                 "pending" if ask.status == AskStatus.asked
                 else "declined" if ask.status == AskStatus.declined
+                else "withdrawn" if ask.status == AskStatus.withdrawn
                 else "picked_up" if ask.status == AskStatus.picked_up
                 else "completed"
             ),
             "from_farm": ask.listing.node.name if ask.listing and ask.listing.node else "",
             "produce": ask.listing.produce.name if ask.listing and ask.listing.produce else "",
             "buyer": ask.buyer.name if ask.buyer else "",
+            "buyer_id": ask.buyer_id,
+            "farmer_id": ask.farmer_id,
             "quantity_kg": ask.quantity,
             "unit": ask.unit,
             "note": ask.note,
+            "picked_up_by": ask.picked_up_by,
+            "picked_up_at": _iso(ask.picked_up_at),
+            "offer_text": ask.offer_text,
             "created_at": _iso(ask.created_at),
         }
         for ask in asks
     )
+    if current_user.role == UserRole.organizer:
+        rows.extend({
+            "id": node.id,
+            "type": "farm_onboarding",
+            "direction": "incoming",
+            "status": "claimed" if node.claimed_at else "awaiting_claim",
+            "from_farm": node.name,
+            "produce": "Farm added",
+            "buyer": node.owner.name if node.owner else "",
+            "claim_id": node.claim_id,
+            "created_at": _iso(node.created_at),
+        } for node in db.query(Node).order_by(Node.created_at.desc()).limit(limit).all())
+    inventory_query = db.query(Listing).options(
+        joinedload(Listing.produce), joinedload(Listing.node)
+    ).order_by(Listing.created_at.desc())
+    if current_user.role != UserRole.organizer:
+        inventory_query = inventory_query.filter(Listing.node.has(Node.owner_id == current_user.id))
+    rows.extend({
+        "id": listing.id,
+        "type": "inventory",
+        "direction": "incoming",
+        "status": listing.status.value if listing.status else "active",
+        "from_farm": listing.node.name if listing.node else "",
+        "produce": listing.produce.name if listing.produce else "",
+        "buyer": "",
+        "quantity_kg": listing.quantity_kg,
+        "unit": listing.unit,
+        "created_at": _iso(listing.created_at),
+    } for listing in inventory_query.limit(limit).all())
     rows.sort(key=lambda row: row["created_at"] or "", reverse=True)
     return rows[:limit]

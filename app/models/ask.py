@@ -10,6 +10,7 @@ class AskStatus(str, enum.Enum):
     confirmed = "confirmed"
     picked_up = "picked_up"
     declined = "declined"
+    withdrawn = "withdrawn"
 
 
 class PickupAsk(Base):
@@ -27,6 +28,8 @@ class PickupAsk(Base):
     note = Column(String, default="")
     status = Column(Enum(AskStatus), default=AskStatus.asked)
     offer_text = Column(String, default="")
+    picked_up_by = Column(String, nullable=True)
+    picked_up_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

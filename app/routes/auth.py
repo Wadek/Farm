@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.api_key import ApiKey
 from app.schemas.user import UserCreate, UserResponse, Token
 from app.services.auth_service import hash_password, verify_password, create_token
@@ -17,6 +17,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def register(payload: UserCreate, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=409, detail="Email already registered")
+    if payload.role == UserRole.organizer and db.query(User).filter(User.role == UserRole.organizer).first():
+        raise HTTPException(status_code=409, detail="Only one admin account is allowed")
 
     user = User(
         id=str(uuid.uuid4()),

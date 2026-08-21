@@ -64,6 +64,7 @@ def onboard_farm(
     node = Node(
         id=str(uuid.uuid4()),
         owner_id=farmer.id,
+        claim_id=secrets.token_urlsafe(10),
         name=payload.farm_name,
         type=payload.node_type,
         lat=payload.lat,
@@ -117,9 +118,10 @@ def onboard_farm(
         "password": password,
         "phone": farmer.phone,
         "node_id": node.id,
+        "claim_id": node.claim_id,
         "pickup_point": payload.pickup_point,
         "available_from": _iso(payload.available_from),
         "available_until": _iso(payload.available_until),
         "lots": [_listing_view(l) for l in created],
-        "note": "Leave this login with the farmer.",
+        "note": "Share the claim ID with the farmer. They can create a farmer account and claim this farm.",
     }

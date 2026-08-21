@@ -22,7 +22,42 @@ def _ensure_listing_unit():
             conn.execute(text("ALTER TABLE listings ADD COLUMN unit VARCHAR DEFAULT 'kg'"))
 
 
+def _ensure_ask_pickup_columns():
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    if "pickup_asks" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("pickup_asks")}
+    with engine.begin() as conn:
+        if "picked_up_by" not in cols:
+            conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN picked_up_by VARCHAR"))
+        if "picked_up_at" not in cols:
+            conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN picked_up_at DATETIME"))
+
+
+def _ensure_node_claim_columns():
+    import secrets
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    if "nodes" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("nodes")}
+    with engine.begin() as conn:
+        if "claim_id" not in cols:
+            conn.execute(text("ALTER TABLE nodes ADD COLUMN claim_id VARCHAR"))
+        if "claimed_at" not in cols:
+            conn.execute(text("ALTER TABLE nodes ADD COLUMN claimed_at DATETIME"))
+        existing = conn.execute(text("SELECT id FROM nodes WHERE claim_id IS NULL")).fetchall()
+        for (node_id,) in existing:
+            conn.execute(
+                text("UPDATE nodes SET claim_id = :claim_id WHERE id = :node_id"),
+                {"claim_id": secrets.token_urlsafe(10), "node_id": node_id},
+            )
+
+
 _ensure_listing_unit()
+_ensure_ask_pickup_columns()
+_ensure_node_claim_columns()
 
 app = FastAPI(title="Satokori", version="0.3.0")
 app.include_router(auth.router)

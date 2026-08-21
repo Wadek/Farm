@@ -115,6 +115,8 @@ def seed():
                       UserRole.farmer, phone="+358404444444")
         anna = _user(db, "user-anna", "anna@hyvinkaa.fi", "market", "Anna Virtanen",
                      UserRole.buyer, phone="+358402222222")
+        liisa = _user(db, "user-liisa", "liisa@hyvinkaa.fi", "market", "Liisa Customer",
+                  UserRole.buyer, phone="+358405555555")
 
         kariniemi = _node(
             db, "node-kariniemi", wade.id, "Kariniemi Farms", NodeType.farm,
@@ -179,6 +181,7 @@ def seed():
         print("  pekka@hyvinkaa.fi     Pekka's Backyard")
         print("Customer  (password: market)")
         print("  anna@hyvinkaa.fi      looking for raw milk")
+        print("  liisa@hyvinkaa.fi     second customer test account")
     finally:
         db.close()
 
