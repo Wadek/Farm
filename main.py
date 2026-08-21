@@ -35,8 +35,22 @@ def _ensure_ask_pickup_columns():
             conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN picked_up_at DATETIME"))
 
 
+def _ensure_node_claim_columns():
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    if "nodes" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("nodes")}
+    with engine.begin() as conn:
+        if "claim_id" not in cols:
+            conn.execute(text("ALTER TABLE nodes ADD COLUMN claim_id VARCHAR"))
+        if "claimed_at" not in cols:
+            conn.execute(text("ALTER TABLE nodes ADD COLUMN claimed_at DATETIME"))
+
+
 _ensure_listing_unit()
 _ensure_ask_pickup_columns()
+_ensure_node_claim_columns()
 
 app = FastAPI(title="Satokori", version="0.3.0")
 app.include_router(auth.router)

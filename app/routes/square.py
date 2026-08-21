@@ -527,5 +527,17 @@ def public_ledger(
         }
         for ask in asks
     )
+    if current_user.role == UserRole.organizer:
+        rows.extend({
+            "id": node.id,
+            "type": "farm_onboarding",
+            "direction": "incoming",
+            "status": "claimed" if node.claimed_at else "awaiting_claim",
+            "from_farm": node.name,
+            "produce": "Farm added",
+            "buyer": node.owner.name if node.owner else "",
+            "claim_id": node.claim_id,
+            "created_at": _iso(node.created_at),
+        } for node in db.query(Node).order_by(Node.created_at.desc()).limit(limit).all())
     rows.sort(key=lambda row: row["created_at"] or "", reverse=True)
     return rows[:limit]

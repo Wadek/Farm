@@ -103,9 +103,18 @@
           <button class="btn primary">Create account</button>
         </form>
       </div>
+      <p class="meta">Local test accounts:</p>
+      <div><button class="btn ghost" type="button" data-demo-email="wade@kariniemi.farm" data-demo-password="farmgate">Admin</button>
+        <button class="btn ghost" type="button" data-demo-email="maija@naapuri.fi" data-demo-password="farmgate">Farmer</button>
+        <button class="btn ghost" type="button" data-demo-email="anna@hyvinkaa.fi" data-demo-password="market">Customer</button></div>
     </div>
   </section>
   <section id="view-listings" class="hidden">
+    <div class="card grid" id="claim-farm-box">
+      <h3>Claim a farm</h3>
+      <p class="meta">Enter the unique ID shared by the admin.</p>
+      <form id="claim-farm-form" class="row"><input name="claim_id" placeholder="Farm claim ID" required><button class="btn primary">Claim farm</button></form>
+    </div>
     <form id="stall-form" class="card grid">
       <h3>Add items</h3>
       <p class="meta">List what you have this week: amount, unit, price, pickup window.</p>
@@ -593,6 +602,11 @@ async function loadLedger() {
 }
 document.getElementById("add-lot").onclick = () => lotRow(document.getElementById("lots"));
 document.getElementById("v-add-lot").onclick = () => lotRow(document.getElementById("v-lots"));
+document.getElementById("claim-farm-form").onsubmit = async (e) => {
+  e.preventDefault();
+  try { await api("/nodes/claim", { method: "POST", body: JSON.stringify({ claim_id: e.target.claim_id.value }) }); toast("Farm claimed"); e.target.reset(); loadMyListings(); }
+  catch (err) { toast(err.message); }
+};
 document.getElementById("login-form").onsubmit = async (e) => {
   e.preventDefault();
   try { await login(e.target.email.value, e.target.password.value); } catch (err) { toast(err.message); }
@@ -602,6 +616,7 @@ document.getElementById("register-form").onsubmit = async (e) => {
   try { await registerAccount({ name: e.target.name.value, email: e.target.email.value, password: e.target.password.value, role: e.target.role.value }); }
   catch (err) { toast(err.message); }
 };
+document.querySelectorAll("[data-demo-email]").forEach(b => b.onclick = () => login(b.dataset.demoEmail, b.dataset.demoPassword));
 document.getElementById("stall-form").onsubmit = async (e) => {
   e.preventDefault();
   const nodeId = document.getElementById("stall-node").value;

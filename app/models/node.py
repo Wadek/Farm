@@ -23,6 +23,8 @@ class Node(Base):
     description = Column(String, default="")
     area_m2 = Column(Float, default=0.0)
     myc_tokens = Column(Float, default=0.0)
+    claim_id = Column(String, unique=True, nullable=True, index=True)
+    claimed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     owner = relationship("User", back_populates="nodes")

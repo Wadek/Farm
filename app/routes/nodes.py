@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -9,6 +10,7 @@ from app.models.ruuvi_reading import RuuviReading
 from app.models.sensor_reading import SensorReading
 from app.models.user import User
 from app.dependencies import get_current_user
+from app.models.user import UserRole
 from app.services import ruuvi_cloud, ajax_cloud
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
@@ -32,6 +34,10 @@ class RuuviPost(BaseModel):
     rssi: int | None = None
 
 
+class ClaimFarm(BaseModel):
+    claim_id: str
+
+
 @router.post("", status_code=201)
 def create_node(payload: NodeCreate, current_user: User = Depends(get_current_user),
                 db: Session = Depends(get_db)):
@@ -50,6 +56,22 @@ def create_node(payload: NodeCreate, current_user: User = Depends(get_current_us
 def list_nodes(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     nodes = db.query(Node).filter(Node.owner_id == current_user.id).all()
     return [_node_view(n, db) for n in nodes]
+
+
+@router.post("/claim")
+def claim_node(payload: ClaimFarm, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != UserRole.farmer:
+        raise HTTPException(status_code=403, detail="Only farmer accounts can claim farms")
+    node = db.query(Node).filter(Node.claim_id == payload.claim_id.strip()).first()
+    if not node:
+        raise HTTPException(status_code=404, detail="Farm claim ID not found")
+    if node.claimed_at:
+        raise HTTPException(status_code=409, detail="Farm has already been claimed")
+    node.owner_id = current_user.id
+    node.claimed_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(node)
+    return {"node_id": node.id, "farm_name": node.name, "claimed_at": node.claimed_at.isoformat()}
 
 
 @router.get("/{node_id}")

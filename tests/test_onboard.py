@@ -57,6 +57,25 @@ def test_buyer_cannot_onboard(client):
     assert resp.status_code == 403
 
 
+def test_farmer_claims_onboarded_farm(client):
+    admin = _token(client, "claim-admin@test.com", "Admin", "organizer")
+    farmer = _token(client, "claim-farmer@test.com", "Farmer", "farmer")
+    response = client.post("/onboard", json={
+        "farmer_name": "Placeholder",
+        "farm_name": "Claimable Farm",
+        "pickup_point": "gate",
+        "lat": 60.5,
+        "lng": 24.7,
+    }, headers=_auth(admin))
+    assert response.status_code == 201, response.text
+    claim_id = response.json()["claim_id"]
+    claimed = client.post("/nodes/claim", json={"claim_id": claim_id}, headers=_auth(farmer))
+    assert claimed.status_code == 200, claimed.text
+    assert claimed.json()["farm_name"] == "Claimable Farm"
+    again = client.post("/nodes/claim", json={"claim_id": claim_id}, headers=_auth(farmer))
+    assert again.status_code == 409
+
+
 def test_gate_sale_drops_stock_without_ledger(client):
     org = _token(client, "wade@test.com", "Wade", "organizer")
     start, end = _window()
@@ -81,7 +100,8 @@ def test_gate_sale_drops_stock_without_ledger(client):
     assert sold.json()["settled"] == "cash_at_gate"
 
     ledger = client.get("/ledger", headers=_auth(org)).json()
-    assert ledger == []
+    assert not any(row["type"] == "trade" for row in ledger)
+    assert any(row["type"] == "farm_onboarding" for row in ledger)
 
     catalog = client.get("/catalog").json()
     assert catalog["items"][0]["quantity_kg"] == 7
