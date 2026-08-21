@@ -7,6 +7,7 @@ class UserCreate(BaseModel):
     password: str
     name: str
     role: UserRole
+    phone: str = ""
 
 
 class UserResponse(BaseModel):

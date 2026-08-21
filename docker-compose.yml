@@ -11,6 +11,14 @@ services:
     environment:
       DATABASE_URL: sqlite:////data/farm.db
       SECRET_KEY: ${SATOKORI_SECRET_KEY:-satokori-local}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://satokori.wakalabs.net}
+      SMS_PROVIDER: ${SMS_PROVIDER:-log}
+      SMS_FROM: ${SMS_FROM:-Satokori}
+      ELKS_USERNAME: ${ELKS_USERNAME:-}
+      ELKS_PASSWORD: ${ELKS_PASSWORD:-}
+      TWILIO_SID: ${TWILIO_SID:-}
+      TWILIO_TOKEN: ${TWILIO_TOKEN:-}
+      TWILIO_FROM: ${TWILIO_FROM:-}
     volumes:
       - ./data:/data
     ports:

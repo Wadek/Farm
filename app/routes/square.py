@@ -7,9 +7,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from app.db import get_db
 from app.models import Node, Produce, Listing, ListingStatus, Transaction
+from app.models.ask import PickupAsk, AskStatus
 from app.models.flare import DemandFlare, FlareStatus
 from app.models.user import User, UserRole
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_organizer
 from app.routes.produce import _haversine, _listing_view
 
 router = APIRouter(tags=["square"])
@@ -19,6 +20,7 @@ class LotIn(BaseModel):
     produce_name: str
     category: str = "produce"
     quantity_kg: float
+    unit: str = "kg"
     price_per_kg: float = 0.0
     is_free: bool = False
     kcal_per_kg: float = 0.0
@@ -75,7 +77,7 @@ def market_square(
             joinedload(Listing.node).joinedload(Node.owner),
             joinedload(Listing.produce),
         )
-        .filter(Listing.status == ListingStatus.active)
+        .filter(Listing.status.in_((ListingStatus.active, ListingStatus.sold_out)))
         .all()
     )
     flares = (
@@ -212,6 +214,7 @@ def open_stall(
             price_per_kg=lot.price_per_kg,
             pickup_point=payload.pickup_point,
             is_free=lot.is_free or lot.price_per_kg == 0,
+            unit=lot.unit or "kg",
             available_from=payload.available_from,
             available_until=payload.available_until,
             status=ListingStatus.active,
@@ -254,7 +257,12 @@ def catalog(
                 "distance_km": stall["distance_km"],
                 "golden": bool(stall["matched_flares"]),
             })
-    items.sort(key=lambda g: (g["distance_km"] is None, g["distance_km"] or 0, g["produce_name"] or ""))
+    items.sort(key=lambda g: (
+        g.get("status") != "active",
+        g["distance_km"] is None,
+        g["distance_km"] or 0,
+        g["produce_name"] or "",
+    ))
     return {"items": items, "count": len(items), "flares": square["flares"]}
 
 
@@ -283,7 +291,7 @@ def gate_sale(
     listing.quantity_kg -= payload.quantity_kg
     if listing.quantity_kg <= 0:
         listing.quantity_kg = 0
-        listing.status = ListingStatus.completed
+        listing.status = ListingStatus.sold_out
     db.commit()
     db.refresh(listing)
     return {
@@ -292,6 +300,29 @@ def gate_sale(
         "status": listing.status,
         "settled": "cash_at_gate",
     }
+
+
+@router.post("/listings/{listing_id}/sold-out")
+def mark_sold_out(
+    listing_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    listing = (
+        db.query(Listing)
+        .options(joinedload(Listing.node), joinedload(Listing.produce))
+        .filter(Listing.id == listing_id)
+        .first()
+    )
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    if listing.node.owner_id != current_user.id and current_user.role != UserRole.organizer:
+        raise HTTPException(status_code=403, detail="Not your stall")
+    listing.quantity_kg = 0
+    listing.status = ListingStatus.sold_out
+    db.commit()
+    db.refresh(listing)
+    return _listing_view(listing)
 
 
 @router.post("/listings/{listing_id}/claim")
@@ -394,8 +425,12 @@ def close_flare(
 
 
 @router.get("/ledger")
-def public_ledger(limit: int = 20, db: Session = Depends(get_db)):
-    """Recent mycelium trades — append-only, newest first."""
+def public_ledger(
+    limit: int = 20,
+    current_user: User = Depends(require_organizer),
+    db: Session = Depends(get_db),
+):
+    """Admin ledger of trades and every pickup request outcome."""
     txs = (
         db.query(Transaction)
         .options(joinedload(Transaction.listing).joinedload(Listing.produce),
@@ -405,9 +440,11 @@ def public_ledger(limit: int = 20, db: Session = Depends(get_db)):
         .limit(limit)
         .all()
     )
-    return [
+    rows = [
         {
             "id": tx.id,
+            "type": "trade",
+            "status": "completed",
             "from_farm": tx.listing.node.name if tx.listing and tx.listing.node else "",
             "produce": tx.listing.produce.name if tx.listing and tx.listing.produce else "",
             "buyer": tx.buyer.name if tx.buyer else "",
@@ -419,3 +456,36 @@ def public_ledger(limit: int = 20, db: Session = Depends(get_db)):
         }
         for tx in txs
     ]
+    asks = (
+        db.query(PickupAsk)
+        .options(
+            joinedload(PickupAsk.listing).joinedload(Listing.produce),
+            joinedload(PickupAsk.listing).joinedload(Listing.node),
+            joinedload(PickupAsk.buyer),
+        )
+        .order_by(PickupAsk.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    rows.extend(
+        {
+            "id": ask.id,
+            "type": "request",
+            "status": (
+                "pending" if ask.status == AskStatus.asked
+                else "declined" if ask.status == AskStatus.declined
+                else "picked_up" if ask.status == AskStatus.picked_up
+                else "completed"
+            ),
+            "from_farm": ask.listing.node.name if ask.listing and ask.listing.node else "",
+            "produce": ask.listing.produce.name if ask.listing and ask.listing.produce else "",
+            "buyer": ask.buyer.name if ask.buyer else "",
+            "quantity_kg": ask.quantity,
+            "unit": ask.unit,
+            "note": ask.note,
+            "created_at": _iso(ask.created_at),
+        }
+        for ask in asks
+    )
+    rows.sort(key=lambda row: row["created_at"] or "", reverse=True)
+    return rows[:limit]

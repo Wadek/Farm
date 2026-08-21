@@ -56,6 +56,23 @@ def test_open_stall_and_browse_square(client):
     assert stall["pickup_point"] == "Farm gate"
     names = {g["produce_name"] for g in stall["goods"]}
     assert names == {"Kale", "Eggs"}
+    assert body["lots"][0]["unit"] == "kg"
+
+
+def test_listing_unit_liters(client):
+    token, _ = _register(client, "farmer@test.com", "Farmer", "farmer")
+    node = client.post("/nodes", json={
+        "name": "Dairy", "type": "hobby_farm",
+        "lat": 60.5522, "lng": 24.7050,
+    }, headers=_auth(token)).json()
+    resp = _open_stall(client, token, node["id"], [
+        {"produce_name": "Raw milk", "category": "dairy", "quantity_kg": 10,
+         "price_per_kg": 1.4, "unit": "L"},
+    ])
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["lots"][0]["unit"] == "L"
+    catalog = client.get("/catalog").json()
+    assert catalog["items"][0]["unit"] == "L"
 
 
 def test_square_radius_filter(client):
@@ -118,6 +135,35 @@ def test_buyer_claims_lot(client):
 
     square = client.get("/square").json()
     assert square["lot_count"] == 0
+
+
+def test_pending_customer_request_appears_in_ledger(client):
+    farmer_token, _ = _register(client, "farmer@test.com", "Wade", "farmer")
+    buyer_token, _ = _register(client, "buyer@test.com", "Anna", "buyer")
+    admin_token, _ = _register(client, "admin@test.com", "Admin", "organizer")
+    node = client.post("/nodes", json={
+        "name": "Kariniemi", "type": "farm",
+        "lat": 60.5522, "lng": 24.7050,
+    }, headers=_auth(farmer_token)).json()
+    stall = _open_stall(client, farmer_token, node["id"], [
+        {"produce_name": "Kale", "quantity_kg": 8},
+    ]).json()
+
+    asked = client.post(
+        "/asks",
+        json={"listing_id": stall["lots"][0]["id"], "quantity": 2, "note": "This week"},
+        headers=_auth(buyer_token),
+    )
+    assert asked.status_code == 201, asked.text
+
+    ledger = client.get("/ledger", headers=_auth(admin_token))
+    assert ledger.status_code == 200
+    pending = next(row for row in ledger.json() if row["type"] == "request")
+    assert pending["status"] == "pending"
+    assert pending["from_farm"] == "Kariniemi"
+    assert pending["produce"] == "Kale"
+    assert pending["buyer"] == "Anna"
+    assert pending["quantity_kg"] == 2
 
 
 def test_farmer_only_open_stall(client):

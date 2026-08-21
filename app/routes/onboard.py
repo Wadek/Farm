@@ -98,6 +98,7 @@ def onboard_farm(
                 price_per_kg=lot.price_per_kg,
                 pickup_point=payload.pickup_point,
                 is_free=lot.is_free or lot.price_per_kg == 0,
+                unit=lot.unit or "kg",
                 available_from=payload.available_from,
                 available_until=payload.available_until,
                 status=ListingStatus.active,
@@ -120,5 +121,5 @@ def onboard_farm(
         "available_from": _iso(payload.available_from),
         "available_until": _iso(payload.available_until),
         "lots": [_listing_view(l) for l in created],
-        "note": "Write the login on paper. This app is a chalkboard, not a till.",
+        "note": "Leave this login with the farmer.",
     }

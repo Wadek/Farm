@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Satokori — vastaa</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f7f1e4; color: #241c12; margin: 0; padding: 1.2rem; }
+  h1 { font-size: 1.4rem; }
+  .meta { color: #5c5140; margin: .4rem 0 1rem; }
+  input, button { font: inherit; width: 100%; min-height: 48px; padding: .8rem; border-radius: 12px; margin: .4rem 0; box-sizing: border-box; }
+  input { border: 1px solid #d9ccb3; }
+  button { border: 0; background: #2f5d3a; color: #f7f1e4; font-weight: 600; }
+  button.ghost { background: transparent; color: #b86132; border: 1px solid #b86132; }
+  .ok { background: #fffdf7; border: 1px solid #d9ccb3; border-radius: 14px; padding: 1rem; }
+</style>
+</head>
+<body>
+<div id="app">Loading…</div>
+<script>
+const token = location.pathname.split("/").pop();
+const app = document.getElementById("app");
+async function load() {
+  const r = await fetch("/asks/public/" + token);
+  if (!r.ok) { app.textContent = "This request is gone."; return; }
+  const a = await r.json();
+  if (a.status !== "asked") {
+    app.innerHTML = `<div class="ok"><h1>Sent</h1><p>${a.status === "declined" ? "Declined." : a.offer_text}</p></div>`;
+    return;
+  }
+  app.innerHTML = `
+    <h1>${a.buyer_name} asks</h1>
+    <p class="meta">Can I pick up ${a.quantity} ${a.unit} ${a.produce}?${a.note ? "<br>" + a.note : ""}<br>${a.farm_name}</p>
+    <form id="f">
+      <label>When can they come?
+        <input name="when" placeholder="la 10" required>
+      </label>
+      <button type="submit">Send time</button>
+      <button type="button" class="ghost" id="no">Can't do it</button>
+    </form>`;
+  document.getElementById("f").onsubmit = async (e) => {
+    e.preventDefault();
+    const when = e.target.when.value;
+    await fetch("/asks/public/" + token + "/reply", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ when_text: when }),
+    });
+    load();
+  };
+  document.getElementById("no").onclick = async () => {
+    await fetch("/asks/public/" + token + "/reply", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decline: true, when_text: "ei" }),
+    });
+    load();
+  };
+}
+load();
+</script>
+</body>
+</html>

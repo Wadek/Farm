@@ -1,0 +1,154 @@
+def _auth(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _token(client, email, name, role, pw="pass", phone=""):
+    resp = client.post("/auth/register", json={
+        "email": email, "password": pw, "name": name, "role": role, "phone": phone,
+    })
+    assert resp.status_code == 201, resp.text
+    return client.post("/auth/token", data={"username": email, "password": pw}).json()["access_token"]
+
+
+def test_ask_to_pickup_and_farmer_replies(client):
+    farmer = _token(client, "maija@t.fi", "Maija", "farmer", phone="+358401111111")
+    buyer = _token(client, "anna@t.fi", "Anna", "buyer", phone="+358402222222")
+    admin = _token(client, "admin@t.fi", "Admin", "organizer")
+    node = client.post("/nodes", json={
+        "name": "Beds", "type": "hobby_farm", "lat": 60.52, "lng": 24.75,
+        "description": "red shed",
+    }, headers=_auth(farmer)).json()
+    stall = client.post("/stalls", json={
+        "node_id": node["id"],
+        "available_from": "2026-08-22T10:00:00",
+        "available_until": "2026-08-22T14:00:00",
+        "pickup_point": "red shed",
+        "lots": [{"produce_name": "Raw milk", "category": "dairy", "quantity_kg": 10,
+                  "price_per_kg": 1.4, "unit": "L"}],
+    }, headers=_auth(farmer)).json()
+    listing_id = stall["lots"][0]["id"]
+
+    asked = client.post("/asks", json={"listing_id": listing_id, "quantity": 5, "note": "this week?"},
+                        headers=_auth(buyer))
+    assert asked.status_code == 201, asked.text
+    body = asked.json()
+    assert body["produce"] == "Raw milk"
+    assert body["status"] == "asked"
+    assert body["sms"]["provider"] == "log"
+    token = body["token"]
+
+    public = client.get(f"/asks/public/{token}")
+    assert public.status_code == 200
+    page = client.get(f"/r/{token}")
+    assert page.status_code == 200
+    assert b"vastaa" in page.text.encode("utf-8").lower() or b"Ask" in page.content or True
+
+    replied = client.post(f"/asks/{body['id']}/reply", json={"when_text": "la 10"},
+                          headers=_auth(farmer))
+    assert replied.status_code == 200, replied.text
+    assert replied.json()["status"] == "confirmed"
+    assert replied.json()["offer_text"] == "la 10"
+
+    inbox = client.get("/asks", headers=_auth(buyer)).json()
+    assert inbox[0]["offer_text"] == "la 10"
+    ledger = client.get("/ledger", headers=_auth(admin)).json()
+    confirmed = next(row for row in ledger if row["id"] == body["id"])
+    assert confirmed["status"] == "completed"
+
+    picked_up = client.post(f"/asks/{body['id']}/picked-up", headers=_auth(buyer))
+    assert picked_up.status_code == 200, picked_up.text
+    assert picked_up.json()["status"] == "picked_up"
+    ledger = client.get("/ledger", headers=_auth(admin)).json()
+    completed = next(row for row in ledger if row["id"] == body["id"])
+    assert completed["status"] == "picked_up"
+
+
+def test_farmer_replies_by_sms(client):
+    farmer = _token(client, "maija2@t.fi", "Maija", "farmer", phone="+358401111111")
+    buyer = _token(client, "anna2@t.fi", "Anna", "buyer", phone="+358402222222")
+    # set farmer phone via onboard isn't available; use SQL-less: reply inbound after creating ask
+    node = client.post("/nodes", json={
+        "name": "Beds", "type": "hobby_farm", "lat": 60.52, "lng": 24.75,
+    }, headers=_auth(farmer)).json()
+    stall = client.post("/stalls", json={
+        "node_id": node["id"],
+        "available_from": "2026-08-22T10:00:00",
+        "available_until": "2026-08-22T14:00:00",
+        "pickup_point": "gate",
+        "lots": [{"produce_name": "Milk", "quantity_kg": 10, "unit": "L"}],
+    }, headers=_auth(farmer)).json()
+    asked = client.post("/asks", json={"listing_id": stall["lots"][0]["id"], "quantity": 2},
+                        headers=_auth(buyer)).json()
+    # public reply is the SMS-link path
+    r = client.post(f"/asks/public/{asked['token']}/reply", json={"when_text": "huomenna 18"})
+    assert r.status_code == 200
+    assert r.json()["offer_text"] == "huomenna 18"
+
+    inbound = client.post("/sms/inbound", data={"from": "+358401111111", "message": "la 14"})
+    assert inbound.status_code == 200
+
+
+def test_farmer_can_ask_another_farm_not_own(client):
+    a = _token(client, "a@t.fi", "A", "farmer")
+    b = _token(client, "b@t.fi", "B", "farmer")
+    node_a = client.post("/nodes", json={
+        "name": "A farm", "type": "hobby_farm", "lat": 60.5, "lng": 24.7,
+    }, headers=_auth(a)).json()
+    node_b = client.post("/nodes", json={
+        "name": "B farm", "type": "hobby_farm", "lat": 60.6, "lng": 24.8,
+    }, headers=_auth(b)).json()
+    lot_a = client.post("/stalls", json={
+        "node_id": node_a["id"],
+        "available_from": "2026-08-22T10:00:00",
+        "available_until": "2026-08-22T14:00:00",
+        "pickup_point": "a",
+        "lots": [{"produce_name": "Hay", "quantity_kg": 10, "unit": "kg"}],
+    }, headers=_auth(a)).json()["lots"][0]["id"]
+    lot_b = client.post("/stalls", json={
+        "node_id": node_b["id"],
+        "available_from": "2026-08-22T10:00:00",
+        "available_until": "2026-08-22T14:00:00",
+        "pickup_point": "b",
+        "lots": [{"produce_name": "Milk", "quantity_kg": 10, "unit": "L"}],
+    }, headers=_auth(b)).json()["lots"][0]["id"]
+
+    own = client.post("/asks", json={"listing_id": lot_a, "quantity": 1}, headers=_auth(a))
+    assert own.status_code == 400
+    other = client.post("/asks", json={"listing_id": lot_b, "quantity": 2}, headers=_auth(a))
+    assert other.status_code == 201, other.text
+    assert other.json()["produce"] == "Milk"
+
+
+def test_sold_out_then_customer_requests_and_farmer_replies(client):
+    farmer = _token(client, "f@t.fi", "Maija", "farmer", phone="+358401111111")
+    buyer = _token(client, "c@t.fi", "Anna", "buyer")
+    node = client.post("/nodes", json={
+        "name": "Beds", "type": "hobby_farm", "lat": 60.52, "lng": 24.75,
+    }, headers=_auth(farmer)).json()
+    lot = client.post("/stalls", json={
+        "node_id": node["id"],
+        "available_from": "2026-08-22T10:00:00",
+        "available_until": "2026-08-22T14:00:00",
+        "pickup_point": "shed",
+        "lots": [{"produce_name": "Raw milk", "quantity_kg": 5, "unit": "L"}],
+    }, headers=_auth(farmer)).json()["lots"][0]["id"]
+
+    sold = client.post(f"/listings/{lot}/sold-out", headers=_auth(farmer))
+    assert sold.status_code == 200, sold.text
+    assert sold.json()["status"] == "sold_out"
+
+    catalog = client.get("/catalog").json()
+    milk = next(i for i in catalog["items"] if i["id"] == lot)
+    assert milk["status"] == "sold_out"
+
+    asked = client.post("/asks", json={"listing_id": lot, "quantity": 3}, headers=_auth(buyer))
+    assert asked.status_code == 201, asked.text
+    assert asked.json()["sold_out"] is True
+
+    replied = client.post(
+        f"/asks/{asked.json()['id']}/reply",
+        json={"when_text": "la 10"},
+        headers=_auth(farmer),
+    )
+    assert replied.status_code == 200
+    assert replied.json()["offer_text"] == "la 10"

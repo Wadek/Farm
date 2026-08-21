@@ -80,7 +80,7 @@ def test_gate_sale_drops_stock_without_ledger(client):
     assert sold.json()["remaining_kg"] == 7
     assert sold.json()["settled"] == "cash_at_gate"
 
-    ledger = client.get("/ledger").json()
+    ledger = client.get("/ledger", headers=_auth(org)).json()
     assert ledger == []
 
     catalog = client.get("/catalog").json()

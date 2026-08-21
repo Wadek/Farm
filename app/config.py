@@ -20,5 +20,14 @@ class Settings(BaseSettings):
     ajax_email: str = ""
     ajax_password: str = ""
 
+    public_base_url: str = "http://127.0.0.1:8791"
+    sms_provider: str = "log"
+    sms_from: str = "Satokori"
+    elks_username: str = ""
+    elks_password: str = ""
+    twilio_sid: str = ""
+    twilio_token: str = ""
+    twilio_from: str = ""
+
 
 settings = Settings()

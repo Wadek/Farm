@@ -33,13 +33,15 @@ def _saturday_window():
     return saturday.replace(hour=10), saturday.replace(hour=14)
 
 
-def _user(db: Session, user_id: str, email: str, password: str, name: str, role: UserRole) -> User:
+def _user(db: Session, user_id: str, email: str, password: str, name: str, role: UserRole,
+          phone: str = "") -> User:
     user = User(
         id=user_id,
         email=email,
         hashed_password=hash_password(password),
         name=name,
         role=role,
+        phone=phone,
     )
     db.add(user)
     return user
@@ -65,7 +67,7 @@ def _node(db: Session, node_id: str, owner_id: str, name: str, ntype: NodeType,
 def _lot(db: Session, listing_id: str, node_id: str, produce_id: str, name: str,
          category: str, qty: float, price: float, kcal: float, co2: float,
          pickup: str, available_from: datetime, available_until: datetime,
-         is_free: bool = False):
+         is_free: bool = False, unit: str = "kg"):
     produce = Produce(
         id=produce_id,
         node_id=node_id,
@@ -81,6 +83,7 @@ def _lot(db: Session, listing_id: str, node_id: str, produce_id: str, name: str,
         node_id=node_id,
         produce_id=produce_id,
         quantity_kg=qty,
+        unit=unit,
         price_per_kg=price,
         pickup_point=pickup,
         is_free=is_free or price == 0,
@@ -104,10 +107,14 @@ def seed():
     opens, closes = _saturday_window()
     db = SessionLocal()
     try:
-        wade = _user(db, "user-wade", "wade@kariniemi.farm", "farmgate", "Wade Kariniemi", UserRole.organizer)
-        maija = _user(db, "user-maija", "maija@naapuri.fi", "farmgate", "Maija Niemi", UserRole.farmer)
-        pekka = _user(db, "user-pekka", "pekka@hyvinkaa.fi", "farmgate", "Pekka Laine", UserRole.farmer)
-        anna = _user(db, "user-anna", "anna@hyvinkaa.fi", "market", "Anna Virtanen", UserRole.buyer)
+        wade = _user(db, "user-wade", "wade@kariniemi.farm", "farmgate", "Wade Kariniemi",
+                     UserRole.organizer, phone="+358403333333")
+        maija = _user(db, "user-maija", "maija@naapuri.fi", "farmgate", "Maija Niemi",
+                      UserRole.farmer, phone="+358401111111")
+        pekka = _user(db, "user-pekka", "pekka@hyvinkaa.fi", "farmgate", "Pekka Laine",
+                      UserRole.farmer, phone="+358404444444")
+        anna = _user(db, "user-anna", "anna@hyvinkaa.fi", "market", "Anna Virtanen",
+                     UserRole.buyer, phone="+358402222222")
 
         kariniemi = _node(
             db, "node-kariniemi", wade.id, "Kariniemi Farms", NodeType.farm,
@@ -130,23 +137,25 @@ def seed():
         db.flush()
 
         _lot(db, "lot-kale", kariniemi.id, "prod-kale", "Lehtikaali (kale)", "greens",
-             8.0, 4.0, 490, 0.4, kariniemi.description, opens, closes)
+             8.0, 4.0, 490, 0.4, kariniemi.description, opens, closes, unit="kg")
         _lot(db, "lot-eggs", kariniemi.id, "prod-eggs", "Farm eggs", "eggs",
-             5.0, 6.5, 1430, 2.1, kariniemi.description, opens, closes)
+             30.0, 0.40, 1430, 2.1, kariniemi.description, opens, closes, unit="kpl")
         _lot(db, "lot-hay", kariniemi.id, "prod-hay", "Small-square hay", "feed",
-             40.0, 0.25, 0, 0.05, kariniemi.description, opens, closes)
+             40.0, 0.25, 0, 0.05, kariniemi.description, opens, closes, unit="kg")
 
         _lot(db, "lot-honey", rajamaki.id, "prod-honey", "Village honey", "preserve",
-             6.0, 12.0, 3040, 0.3, rajamaki.description, opens, closes)
+             12.0, 8.0, 3040, 0.3, rajamaki.description, opens, closes, unit="kpl")
         _lot(db, "lot-carrot", rajamaki.id, "prod-carrot", "Porkkana", "root",
-             12.0, 1.8, 410, 0.3, rajamaki.description, opens, closes)
+             12.0, 1.8, 410, 0.3, rajamaki.description, opens, closes, unit="kg")
         _lot(db, "lot-milk", rajamaki.id, "prod-milk", "Raw milk", "dairy",
-             20.0, 1.4, 640, 1.2, rajamaki.description, opens, closes)
+             20.0, 1.4, 640, 1.2, rajamaki.description, opens, closes, unit="L")
+        _lot(db, "lot-berries", rajamaki.id, "prod-berries", "Mustikka", "berries",
+             8.0, 12.0, 570, 0.2, rajamaki.description, opens, closes, unit="L")
 
         _lot(db, "lot-potato", backyard.id, "prod-potato", "Peruna", "root",
-             25.0, 0.9, 770, 0.2, backyard.description, opens, closes)
+             25.0, 0.9, 770, 0.2, backyard.description, opens, closes, unit="kg")
         _lot(db, "lot-surplus", backyard.id, "prod-surplus", "Surplus courgettes", "vegetable",
-             4.0, 0.0, 170, 0.3, backyard.description, opens, closes, is_free=True)
+             4.0, 0.0, 170, 0.3, backyard.description, opens, closes, is_free=True, unit="kg")
 
         db.add(DemandFlare(
             id="flare-milk",
