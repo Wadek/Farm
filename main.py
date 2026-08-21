@@ -36,6 +36,7 @@ def _ensure_ask_pickup_columns():
 
 
 def _ensure_node_claim_columns():
+    import secrets
     from sqlalchemy import inspect, text
     insp = inspect(engine)
     if "nodes" not in insp.get_table_names():
@@ -46,6 +47,12 @@ def _ensure_node_claim_columns():
             conn.execute(text("ALTER TABLE nodes ADD COLUMN claim_id VARCHAR"))
         if "claimed_at" not in cols:
             conn.execute(text("ALTER TABLE nodes ADD COLUMN claimed_at DATETIME"))
+        existing = conn.execute(text("SELECT id FROM nodes WHERE claim_id IS NULL")).fetchall()
+        for (node_id,) in existing:
+            conn.execute(
+                text("UPDATE nodes SET claim_id = :claim_id WHERE id = :node_id"),
+                {"claim_id": secrets.token_urlsafe(10), "node_id": node_id},
+            )
 
 
 _ensure_listing_unit()
