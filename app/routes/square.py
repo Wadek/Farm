@@ -483,6 +483,7 @@ def public_ledger(
             "quantity_kg": ask.quantity,
             "unit": ask.unit,
             "note": ask.note,
+            "picked_up_by": ask.picked_up_by,
             "created_at": _iso(ask.created_at),
         }
         for ask in asks

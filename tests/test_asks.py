@@ -119,6 +119,45 @@ def test_farmer_can_ask_another_farm_not_own(client):
     assert other.json()["produce"] == "Milk"
 
 
+def test_customer_cannot_create_customer_listing_or_request(client):
+    a = _token(client, "customer-a@t.fi", "A", "buyer")
+    b = _token(client, "customer-b@t.fi", "B", "buyer")
+    node = client.post("/nodes", json={
+        "name": "Customer garden", "type": "backyard", "lat": 60.5, "lng": 24.7,
+    }, headers=_auth(a)).json()
+    produce = client.post(f"/nodes/{node['id']}/produce", json={
+        "name": "Tomatoes", "category": "vegetable", "quantity_kg": 2,
+    }, headers=_auth(a))
+    assert produce.status_code == 403
+
+
+def test_farmer_can_make_request_ready_with_extra_inventory(client):
+    farmer = _token(client, "ready-farmer@t.fi", "Farmer", "farmer")
+    buyer = _token(client, "ready-buyer@t.fi", "Buyer", "buyer")
+    node = client.post("/nodes", json={
+        "name": "Beds", "type": "farm", "lat": 60.5, "lng": 24.7,
+    }, headers=_auth(farmer)).json()
+    listing = client.post("/stalls", json={
+        "node_id": node["id"], "available_from": "2026-08-22T10:00:00",
+        "available_until": "2026-08-22T14:00:00", "pickup_point": "gate",
+        "lots": [{"produce_name": "Carrots", "quantity_kg": 1}],
+    }, headers=_auth(farmer)).json()["lots"][0]
+    client.post(f"/listings/{listing['id']}/sold-out", headers=_auth(farmer))
+    asked = client.post("/asks", json={"listing_id": listing["id"], "quantity": 3},
+                        headers=_auth(buyer)).json()
+
+    ready = client.post(f"/asks/{asked['id']}/available",
+                        json={"quantity": 3, "when_text": "today at 18"},
+                        headers=_auth(farmer))
+    assert ready.status_code == 200, ready.text
+    assert ready.json()["status"] == "confirmed"
+    assert client.get("/catalog").json()["items"][0]["quantity_kg"] == 3
+
+    picked = client.post(f"/asks/{asked['id']}/farmer-picked-up", headers=_auth(farmer))
+    assert picked.status_code == 200
+    assert picked.json()["picked_up_by"] == "Farmer"
+
+
 def test_sold_out_then_customer_requests_and_farmer_replies(client):
     farmer = _token(client, "f@t.fi", "Maija", "farmer", phone="+358401111111")
     buyer = _token(client, "c@t.fi", "Anna", "buyer")
@@ -152,3 +191,6 @@ def test_sold_out_then_customer_requests_and_farmer_replies(client):
     )
     assert replied.status_code == 200
     assert replied.json()["offer_text"] == "la 10"
+    available = next(i for i in client.get("/catalog").json()["items"] if i["id"] == lot)
+    assert available["status"] == "active"
+    assert available["quantity_kg"] == 3

@@ -101,3 +101,16 @@ def test_farmer_role_preserved(client):
     token = token_resp.json()["access_token"]
     me = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me.json()["role"] == "farmer"
+
+
+def test_only_one_admin_can_register(client):
+    first = client.post("/auth/register", json={
+        "email": "admin-one@test.com", "password": "pass",
+        "name": "First Admin", "role": "organizer",
+    })
+    assert first.status_code == 201
+    second = client.post("/auth/register", json={
+        "email": "admin-two@test.com", "password": "pass",
+        "name": "Second Admin", "role": "organizer",
+    })
+    assert second.status_code == 409

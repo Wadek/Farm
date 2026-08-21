@@ -20,9 +20,10 @@
   header h1 { font-family: Fraunces, Georgia, serif; font-size: 1.7rem; }
   header p { color: #c9d6c4; font-size: .95rem; }
   header .bar { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
-  nav { display: flex; gap: .4rem; padding: .7rem 1rem; background: #efe4c8; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; overflow-x: auto; }
-  nav button, .btn { font-family: inherit; border: 1px solid var(--moss); background: transparent; color: var(--moss); padding: .55rem .9rem; border-radius: 999px; cursor: pointer; min-height: 44px; font-weight: 600; }
+  nav { display: flex; flex-wrap: wrap; gap: .4rem; padding: .7rem 1rem; background: #efe4c8; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
+  nav button, .btn { font-family: inherit; border: 1px solid var(--moss); background: transparent; color: var(--moss); padding: .55rem .9rem; border-radius: 999px; cursor: pointer; min-height: 44px; font-weight: 600; flex: 0 0 auto; }
   nav button.active, .btn.primary { background: var(--moss); color: #f7f1e4; }
+  body[data-role="farmer"] nav button.active, body[data-role="buyer"] nav button.active { background: #000; color: #fff; border-color: #fff; }
   .btn.copper { border-color: var(--copper); color: var(--copper); }
   .btn.copper.primary, .btn.copper:hover { background: var(--copper); color: #fff; }
   .btn.ghost { border-color: var(--line); color: var(--ink); }
@@ -50,6 +51,7 @@
   .auth small { color: #c9d6c4; }
   .basket-line { display: flex; justify-content: space-between; gap: .6rem; padding: .5rem 0; border-bottom: 1px dashed var(--line); }
   .role-pill { display: inline-block; background: #2a3d32; color: var(--gold); font-size: .75rem; letter-spacing: .08em; padding: .15rem .5rem; border-radius: 999px; text-transform: uppercase; }
+  .fresh-tag { display: inline-block; margin-left: .35rem; padding: .12rem .4rem; border: 1px solid var(--gold); border-radius: 999px; color: var(--copper); font: 600 .7rem "Source Sans 3", sans-serif; text-transform: uppercase; letter-spacing: .08em; vertical-align: middle; }
   @media (max-width: 640px) { .row, .row3, .item { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -57,7 +59,6 @@
 <header>
   <div class="bar">
     <div>
-      <div class="eyebrow" id="eyebrow">Hyvinkää · farmer network</div>
       <h1>Satokori</h1>
       <p id="tagline">Who has what, when, and where.</p>
     </div>
@@ -133,7 +134,7 @@
   <section id="view-ledger" class="hidden">
     <div class="card">
       <h3>Ledger</h3>
-      <p class="meta">Network trades and pending customer requests. Gate sales are not written here.</p>
+      <p class="meta">Network trades and customer pickup requests.</p>
       <div id="ledger"></div>
     </div>
   </section>
@@ -214,8 +215,7 @@ function renderNav(active) {
 }
 function applyChrome() {
   const r = role();
-  const labels = { guest: "Network", buyer: "Customer", farmer: "Farmer", organizer: "Admin" };
-  document.getElementById("eyebrow").textContent = "Hyvinkää · " + (labels[r] || r);
+  document.body.dataset.role = r;
   document.getElementById("tagline").textContent = r === "organizer"
     ? "Admin — add farms, see the ledger, list Kariniemi items."
     : r === "farmer"
@@ -308,7 +308,7 @@ async function loadCatalog() {
     <article class="card ${item.golden ? "golden" : ""} ${soldOut ? "sold-out" : ""}">
       <div class="item">
         <div>
-          <h3>${item.produce_name}${soldOut ? " · sold out" : ""}</h3>
+          <h3>${item.produce_name}${item.fresh ? '<span class="fresh-tag">fresh</span>' : ""}${soldOut ? " · sold out" : ""}</h3>
           <div class="meta">${item.farm_name} · ${fmtWhen(item.available_from, item.available_until)}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}${own ? " · yours" : ""}</div>
           <div class="price">${soldOut ? "Sold out" : qtyLabel(item) + " · " + priceLabel(item)}</div>
         </div>
@@ -368,19 +368,20 @@ async function loadAsks() {
       <h3>${a.produce}</h3>
       <div class="meta">${a.buyer_name} → ${a.farmer_name} · ${a.quantity} ${a.unit}
         ${a.note ? " · " + a.note : ""}<br>${a.status === "asked" ? "Waiting for a time" : a.status === "declined" ? "Declined" : a.status === "picked_up" ? "Picked up" : a.offer_text}</div>
-      ${!farmerish && (a.status === "confirmed" || a.status === "offered") ? `<button class="btn primary" data-picked-up="${a.id}">Picked up</button>` : ""}
-      ${farmerish && a.status === "asked" ? `
+        ${(!farmerish || a.farmer_id === me.id) && (a.status === "confirmed" || a.status === "offered") ? `<button class="btn primary" data-picked-up="${a.id}">${farmerish ? "Mark picked up" : "Picked up"}</button>` : ""}
+      ${farmerish && a.farmer_id === me.id && a.status === "asked" ? `
         <form class="row" data-reply="${a.id}">
-          <input name="when" placeholder="${a.sold_out ? "next sat 10" : "la 10"}" required>
-          <button class="btn primary" type="submit">${a.sold_out ? "Reply when it's back" : "Text them the time"}</button>
+          <label>Amount <input name="quantity" type="number" min="0.1" step="0.1" value="${a.quantity}" required></label>
+          <label>Pickup time <input name="when" placeholder="${a.sold_out ? "next sat 10" : "la 10"}" required></label>
+          <button class="btn primary" type="submit">Ready for pickup</button>
         </form>
         <button class="btn ghost" data-no="${a.id}">Can't do it</button>` : ""}
     </article>`).join("");
   el.querySelectorAll("[data-reply]").forEach(f => f.onsubmit = async (e) => {
     e.preventDefault();
     try {
-      await api(`/asks/${f.dataset.reply}/reply`, { method: "POST", body: JSON.stringify({ when_text: f.when.value }) });
-      toast("Time sent");
+      await api(`/asks/${f.dataset.reply}/available`, { method: "POST", body: JSON.stringify({ quantity: Number(f.quantity.value), when_text: f.when.value }) });
+      toast("Ready for pickup");
       loadAsks();
     } catch (err) { toast(err.message); }
   });
@@ -392,7 +393,8 @@ async function loadAsks() {
   });
   el.querySelectorAll("[data-picked-up]").forEach(b => b.onclick = async () => {
     try {
-      await api(`/asks/${b.dataset.pickedUp}/picked-up`, { method: "POST" });
+      const path = role() === "farmer" || role() === "organizer" ? "farmer-picked-up" : "picked-up";
+      await api(`/asks/${b.dataset.pickedUp}/${path}`, { method: "POST" });
       toast("Pickup recorded");
       loadAsks();
       loadOrderAlerts();
@@ -539,7 +541,7 @@ async function loadLedger() {
   el.innerHTML = rows.map(r => `
     <div class="basket-line">
       <div><b>${r.type === "request" ? r.status === "pending" ? "PENDING REQUEST" : r.status === "picked_up" ? "PICKED UP" : r.status === "declined" ? "DECLINED REQUEST" : "CONFIRMED REQUEST" : r.from_farm}</b>${r.type === "request" ? ` · ${r.from_farm}` : ""} → ${r.buyer}
-        <div class="meta">${r.produce} · ${r.quantity_kg} ${r.unit || "kg"}${r.note ? " · " + r.note : ""}</div></div>
+        <div class="meta">${r.produce} · ${r.quantity_kg} ${r.unit || "kg"}${r.note ? " · " + r.note : ""}${r.picked_up_by ? " · marked by " + r.picked_up_by : ""}</div></div>
       <div>${r.type === "request" ? r.status === "pending" ? "Awaiting reply" : r.status === "picked_up" ? "Pickup complete" : r.status === "declined" ? "Declined" : "Pickup confirmed" : r.myc_tokens_minted + " MYC"}</div>
     </div>`).join("");
 }

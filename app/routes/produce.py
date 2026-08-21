@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Node, Produce, Listing, ListingStatus
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.dependencies import get_current_user
 
 router = APIRouter(tags=["produce"])
@@ -35,6 +35,8 @@ def _assert_node_owner(node_id: str, user: User, db: Session) -> Node:
         raise HTTPException(status_code=404, detail="Node not found")
     if node.owner_id != user.id:
         raise HTTPException(status_code=403, detail="Not your node")
+    if user.role not in (UserRole.farmer, UserRole.organizer):
+        raise HTTPException(status_code=403, detail="Farmers only")
     return node
 
 
@@ -151,6 +153,7 @@ def _produce_view(p: Produce) -> dict:
 
 
 def _listing_view(l: Listing) -> dict:
+    created_at = l.created_at.isoformat() if l.created_at else None
     return {
         "id": l.id,
         "node_id": l.node_id,
@@ -164,6 +167,8 @@ def _listing_view(l: Listing) -> dict:
         "available_from": l.available_from.isoformat() if l.available_from else None,
         "available_until": l.available_until.isoformat() if l.available_until else None,
         "status": l.status,
+        "created_at": created_at,
+        "fresh": bool(l.created_at and (datetime.now() - l.created_at).days < 7),
         "node_name": l.node.name if l.node else None,
         "farmer_id": l.node.owner_id if l.node else None,
         "farmer_name": l.node.owner.name if l.node and l.node.owner else None,

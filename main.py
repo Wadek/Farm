@@ -22,7 +22,21 @@ def _ensure_listing_unit():
             conn.execute(text("ALTER TABLE listings ADD COLUMN unit VARCHAR DEFAULT 'kg'"))
 
 
+def _ensure_ask_pickup_columns():
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    if "pickup_asks" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("pickup_asks")}
+    with engine.begin() as conn:
+        if "picked_up_by" not in cols:
+            conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN picked_up_by VARCHAR"))
+        if "picked_up_at" not in cols:
+            conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN picked_up_at DATETIME"))
+
+
 _ensure_listing_unit()
+_ensure_ask_pickup_columns()
 
 app = FastAPI(title="Satokori", version="0.3.0")
 app.include_router(auth.router)
