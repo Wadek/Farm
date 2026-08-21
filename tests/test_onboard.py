@@ -5,11 +5,11 @@ def _auth(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-def _token(client, email, name, role, password="pass"):
+def _token(client, email, name, role, pw="pass"):
     client.post("/auth/register", json={
-        "email": email, "password": password, "name": name, "role": role,
+        "email": email, "password": pw, "name": name, "role": role,
     })
-    return client.post("/auth/token", data={"username": email, "password": password}).json()["access_token"]
+    return client.post("/auth/token", data={"username": email, "password": pw}).json()["access_token"]
 
 
 def _window():

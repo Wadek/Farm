@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
 
 
-def _register(client, email, name, role, password="pass"):
+def _register(client, email, name, role, pw="pass"):
     resp = client.post("/auth/register", json={
-        "email": email, "password": password, "name": name, "role": role,
+        "email": email, "password": pw, "name": name, "role": role,
     })
     assert resp.status_code == 201, resp.text
-    token = client.post("/auth/token", data={"username": email, "password": password})
+    token = client.post("/auth/token", data={"username": email, "password": pw})
     return token.json()["access_token"], resp.json()["id"]
 
 
