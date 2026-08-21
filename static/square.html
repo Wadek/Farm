@@ -50,6 +50,8 @@
   .auth { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
   .auth small { color: #c9d6c4; }
   .basket-line { display: flex; justify-content: space-between; gap: .6rem; padding: .5rem 0; border-bottom: 1px dashed var(--line); }
+  #ledger-tools { display: grid; gap: .8rem; margin: 1rem 0; }
+  #ledger { display: grid; gap: .35rem; }
   .role-pill { display: inline-block; background: #2a3d32; color: var(--gold); font-size: .75rem; letter-spacing: .08em; padding: .15rem .5rem; border-radius: 999px; text-transform: uppercase; }
   @media (max-width: 640px) { .row, .row3, .item { grid-template-columns: 1fr; } }
 </style>
@@ -165,9 +167,9 @@
     <div class="card">
       <h3>Ledger</h3>
       <p class="meta">Network trades and customer pickup requests.</p>
-      <div id="ledger-tools"></div>
-      <div id="ledger"></div>
     </div>
+    <div id="ledger-tools"></div>
+    <div id="ledger"></div>
   </section>
 </main>
 <div id="toast" class="toast hidden"></div>
@@ -551,7 +553,7 @@ async function loadMyListings() {
     <article class="card">
       <h3>${g.produce_name}${soldOut ? " · sold out" : ""}</h3>
       <div class="meta">${soldOut ? "Sold out" : qtyLabel(g) + " left"} · ${priceLabel(g)} · ${s.farm_name}</div>
-      ${soldOut ? `<p class="meta">Customers can still request this. Reply in Requests.</p><button class="btn primary" type="button" data-relist="${g.id}">Relist same amount</button>` : `
+      ${soldOut ? `<p class="meta">Customers can still request this. Reply in Ledger.</p><button class="btn primary" type="button" data-relist="${g.id}">Relist same amount</button>` : `
       <div class="meta">Sold</div>
       <div>${chips}</div>
       <form class="row" data-custom="${g.id}" style="margin-top:.5rem">
