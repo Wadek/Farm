@@ -196,6 +196,26 @@ def test_pickup_can_be_undone_for_five_minutes_and_orders_can_withdraw(client):
     assert withdrawn.json()["status"] == "withdrawn"
 
 
+def test_admin_owned_farm_request_can_be_replied_to_from_ledger(client):
+    admin = _token(client, "owned-admin@t.fi", "Admin", "organizer")
+    buyer = _token(client, "owned-buyer@t.fi", "Buyer", "buyer")
+    node = client.post("/nodes", json={"name": "Admin Farm", "type": "farm", "lat": 60.5, "lng": 24.7},
+                       headers=_auth(admin)).json()
+    listing = client.post("/stalls", json={
+        "node_id": node["id"], "available_from": "2026-08-22T10:00:00",
+        "available_until": "2026-08-22T14:00:00", "pickup_point": "gate",
+        "lots": [{"produce_name": "Eggs", "quantity_kg": 6, "unit": "kpl"}],
+    }, headers=_auth(admin)).json()["lots"][0]
+    ask = client.post("/asks", json={"listing_id": listing["id"], "quantity": 2},
+                      headers=_auth(buyer)).json()
+    ledger = client.get("/ledger", headers=_auth(admin)).json()
+    pending = next(row for row in ledger if row["id"] == ask["id"])
+    assert pending["farmer_id"]
+    reply = client.post(f"/asks/{ask['id']}/available", json={"when_text": "la 10"}, headers=_auth(admin))
+    assert reply.status_code == 200, reply.text
+    assert reply.json()["status"] == "confirmed"
+
+
 def test_sold_out_then_customer_requests_and_farmer_replies(client):
     farmer = _token(client, "f@t.fi", "Maija", "farmer", phone="+358401111111")
     buyer = _token(client, "c@t.fi", "Anna", "buyer")

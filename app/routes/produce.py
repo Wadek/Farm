@@ -168,7 +168,6 @@ def _listing_view(l: Listing) -> dict:
         "available_until": l.available_until.isoformat() if l.available_until else None,
         "status": l.status,
         "created_at": created_at,
-        "fresh": bool(l.created_at and (datetime.now() - l.created_at).days < 7),
         "node_name": l.node.name if l.node else None,
         "farmer_id": l.node.owner_id if l.node else None,
         "farmer_name": l.node.owner.name if l.node and l.node.owner else None,

@@ -286,7 +286,7 @@ def gate_sale(
     )
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
-    if listing.node.owner_id != current_user.id and current_user.role != UserRole.organizer:
+    if listing.node.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not your stall")
     if listing.status not in (ListingStatus.active, ListingStatus.reserved):
         raise HTTPException(status_code=409, detail="Nothing left on the table")
@@ -320,7 +320,7 @@ def mark_sold_out(
     )
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
-    if listing.node.owner_id != current_user.id and current_user.role != UserRole.organizer:
+    if listing.node.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not your stall")
     listing.quantity_kg = 0
     listing.status = ListingStatus.sold_out
@@ -344,7 +344,7 @@ def relist_listing(
     )
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
-    if listing.node.owner_id != current_user.id and current_user.role != UserRole.organizer:
+    if listing.node.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not your stall")
     quantity = payload.quantity_kg if payload.quantity_kg is not None else listing.produce.quantity_kg
     if quantity <= 0:
@@ -520,6 +520,8 @@ def public_ledger(
             "from_farm": ask.listing.node.name if ask.listing and ask.listing.node else "",
             "produce": ask.listing.produce.name if ask.listing and ask.listing.produce else "",
             "buyer": ask.buyer.name if ask.buyer else "",
+            "buyer_id": ask.buyer_id,
+            "farmer_id": ask.farmer_id,
             "quantity_kg": ask.quantity,
             "unit": ask.unit,
             "note": ask.note,

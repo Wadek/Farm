@@ -51,7 +51,6 @@
   .auth small { color: #c9d6c4; }
   .basket-line { display: flex; justify-content: space-between; gap: .6rem; padding: .5rem 0; border-bottom: 1px dashed var(--line); }
   .role-pill { display: inline-block; background: #2a3d32; color: var(--gold); font-size: .75rem; letter-spacing: .08em; padding: .15rem .5rem; border-radius: 999px; text-transform: uppercase; }
-  .fresh-tag { display: inline-block; margin-left: .35rem; padding: .12rem .4rem; border: 1px solid var(--gold); border-radius: 999px; color: var(--copper); font: 600 .7rem "Source Sans 3", sans-serif; text-transform: uppercase; letter-spacing: .08em; vertical-align: middle; }
   @media (max-width: 640px) { .row, .row3, .item { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -216,6 +215,10 @@ function fmtWhen(from, until) {
   const t2 = b ? b.toLocaleTimeString("fi", { hour: "2-digit", minute: "2-digit" }) : "";
   return `${day} · ${t1}–${t2}`;
 }
+function fmtTimestamp(value) {
+  if (!value) return "unknown time";
+  return new Date(value).toLocaleString("fi", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
 function navItems() {
   const r = role();
   const items = [
@@ -343,8 +346,8 @@ async function loadCatalog() {
     <article class="card ${item.golden ? "golden" : ""} ${soldOut ? "sold-out" : ""}">
       <div class="item">
         <div>
-          <h3>${item.produce_name}${item.fresh ? '<span class="fresh-tag">fresh</span>' : ""}${soldOut ? " · sold out" : ""}</h3>
-          <div class="meta">${item.farm_name} · ${fmtWhen(item.available_from, item.available_until)}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}${own ? " · yours" : ""}</div>
+          <h3>${item.produce_name}${soldOut ? " · sold out" : ""}</h3>
+          <div class="meta">${item.farm_name} · listed ${fmtTimestamp(item.created_at)} · ${fmtWhen(item.available_from, item.available_until)}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}${own ? " · yours" : ""}</div>
           <div class="price">${soldOut ? "Sold out" : qtyLabel(item) + " · " + priceLabel(item)}</div>
         </div>
         <div>
@@ -591,15 +594,24 @@ async function loadLedger() {
   el.innerHTML = rows.map(r => `
     <div class="basket-line">
       <div><b>${r.type === "inventory" ? "INVENTORY" : r.type === "request" ? r.status === "pending" ? "PENDING REQUEST" : r.status === "picked_up" ? "PICKED UP" : r.status === "withdrawn" ? "WITHDRAWN" : r.status === "declined" ? "DECLINED REQUEST" : "CONFIRMED REQUEST" : r.from_farm}</b>${r.type !== "trade" ? ` · ${r.from_farm}` : ""}${r.buyer ? ` → ${r.buyer}` : ""}
-        <div class="meta">${r.produce || ""}${r.quantity_kg != null ? ` · ${r.quantity_kg} ${r.unit || "kg"}` : ""}${r.note ? " · " + r.note : ""}${r.picked_up_by ? " · marked by " + r.picked_up_by : ""}</div></div>
+        <div class="meta">${r.produce || ""}${r.quantity_kg != null ? ` · ${r.quantity_kg} ${r.unit || "kg"}` : ""} · event ${fmtTimestamp(r.created_at)}${r.note ? " · " + r.note : ""}${r.picked_up_by ? " · marked by " + r.picked_up_by : ""}</div>
       <div>${r.type === "inventory" ? r.status : r.type === "request" ? r.status === "pending" ? "Awaiting reply" : r.status === "picked_up" ? "Pickup complete" : r.status === "withdrawn" ? "Withdrawn" : r.status === "declined" ? "Declined" : "Pickup confirmed" : r.myc_tokens_minted + " MYC"}
-        ${role() === "organizer" && r.type === "request" && r.status !== "picked_up" ? `<button class="btn ghost" data-remind="${r.id}">Prompt trade</button>` : ""}
+        ${r.type === "request" && r.status === "pending" && r.farmer_id === me.id ? `<form class="row" data-ledger-reply="${r.id}"><input name="when" placeholder="Pickup time" required><button class="btn primary">Reply and fulfill</button></form>` : ""}
+        ${role() === "organizer" && r.type === "request" && r.farmer_id !== me.id && r.status !== "picked_up" ? `<button class="btn ghost" data-remind="${r.id}">Prompt trade</button>` : ""}
         ${r.type === "request" && (r.status === "confirmed" || r.status === "completed") ? `<button class="btn ghost" data-withdraw="${r.id}">Withdraw order</button>` : ""}
         ${r.type === "request" && r.status === "picked_up" && r.picked_up_at ? `<button class="btn ghost" data-undo="${r.id}">Undo pickup</button>` : ""}</div>
     </div>`).join("");
   el.querySelectorAll("[data-remind]").forEach(b => b.onclick = async () => {
     try { await api(`/asks/${b.dataset.remind}/remind`, { method: "POST" }); toast("Reminder sent"); }
     catch (e) { toast(e.message); }
+  });
+  el.querySelectorAll("[data-ledger-reply]").forEach(form => form.onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api(`/asks/${form.dataset.ledgerReply}/available`, { method: "POST", body: JSON.stringify({ when_text: form.when.value }) });
+      toast("Pickup made available");
+      loadLedger();
+    } catch (err) { toast(err.message); }
   });
   el.querySelectorAll("[data-withdraw]").forEach(b => b.onclick = async () => {
     if (!confirm("Withdraw this order? This should be used rarely.")) return;
