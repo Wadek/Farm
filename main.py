@@ -37,6 +37,8 @@ def _ensure_ask_pickup_columns():
             conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN buyer_verified_at DATETIME"))
         if "farmer_verified_at" not in cols:
             conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN farmer_verified_at DATETIME"))
+        if "acknowledged_at" not in cols:
+            conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN acknowledged_at DATETIME"))
 
 
 def _ensure_node_claim_columns():
@@ -49,14 +51,23 @@ def _ensure_node_claim_columns():
     with engine.begin() as conn:
         if "claim_id" not in cols:
             conn.execute(text("ALTER TABLE nodes ADD COLUMN claim_id VARCHAR"))
-        if "claimed_at" not in cols:
+        added_claimed_at = "claimed_at" not in cols
+        if added_claimed_at:
             conn.execute(text("ALTER TABLE nodes ADD COLUMN claimed_at DATETIME"))
+        # Backfill claim_id for any node that doesn't have one yet
         existing = conn.execute(text("SELECT id FROM nodes WHERE claim_id IS NULL")).fetchall()
         for (node_id,) in existing:
             conn.execute(
                 text("UPDATE nodes SET claim_id = :claim_id WHERE id = :node_id"),
                 {"claim_id": secrets.token_urlsafe(10), "node_id": node_id},
             )
+        # One-time only: nodes that predated claimed_at were already owned.
+        # Do not repeat this on later startups — unclaimed onboarded farms keep claimed_at NULL.
+        if added_claimed_at:
+            conn.execute(text(
+                "UPDATE nodes SET claimed_at = CURRENT_TIMESTAMP"
+                " WHERE owner_id IS NOT NULL AND claimed_at IS NULL"
+            ))
 
 
 _ensure_listing_unit()
@@ -84,6 +95,15 @@ def index():
 @app.get("/r/{token}")
 def farmer_reply_page(token: str):
     return FileResponse("static/reply.html")
+
+
+@app.get("/sw.js")
+def service_worker():
+    return FileResponse(
+        "static/sw.js",
+        media_type="text/javascript",
+        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
+    )
 
 
 @app.get("/console")

@@ -15,7 +15,7 @@ class Node(Base):
     __tablename__ = "nodes"
 
     id = Column(String, primary_key=True)
-    owner_id = Column(String, ForeignKey("users.id"), nullable=False)
+    owner_id = Column(String, ForeignKey("users.id"), nullable=True)
     name = Column(String, nullable=False)
     type = Column(Enum(NodeType), nullable=False)
     lat = Column(Float, nullable=False)

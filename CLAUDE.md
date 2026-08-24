@@ -2,7 +2,7 @@
 
 **Repo:** github.com/Wadek/Farm  
 **Stack:** Python 3.11, FastAPI, SQLAlchemy, SQLite, Claude Code CLI  
-**Hosted:** Local (Linux Chromebook / desktop via network mount)  
+**Hosted:** D:\wakalabs\satokori · https://satokori.wakalabs.net
 **Author:** github.com/Wadek
 
 ---

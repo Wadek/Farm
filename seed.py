@@ -1,6 +1,6 @@
 """Seed a local Hyvinkää market square for trying Perinnepelto."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -48,7 +48,8 @@ def _user(db: Session, user_id: str, email: str, password: str, name: str, role:
 
 
 def _node(db: Session, node_id: str, owner_id: str, name: str, ntype: NodeType,
-          lat: float, lng: float, description: str, area_m2: float) -> Node:
+          lat: float, lng: float, description: str, area_m2: float,
+          claim_id: str | None = None, claimed_at: datetime | None = None) -> Node:
     node = Node(
         id=node_id,
         owner_id=owner_id,
@@ -59,6 +60,8 @@ def _node(db: Session, node_id: str, owner_id: str, name: str, ntype: NodeType,
         description=description,
         area_m2=area_m2,
         myc_tokens=0.0,
+        claim_id=claim_id or f"claim-{node_id}",
+        claimed_at=claimed_at,
     )
     db.add(node)
     return node
@@ -118,23 +121,38 @@ def seed():
         liisa = _user(db, "user-liisa", "liisa@hyvinkaa.fi", "market", "Liisa Customer",
                   UserRole.buyer, phone="+358405555555")
 
+        claimed_now = datetime.now(timezone.utc)
         kariniemi = _node(
             db, "node-kariniemi", wade.id, "Kariniemi Farms", NodeType.farm,
             60.5522, 24.7050,
             "Korpiharjuntie, Yli-Solttila — farm gate, look for the painted sign.",
             50000,
+            claim_id="claim-kariniemi",
+            claimed_at=claimed_now,
         )
         rajamaki = _node(
             db, "node-rajamaki", maija.id, "Rajamäki Heritage Beds", NodeType.hobby_farm,
             60.5270, 24.7500,
             "Raised beds behind the red shed. Knock if the kettle is on.",
             800,
+            claim_id="claim-rajamaki",
+            claimed_at=claimed_now,
         )
         backyard = _node(
             db, "node-hyvinkaa", pekka.id, "Pekka's Backyard", NodeType.backyard,
             60.6304, 24.8603,
             "Hyvinkää yard gate on Saturday — crate on the bench if we're in the sauna.",
             120,
+            claim_id="claim-backyard",
+            claimed_at=claimed_now,
+        )
+        kumpula = _node(
+            db, "node-kumpula", None, "Kumpula Apple Orchard", NodeType.farm,
+            60.5100, 24.7800,
+            "Kumpulantie 12, Hyvinkää — orchard gate.",
+            15000,
+            claim_id="claim-kumpula-2026",
+            claimed_at=None,
         )
         db.flush()
 
@@ -159,6 +177,9 @@ def seed():
         _lot(db, "lot-surplus", backyard.id, "prod-surplus", "Surplus courgettes", "vegetable",
              4.0, 0.0, 170, 0.3, backyard.description, opens, closes, is_free=True, unit="kg")
 
+        _lot(db, "lot-apples", kumpula.id, "prod-apples", "Summer apples (omena)", "berries",
+             20.0, 2.5, 520, 0.2, kumpula.description, opens, closes, unit="kg")
+
         db.add(DemandFlare(
             id="flare-milk",
             buyer_id=anna.id,
@@ -179,6 +200,8 @@ def seed():
         print("Farmers   (password: farmgate)")
         print("  maija@naapuri.fi      Rajamäki Heritage Beds")
         print("  pekka@hyvinkaa.fi     Pekka's Backyard")
+        print("Unclaimed Farm (claim ID: claim-kumpula-2026)")
+        print("  Kumpula Apple Orchard")
         print("Customer  (password: market)")
         print("  anna@hyvinkaa.fi      looking for raw milk")
         print("  liisa@hyvinkaa.fi     second customer test account")

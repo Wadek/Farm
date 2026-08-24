@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Satokori</title>
+<link rel="manifest" href="/static/manifest.webmanifest">
+<meta name="theme-color" content="#17241c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Satokori">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
@@ -44,9 +49,18 @@
   .item { display: grid; grid-template-columns: 1fr auto; gap: .6rem; align-items: center; }
   .price { color: var(--moss); font-weight: 600; }
   .toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); background: var(--chalk); color: #f7f1e4; padding: .7rem 1rem; border-radius: 999px; z-index: 50; max-width: 90%; }
-  .order-alert { background: #fff5cf; border: 1px solid var(--gold); border-radius: 14px; padding: 1rem; margin-bottom: 1rem; }
+  .order-alert { background: #fff5cf; border: 2px solid var(--gold); border-radius: 14px; padding: 1rem; margin-bottom: 1rem; animation: pulse-alert 1.4s ease-in-out 3; }
   .order-alert h2 { font-family: Fraunces, serif; color: var(--moss); font-size: 1.25rem; }
   .order-alert .order { padding: .65rem 0; border-top: 1px solid #e7d58f; }
+  #order-alerts { position: sticky; top: 52px; z-index: 19; }
+  .farmer-reply { background: #fff5cf; border: 2px solid var(--gold); border-radius: 12px; padding: .85rem 1rem; margin: .7rem 0 .3rem; }
+  .farmer-reply .kicker { font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--copper); font-weight: 700; }
+  .farmer-reply .said { font-family: Fraunces, serif; font-size: 1.35rem; color: var(--chalk); margin-top: .15rem; }
+  .card.has-reply { border-color: var(--gold); box-shadow: 0 0 0 3px #fff5cf; }
+  @keyframes pulse-alert {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(212, 160, 23, 0); }
+    50% { box-shadow: 0 0 0 6px rgba(212, 160, 23, 0.45); }
+  }
   .auth { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
   .auth small { color: #c9d6c4; }
   .basket-line { display: flex; justify-content: space-between; gap: .6rem; padding: .5rem 0; border-bottom: 1px dashed var(--line); }
@@ -71,18 +85,30 @@
   <div id="order-alerts" class="hidden"></div>
   <section id="view-browse" class="hidden">
     <div id="ask-box" class="card hidden" style="margin-bottom:1rem"></div>
+    <div id="my-listings-box" class="card hidden" style="margin-bottom:1rem">
+      <h3 style="font-family:Fraunces,serif">Your currently listed items</h3>
+      <p class="meta">Manage stock and mark items sold at your stalls.</p>
+      <div id="my-listings" class="grid" style="margin-top:.6rem"></div>
+    </div>
     <div class="grid" id="catalog"></div>
   </section>
   <section id="view-farms" class="hidden">
+    <div class="card grid" id="claim-farm-box" style="margin-bottom:1rem">
+      <h3>Claim a farm</h3>
+      <p class="meta">Enter the unique ID shared by the admin to claim farm ownership.</p>
+      <form id="claim-farm-form" class="row"><input id="claim-farm-input" name="claim_id" placeholder="Farm claim ID" required><button class="btn primary">Claim farm</button></form>
+    </div>
     <div id="farms-map" class="leaflet-map"></div>
     <div class="grid" id="farms"></div>
   </section>
   <section id="view-basket" class="hidden">
-    <div class="card">
-      <h3>Basket</h3>
-      <p class="meta">A list of what you want to pick up. Not a purchase.</p>
+    <div class="card grid" style="gap:1rem">
+      <div>
+        <h3>Basket</h3>
+        <p class="meta" id="basket-meta">Your pickup list, orders, and ledger transactions.</p>
+      </div>
       <div id="basket"></div>
-      <div id="buyer-ledger" class="hidden"></div>
+      <div id="basket-ledger" class="grid" style="gap:.6rem"></div>
       <button class="btn primary hidden" data-account-link>Log in or create account</button>
     </div>
   </section>
@@ -106,17 +132,16 @@
         </form>
       </div>
       <p class="meta">Local test accounts:</p>
-      <div><button class="btn ghost" type="button" data-demo-email="wade@kariniemi.farm" data-demo-password="farmgate">Admin</button>
-        <button class="btn ghost" type="button" data-demo-email="maija@naapuri.fi" data-demo-password="farmgate">Farmer</button>
-        <button class="btn ghost" type="button" data-demo-email="anna@hyvinkaa.fi" data-demo-password="market">Customer</button></div>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem">
+        <button class="btn ghost" type="button" data-demo-email="wade@kariniemi.farm" data-demo-password="farmgate">Admin — Wade</button>
+        <button class="btn ghost" type="button" data-demo-email="maija@naapuri.fi" data-demo-password="farmgate">Farmer — Maija</button>
+        <button class="btn ghost" type="button" data-demo-email="pekka@hyvinkaa.fi" data-demo-password="farmgate">Farmer — Pekka</button>
+        <button class="btn ghost" type="button" data-demo-email="anna@hyvinkaa.fi" data-demo-password="market">Customer — Anna</button>
+        <button class="btn ghost" type="button" data-demo-email="liisa@hyvinkaa.fi" data-demo-password="market">Customer — Liisa</button>
+      </div>
     </div>
   </section>
   <section id="view-listings" class="hidden">
-    <div class="card grid" id="claim-farm-box">
-      <h3>Claim a farm</h3>
-      <p class="meta">Enter the unique ID shared by the admin.</p>
-      <form id="claim-farm-form" class="row"><input name="claim_id" placeholder="Farm claim ID" required><button class="btn primary">Claim farm</button></form>
-    </div>
     <form id="stall-form" class="card grid">
       <h3>Add items</h3>
       <p class="meta">List what you have this week: amount, unit, price, pickup window.</p>
@@ -130,8 +155,6 @@
       <button type="button" class="btn ghost" id="add-lot">Another item</button>
       <button class="btn primary" type="submit">List on the network</button>
     </form>
-    <h3 style="font-family:Fraunces,serif;margin:1.2rem 0 .5rem">Currently listed</h3>
-    <div id="my-listings" class="grid"></div>
   </section>
   <section id="view-visit" class="hidden">
     <form id="visit-form" class="card grid">
@@ -161,15 +184,11 @@
     </form>
     <div id="visit-result" class="card hidden" style="margin-top:1rem"></div>
   </section>
-  <section id="view-asks" class="hidden">
-    <div class="grid" id="asks"></div>
-  </section>
   <section id="view-ledger" class="hidden">
     <div class="card">
-      <h3>Ledger</h3>
-      <p class="meta">Network trades and customer pickup requests.</p>
+      <h3>Master Ledger</h3>
+      <p class="meta">Admin master view of every network trade, pickup request, and ledger record.</p>
     </div>
-    <div id="ledger-tools"></div>
     <div id="ledger"></div>
   </section>
 </main>
@@ -183,8 +202,30 @@ let me = JSON.parse(localStorage.getItem("sk_me") || "null");
 let basket = JSON.parse(localStorage.getItem("sk_basket") || "[]");
 let farmsMap, visitMap, visitMarker, farmMarkers = [];
 let catalogById = {};
+let activeView = "browse";
 
 function role() { return me && me.role ? me.role : "guest"; }
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function farmerReplyHtml(a, mine) {
+  const isConfirmed = a.status === "confirmed" || a.status === "offered";
+  if (isConfirmed && a.offer_text) {
+    return `<div class="farmer-reply">
+      <div class="kicker">${mine ? "Your reply" : "Farmer replied"}</div>
+      <div class="said">${esc(a.offer_text)}</div>
+      ${a.pickup_point ? `<div class="meta">Pickup: ${esc(a.pickup_point)}</div>` : ""}
+    </div>`;
+  }
+  if (a.status === "declined") {
+    return `<div class="farmer-reply">
+      <div class="kicker">${mine ? "You declined" : "Farmer replied"}</div>
+      <div class="said">Cannot do it now</div>
+    </div>`;
+  }
+  return "";
+}
 function toast(msg) {
   const el = document.getElementById("toast");
   el.textContent = msg;
@@ -229,17 +270,17 @@ function navItems() {
     ["farms", "Farms"],
     ["basket", "Basket"],
   ];
+  if (r === "farmer" || r === "organizer") items.push(["listings", "Add items"]);
   if (r === "guest") items.push(["account", "Log in"]);
-  if (r !== "guest" && r !== "buyer") items.push(["ledger", "Ledger"]);
   if (r === "organizer") {
+    items.push(["ledger", "Ledger"]);
     items.push(["visit", "Add farm"]);
   }
   return items;
 }
 function defaultView() {
   const r = role();
-  if (r === "farmer") return "ledger";
-  if (r === "organizer") return "farms";
+  if (r === "organizer") return "ledger";
   return "browse";
 }
 function renderNav(active) {
@@ -256,7 +297,7 @@ function applyChrome() {
   document.getElementById("tagline").textContent = r === "organizer"
     ? "Admin — add farms, see the ledger, list Kariniemi items."
     : r === "farmer"
-      ? "Your listings — and you can pick up from other farms too."
+      ? "Your basket and listings — fulfill requests and pick up from other farms."
       : "Who has what, when, and where.";
 }
 function renderAuth() {
@@ -278,6 +319,7 @@ function logout() {
   token = ""; me = null;
   localStorage.removeItem("sk_token");
   localStorage.removeItem("sk_me");
+  stopNotifyLoop();
   renderAuth();
   applyChrome();
   show("browse");
@@ -298,16 +340,28 @@ async function login(email, password) {
   applyChrome();
   show(defaultView());
   toast(me.role === "organizer" ? "Admin view" : me.role === "farmer" ? "Farmer view" : "Customer view");
+  enableNotifications();
+  startNotifyLoop();
 }
 async function registerAccount(payload) {
   const res = await fetch("/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   if (!res.ok) { let detail = "Account creation failed"; try { detail = (await res.json()).detail || detail; } catch {} throw new Error(detail); }
   return login(payload.email, payload.password);
 }
+function updateBasketBadge(asks = []) {
+  const n = document.getElementById("basket-n");
+  if (!n) return;
+  let count = basket.length;
+  if (me && asks && asks.length) {
+    const pendingIncoming = asks.filter(a => a.farmer_id === me.id && a.status === "asked").length;
+    const readyOutgoing = asks.filter(a => a.buyer_id === me.id && (a.status === "confirmed" || a.status === "offered") && !a.buyer_verified_at).length;
+    count += pendingIncoming + readyOutgoing;
+  }
+  n.textContent = count ? `(${count})` : "";
+}
 function saveBasket() {
   localStorage.setItem("sk_basket", JSON.stringify(basket));
-  const n = document.getElementById("basket-n");
-  if (n) n.textContent = basket.length ? `(${basket.length})` : "";
+  updateBasketBadge();
 }
 function addToBasket(item) {
   basket.push({
@@ -320,14 +374,16 @@ function addToBasket(item) {
 }
 function renderBasket() {
   const el = document.getElementById("basket");
-  if (!basket.length) { el.innerHTML = `<p class="meta">Empty. Add items from What's available.</p>`; return; }
+  if (!basket.length) { el.innerHTML = ""; return; }
   const byFarm = {};
   basket.forEach(b => { (byFarm[b.farm_name] ||= []).push(b); });
-  el.innerHTML = Object.entries(byFarm).map(([farm, items]) => `
-    <div class="basket-line"><b>${farm}</b><span>${fmtWhen(items[0].available_from, items[0].available_until)}</span></div>
-    ${items.map(b => `<div class="basket-line">${b.produce_name}<button class="btn ghost" data-id="${b.listing_id}">Remove</button></div>`).join("")}
-    <p class="meta">${items[0].pickup_point}</p>
-  `).join("");
+  el.innerHTML = `
+    <h4 style="margin:.4rem 0">Items in basket</h4>
+    ${Object.entries(byFarm).map(([farm, items]) => `
+      <div class="basket-line"><b>${farm}</b><span>${fmtWhen(items[0].available_from, items[0].available_until)}</span></div>
+      ${items.map(b => `<div class="basket-line">${b.produce_name}<button class="btn ghost" data-id="${b.listing_id}">Remove</button></div>`).join("")}
+      <p class="meta">${items[0].pickup_point}</p>
+    `).join("")}`;
   el.querySelectorAll("[data-id]").forEach(btn => btn.onclick = () => {
     basket = basket.filter(x => x.listing_id !== btn.dataset.id);
     saveBasket(); renderBasket();
@@ -393,41 +449,76 @@ function openAsk(item) {
       })});
       box.classList.add("hidden");
       toast("Sent. The farmer can reply with a time.");
-      show("asks");
+      show("basket");
     } catch (err) { toast(err.message); }
   };
 }
-async function loadAsks() {
-  const rows = await api("/asks");
-  const el = document.getElementById("asks");
-  const farmerish = role() === "farmer" || role() === "organizer";
-  if (!rows.length) {
-    el.innerHTML = `<p class="meta">${farmerish ? "No pickup asks yet." : "Ask to pick up from What's available. The farmer gets a text."}</p>`;
+async function loadBasketView() {
+  renderBasket();
+  const metaEl = document.getElementById("basket-meta");
+  const el = document.getElementById("basket-ledger");
+  if (role() === "guest") {
+    if (el) el.innerHTML = basket.length ? "" : `<p class="meta">Your basket is empty. Browse What's available to request produce.</p>`;
+    document.querySelectorAll("[data-account-link]").forEach(b => b.classList.remove("hidden"));
+    if (metaEl) metaEl.textContent = "Your pickup list, orders, and ledger transactions.";
     return;
   }
-  el.innerHTML = rows.map(a => `
-    <article class="card">
-      <h3>${a.produce}</h3>
-      <div class="meta">${a.buyer_name} → ${a.farmer_name} · ${a.quantity} ${a.unit}
-        ${a.note ? " · " + a.note : ""}<br>${a.status === "asked" ? "Waiting for a time" : a.status === "declined" ? "Declined" : a.status === "picked_up" ? "Picked up" : a.offer_text}</div>
-        ${(!farmerish || a.farmer_id === me.id) && (a.status === "confirmed" || a.status === "offered") ? `<button class="btn primary" data-picked-up="${a.id}">${farmerish ? "Mark picked up" : "Picked up"}</button>` : ""}
-      ${farmerish && a.farmer_id === me.id && a.status === "asked" ? `
-        <form class="row" data-reply="${a.id}">
-          <label>Pickup time <input name="when" placeholder="${a.sold_out ? "next sat 10" : "la 10"}" required></label>
-          <input name="partial_qty" type="number" min="0.1" max="${a.quantity}" step="0.1" placeholder="Partial amount" hidden>
-          <button class="btn primary" type="submit" data-mode="full">Fulfill in full</button>
-          <button class="btn ghost" type="button" data-partial>Fulfill partial</button>
-        </form>
-        <button class="btn ghost" data-no="${a.id}">Can't do it</button>` : ""}
-    </article>`).join("");
+  document.querySelectorAll("[data-account-link]").forEach(b => b.classList.add("hidden"));
+  if (metaEl) metaEl.textContent = role() === "farmer" ? "Your pickup requests, fulfillments, and personal ledger transactions." : "Your pickup orders, status, and personal ledger transactions.";
+  await loadBasketLedger();
+}
+function incomingAskCardHtml(a) {
+  const isAsked = a.status === "asked";
+  const isConfirmed = a.status === "confirmed" || a.status === "offered";
+  const isPickedUp = a.status === "picked_up";
+  const isDeclined = a.status === "declined";
+  const isWithdrawn = a.status === "withdrawn";
+  const statusLabel = isAsked ? "Waiting for your reply" : isPickedUp ? "Picked up · Complete" : isDeclined ? "Declined" : isWithdrawn ? "Withdrawn" : "Ready for pickup";
+  return `
+      <article class="card ${isConfirmed && a.offer_text ? "has-reply" : ""}">
+        <h3>${esc(a.produce)}</h3>
+        <div class="meta"><b>${esc(a.buyer_name)}</b> requested ${a.quantity} ${esc(a.unit)}${a.note ? " · “" + esc(a.note) + "”" : ""} · ${fmtTimestamp(a.created_at)}</div>
+        <div class="meta">Status: <b>${statusLabel}</b></div>
+        ${farmerReplyHtml(a, true)}
+        ${isAsked ? `
+          <form class="row" data-reply="${a.id}" style="margin-top:.6rem">
+            <label>Pickup time <input name="when" placeholder="${a.sold_out ? "next sat 10" : "la 10"}" required></label>
+            <input name="partial_qty" type="number" min="0.1" max="${a.quantity}" step="0.1" placeholder="Partial amount" hidden>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:flex-end">
+              <button class="btn primary" type="submit" data-mode="full">Fulfill in full</button>
+              <button class="btn ghost" type="button" data-partial>Fulfill partial</button>
+              <button class="btn ghost" type="button" data-no="${a.id}">Can't do it</button>
+            </div>
+          </form>` : ""}
+        ${isConfirmed && !a.farmer_verified_at ? `
+          <div style="margin-top:.6rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+            <button class="btn primary" data-verify-farmer="${a.id}">Verify handoff</button>
+            ${a.buyer_verified_at ? `<span class="meta" style="color:var(--moss)">Customer confirmed pickup. Please verify handoff.</span>` : ""}
+          </div>` : ""}
+        ${isConfirmed && a.farmer_verified_at && !a.buyer_verified_at ? `
+          <div class="meta" style="color:var(--moss)">Handoff verified · Awaiting customer verification</div>` : ""}
+      </article>`;
+}
+async function acknowledgeAsks(ids) {
+  for (const id of ids) {
+    await api(`/asks/${id}/acknowledge`, { method: "POST" });
+  }
+  toast(ids.length > 1 ? "Requests acknowledged" : "Request acknowledged");
+  loadBasketView();
+  loadOrderAlerts();
+}
+function bindAskActions(el, asks) {
   el.querySelectorAll("[data-reply]").forEach(f => f.onsubmit = async (e) => {
     e.preventDefault();
     try {
-      const quantity = f.dataset.mode === "partial" ? Number(f.partial_qty.value) : Number(rows.find(a => a.id === f.dataset.reply).quantity);
+      const askId = f.dataset.reply;
+      const targetAsk = asks.find(a => a.id === askId);
+      const quantity = f.dataset.mode === "partial" ? Number(f.partial_qty.value) : Number(targetAsk ? targetAsk.quantity : 1);
       if (!quantity) { toast("Enter a partial amount"); return; }
-      await api(`/asks/${f.dataset.reply}/available`, { method: "POST", body: JSON.stringify({ quantity, when_text: f.when.value }) });
-      toast("Ready for pickup");
-      loadAsks();
+      await api(`/asks/${askId}/available`, { method: "POST", body: JSON.stringify({ quantity, when_text: f.when.value }) });
+      toast("Pickup made ready");
+      loadBasketView();
+      loadOrderAlerts();
     } catch (err) { toast(err.message); }
   });
   el.querySelectorAll("[data-partial]").forEach(b => b.onclick = () => {
@@ -440,18 +531,124 @@ async function loadAsks() {
   el.querySelectorAll("[data-no]").forEach(b => b.onclick = async () => {
     try {
       await api(`/asks/${b.dataset.no}/reply`, { method: "POST", body: JSON.stringify({ decline: true, when_text: "ei" }) });
-      loadAsks();
-    } catch (err) { toast(err.message); }
-  });
-  el.querySelectorAll("[data-picked-up]").forEach(b => b.onclick = async () => {
-    try {
-      const path = role() === "farmer" || role() === "organizer" ? "farmer-picked-up" : "picked-up";
-      await api(`/asks/${b.dataset.pickedUp}/${path}`, { method: "POST" });
-      toast("Pickup recorded");
-      loadAsks();
+      toast("Declined request");
+      loadBasketView();
       loadOrderAlerts();
     } catch (err) { toast(err.message); }
   });
+  el.querySelectorAll("[data-verify-farmer]").forEach(b => b.onclick = async () => {
+    try {
+      await api(`/asks/${b.dataset.verifyFarmer}/farmer-picked-up`, { method: "POST" });
+      toast("Handoff verified");
+      loadBasketView();
+      loadOrderAlerts();
+    } catch (err) { toast(err.message); }
+  });
+  el.querySelectorAll("[data-verify-buyer]").forEach(b => b.onclick = async () => {
+    try {
+      await api(`/asks/${b.dataset.verifyBuyer}/picked-up`, { method: "POST" });
+      toast("Pickup confirmed");
+      loadBasketView();
+      loadOrderAlerts();
+    } catch (err) { toast(err.message); }
+  });
+  el.querySelectorAll("[data-withdraw]").forEach(b => b.onclick = async () => {
+    if (!confirm("Withdraw this request?")) return;
+    try {
+      await api(`/asks/${b.dataset.withdraw}/withdraw`, { method: "POST" });
+      toast("Order withdrawn");
+      loadBasketView();
+      loadOrderAlerts();
+    } catch (err) { toast(err.message); }
+  });
+  el.querySelectorAll("[data-ack-all]").forEach(b => b.onclick = async () => {
+    try { await acknowledgeAsks((b.dataset.ackAll || "").split(",").filter(Boolean)); }
+    catch (err) { toast(err.message); }
+  });
+}
+async function loadBasketLedger() {
+  const el = document.getElementById("basket-ledger");
+  if (!el) return;
+  const myId = me && me.id;
+  const cartEl = document.getElementById("basket");
+  const [asks, ledgerRows] = await Promise.all([api("/asks"), api("/ledger")]);
+  updateBasketBadge(asks);
+
+  const incoming = asks.filter(a => a.farmer_id === myId);
+  const unackedIncoming = incoming.filter(a => a.status === "asked" && !a.acknowledged_at);
+  const outgoing = asks.filter(a => a.buyer_id === myId);
+  const myTrades = ledgerRows.filter(r => r.type === "trade" && (role() !== "organizer" || r.buyer === me.name || r.direction === "outgoing"));
+  const myInventory = ledgerRows.filter(r => r.type === "inventory" && role() === "farmer");
+
+  if (unackedIncoming.length) {
+    if (cartEl) cartEl.classList.add("hidden");
+    const ids = unackedIncoming.map(a => a.id).join(",");
+    el.innerHTML = `
+      <div class="order-alert">
+        <h2>Incoming pickup requests to fulfill</h2>
+        <p class="meta">Acknowledge to return to your basket. The request stays here; handoff and fulfill state do not change.</p>
+        <div style="margin:.7rem 0"><button class="btn primary" data-ack-all="${ids}">Acknowledge</button></div>
+      </div>
+      ${unackedIncoming.map(incomingAskCardHtml).join("")}`;
+    bindAskActions(el, asks);
+    return;
+  }
+  if (cartEl) cartEl.classList.remove("hidden");
+
+  if (!basket.length && !incoming.length && !outgoing.length && !myTrades.length && !myInventory.length) {
+    el.innerHTML = `<p class="meta">${role() === "farmer" ? "No pickup requests or transactions yet. When customers request produce, you can fulfill them here." : "No pickup orders or transactions yet. Ask to pick up produce in What's available."}</p>`;
+    return;
+  }
+
+  let html = "";
+
+  if (incoming.length) {
+    html += `<h4 style="margin:1rem 0 .4rem">Incoming pickup requests to fulfill</h4>`;
+    html += incoming.map(incomingAskCardHtml).join("");
+  }
+
+  if (outgoing.length) {
+    html += `<h4 style="margin:1rem 0 .4rem">${incoming.length ? "Your requests to other farms" : "Your pickup orders"}</h4>`;
+    html += outgoing.map(a => {
+      const isAsked = a.status === "asked";
+      const isConfirmed = a.status === "confirmed" || a.status === "offered";
+      const isPickedUp = a.status === "picked_up";
+      const isDeclined = a.status === "declined";
+      const isWithdrawn = a.status === "withdrawn";
+      const statusLabel = isAsked ? "Waiting for farmer to reply with a time" : isPickedUp ? "Picked up · Complete" : isDeclined ? "Declined by farmer" : isWithdrawn ? "Withdrawn" : "Farmer named a time";
+      return `
+      <article class="card ${isConfirmed && a.offer_text ? "has-reply" : ""}">
+        <h3>${esc(a.produce)}</h3>
+        <div class="meta">From <b>${esc(a.farm_name)}</b> (${esc(a.farmer_name)}) · ${a.quantity} ${esc(a.unit)}${a.note ? " · “" + esc(a.note) + "”" : ""} · ${fmtTimestamp(a.created_at)}</div>
+        <div class="meta">Status: <b>${statusLabel}</b></div>
+        ${farmerReplyHtml(a, false)}
+        <div style="margin-top:.6rem;display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+          ${isConfirmed && !a.buyer_verified_at ? `<button class="btn primary" data-verify-buyer="${a.id}">Confirm pickup</button>` : ""}
+          ${isConfirmed && a.buyer_verified_at && !a.farmer_verified_at ? `<span class="meta" style="color:var(--moss)">Pickup confirmed · Awaiting farmer handoff verification</span>` : ""}
+          ${(isAsked || isConfirmed) ? `<button class="btn ghost" data-withdraw="${a.id}">Withdraw order</button>` : ""}
+        </div>
+      </article>`;
+    }).join("");
+  }
+
+  if (myTrades.length) {
+    html += `<h4 style="margin:1rem 0 .4rem">Completed trades ledger</h4>`;
+    html += myTrades.map(t => `
+      <div class="basket-line card">
+        <div>
+          <b>COMPLETED TRADE</b> · ${t.from_farm}${t.buyer ? ` → ${t.buyer}` : ""}
+          <div class="meta">${t.produce} · ${t.quantity_kg} kg · event ${fmtTimestamp(t.created_at)}</div>
+        </div>
+        <div style="text-align:right">
+          <b>${t.myc_tokens_minted} MYC</b>
+          <div class="meta">${t.co2_saved_kg} kg CO₂ saved</div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  el.innerHTML = html;
+  bindAskActions(el, asks);
 }
 function tileLayer() {
   return L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" });
@@ -478,16 +675,53 @@ async function loadFarms() {
   const square = await api(`/square?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=40`);
   ensureFarmsMap();
   farmMarkers.forEach(m => farmsMap.removeLayer(m));
-  farmMarkers = square.stalls.map(s => L.marker([s.lat, s.lng]).addTo(farmsMap)
-    .bindPopup(`<b>${s.farm_name}</b><br>${fmtWhen(s.available_from, s.available_until)}`));
+  farmMarkers = square.stalls.map(s => {
+    const unclaimed = s.is_unclaimed || s.farmer_name === "Unclaimed";
+    const popup = `<b>${s.farm_name}</b>${unclaimed ? " (Unclaimed)" : ""}<br>${s.description || s.pickup_point || ""}<br>${fmtWhen(s.available_from, s.available_until)}${s.goods && s.goods.length ? "<br>" + s.goods.map(g => g.produce_name).join(", ") : ""}`;
+    const marker = unclaimed
+      ? L.circleMarker([s.lat, s.lng], { radius: 11, color: "#b86132", fillColor: "#d4a017", fillOpacity: 0.9, weight: 2 })
+      : L.marker([s.lat, s.lng]);
+    return marker.addTo(farmsMap).bindPopup(popup);
+  });
   if (farmMarkers.length) farmsMap.fitBounds(L.featureGroup(farmMarkers).getBounds().pad(0.3));
   setTimeout(() => farmsMap.invalidateSize(), 80);
-  document.getElementById("farms").innerHTML = square.stalls.map(s => `
-    <article class="card">
-      <h3>${s.farm_name}</h3>
-      <div class="meta">${s.farmer_name} · ${fmtWhen(s.available_from, s.available_until)}<br>${s.pickup_point}</div>
-      ${s.goods.map(g => `<div>${g.produce_name} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("")}
-    </article>`).join("") || `<p class="meta">No farms listed yet.</p>`;
+  document.getElementById("farms").innerHTML = square.stalls.map(s => {
+    const unclaimed = s.is_unclaimed || !s.farmer_name || s.farmer_name === "Unclaimed";
+    const place = s.pickup_point || s.description || "";
+    return `
+    <article class="card ${unclaimed ? "golden" : ""}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem;flex-wrap:wrap">
+        <div>
+          <h3>${s.farm_name}</h3>
+          <div class="meta">${unclaimed ? `<span class="role-pill" style="background:#b86132;color:#fff">Unclaimed Farm</span>` : s.farmer_name} · ${fmtWhen(s.available_from, s.available_until)}<br>${place}</div>
+        </div>
+        ${unclaimed ? `<button class="btn primary" data-claim-prompt="${s.claim_id || ''}" data-farm-name="${s.farm_name}">Claim this farm</button>` : ""}
+      </div>
+      ${unclaimed ? `<p class="meta" style="color:var(--copper)">This farm is open for claiming by a local grower. Tap 'Claim this farm' or enter the claim ID above.</p>` : ""}
+      ${s.description && s.description !== place ? `<p class="meta">${s.description}</p>` : ""}
+      ${s.goods && s.goods.length ? s.goods.map(g => `<div>${g.produce_name} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("") : (unclaimed ? `<p class="meta">No produce listed yet.</p>` : "")}
+    </article>`;
+  }).join("") || `<p class="meta">No farms listed yet.</p>`;
+
+  document.querySelectorAll("[data-claim-prompt]").forEach(b => b.onclick = async () => {
+    if (role() === "guest") { show("account"); toast("Log in or create a farmer account to claim this farm"); return; }
+    if (role() !== "farmer" && role() !== "organizer") { toast("Only farmer accounts can claim farms"); return; }
+    const claimId = b.dataset.claimPrompt;
+    const farmName = b.dataset.farmName;
+    const input = document.getElementById("claim-farm-input");
+    if (input && claimId) input.value = claimId;
+    const entered = prompt(`Admin shared unique claim ID for ${farmName}:\n\n${claimId ? `ID: ${claimId}\n\nConfirm ID to claim:` : "Enter farm claim ID:"}`, claimId || "");
+    if (!entered) return;
+    try {
+      const res = await api("/nodes/claim", { method: "POST", body: JSON.stringify({ claim_id: entered.trim() }) });
+      toast(`${res.farm_name} claimed!`);
+      loadFarms();
+      if (role() === "farmer" || role() === "organizer") {
+        loadMyListings();
+        loadStallNodes();
+      }
+    } catch (err) { toast(err.message); }
+  });
 }
 function lotRow(target) {
   const wrap = document.createElement("div");
@@ -522,18 +756,17 @@ function lotsFrom(root) {
     is_free: Number(row.querySelector("[name=price]").value) === 0,
   }));
 }
-async function loadMyListings() {
+async function loadStallNodes() {
   const sel = document.getElementById("stall-node");
+  if (!sel) return;
   sel.innerHTML = "";
-  const list = document.getElementById("my-listings");
   if (role() !== "farmer" && role() !== "organizer") {
-    list.innerHTML = `<p class="meta">Sign in as a farmer to add items.</p>`;
+    sel.innerHTML = `<option value="">Sign in as a farmer to list items</option>`;
     return;
   }
   const nodes = await api("/nodes");
   if (!nodes.length) {
     sel.innerHTML = `<option value="">No farm on your account yet</option>`;
-    list.innerHTML = `<p class="meta">${role() === "organizer" ? "Use Add farm on a field visit, or list Kariniemi items once a farm exists." : "Ask the admin to add your farm (field visit), then you can list items here."}</p>`;
     return;
   }
   nodes.forEach(n => {
@@ -541,9 +774,29 @@ async function loadMyListings() {
     o.value = n.id; o.textContent = n.name; sel.appendChild(o);
   });
   document.getElementById("stall-where").value = nodes[0].description || nodes[0].name;
+}
+async function loadMyListings() {
+  const list = document.getElementById("my-listings");
+  if (!list) return;
+  if (role() !== "farmer" && role() !== "organizer") {
+    list.innerHTML = "";
+    return;
+  }
+  const nodes = await api("/nodes");
+  if (!nodes.length) {
+    list.innerHTML = `<p class="meta">${role() === "organizer" ? "Use Add farm on a field visit, or claim an existing farm." : "Claim a farm in the Farms tab or ask admin to add your farm."}</p>`;
+    return;
+  }
   const square = await api("/square");
-  const mine = square.stalls.filter(s => nodes.some(n => n.id === s.node_id));
-  list.innerHTML = mine.flatMap(s => s.goods.map(g => {
+  const mine = square.stalls.filter(s => !s.is_unclaimed && nodes.some(n => n.id === s.node_id));
+  const items = mine.flatMap(s => s.goods.map(g => ({ ...g, farm_name: s.farm_name })));
+  if (!items.length) {
+    list.innerHTML = `<p class="meta">Nothing listed at your stalls yet. Use the <a href="#" style="color:var(--moss);font-weight:600" id="go-add-items">Add items</a> tab to list produce.</p>`;
+    const goAdd = list.querySelector("#go-add-items");
+    if (goAdd) goAdd.onclick = (e) => { e.preventDefault(); show("listings"); };
+    return;
+  }
+  list.innerHTML = items.map(g => {
     const u = unitOf(g);
     const left = g.quantity_kg;
     const soldOut = g.status === "sold_out" || left <= 0;
@@ -553,9 +806,9 @@ async function loadMyListings() {
     return `
     <article class="card">
       <h3>${g.produce_name}${soldOut ? " · sold out" : ""}</h3>
-      <div class="meta">${soldOut ? "Sold out" : qtyLabel(g) + " left"} · ${priceLabel(g)} · ${s.farm_name}</div>
-      ${soldOut ? `<p class="meta">Customers can still request this. Reply in Ledger.</p><button class="btn primary" type="button" data-relist="${g.id}">Relist same amount</button>` : `
-      <div class="meta">Sold</div>
+      <div class="meta">${soldOut ? "Sold out" : qtyLabel(g) + " left"} · ${priceLabel(g)} · ${g.farm_name}</div>
+      ${soldOut ? `<p class="meta">Customers can still request this. Reply in Basket.</p><button class="btn primary" type="button" data-relist="${g.id}">Relist same amount</button>` : `
+      <div class="meta">Quick mark sold</div>
       <div>${chips}</div>
       <form class="row" data-custom="${g.id}" style="margin-top:.5rem">
         <input name="qty" type="number" min="0.1" max="${left}" step="0.1" placeholder="other amount">
@@ -563,12 +816,14 @@ async function loadMyListings() {
       </form>
       <button class="btn ghost" type="button" data-soldout="${g.id}" style="margin-top:.4rem">Sold out</button>`}
     </article>`;
-  })).join("") || `<p class="meta">Nothing listed yet. Use the form above.</p>`;
+  }).join("");
+
   async function markSold(id, qty) {
     try {
       await api(`/listings/${id}/gate`, { method: "POST", body: JSON.stringify({ quantity_kg: Number(qty) }) });
       toast("Stock updated");
       loadMyListings();
+      loadCatalog();
     } catch (e) { toast(e.message); }
   }
   list.querySelectorAll("[data-gate]").forEach(b => b.onclick = () => markSold(b.dataset.gate, b.dataset.qty));
@@ -583,57 +838,44 @@ async function loadMyListings() {
       await api(`/listings/${b.dataset.soldout}/sold-out`, { method: "POST" });
       toast("Marked sold out");
       loadMyListings();
+      loadCatalog();
     } catch (e) { toast(e.message); }
   });
   list.querySelectorAll("[data-relist]").forEach(b => b.onclick = async () => {
-    try { await api(`/listings/${b.dataset.relist}/relist`, { method: "POST", body: JSON.stringify({}) }); toast("Relisted"); loadMyListings(); }
-    catch (e) { toast(e.message); }
+    try {
+      await api(`/listings/${b.dataset.relist}/relist`, { method: "POST", body: JSON.stringify({}) });
+      toast("Relisted");
+      loadMyListings();
+      loadCatalog();
+    } catch (e) { toast(e.message); }
   });
 }
 async function loadLedger() {
   const rows = await api("/ledger");
-  const el = document.getElementById(role() === "buyer" ? "buyer-ledger" : "ledger");
-  if (role() === "buyer") el.classList.remove("hidden");
-  if (!rows.length) { el.innerHTML = `<p class="meta">No trades or pending requests yet.</p>`; return; }
+  const el = document.getElementById("ledger");
+  if (!rows.length) { el.innerHTML = `<p class="meta">No trades or records in the ledger yet.</p>`; return; }
   el.innerHTML = rows.map(r => `
     <div class="basket-line">
-      <div><b>${r.type === "inventory" ? "INVENTORY" : r.type === "request" ? r.status === "pending" ? "PENDING REQUEST" : r.status === "picked_up" ? "PICKED UP" : r.status === "withdrawn" ? "WITHDRAWN" : r.status === "declined" ? "DECLINED REQUEST" : "CONFIRMED REQUEST" : r.from_farm}</b>${r.type !== "trade" ? ` · ${r.from_farm}` : ""}${r.buyer ? ` → ${r.buyer}` : ""}
-        <div class="meta">${r.produce || ""}${r.quantity_kg != null ? ` · ${r.quantity_kg} ${r.unit || "kg"}` : ""} · event ${fmtTimestamp(r.created_at)}${r.note ? " · " + r.note : ""}${r.picked_up_by ? " · marked by " + r.picked_up_by : ""}</div></div>
-      <div>${r.type === "inventory" ? r.status : r.type === "request" ? r.status === "pending" ? "Awaiting reply" : r.status === "pending_verification" ? "Awaiting second verification" : r.status === "picked_up" ? "Transaction complete" : r.status === "withdrawn" ? "Withdrawn" : r.status === "declined" ? "Declined" : "Pickup ready" : r.myc_tokens_minted + " MYC"}
-        ${r.type === "request" && (r.status === "pickup_ready" || r.status === "pending_verification") && r.buyer_id === me.id && !r.buyer_verified_at ? `<button class="btn primary" data-verify-buyer="${r.id}">Confirm pickup</button>` : ""}
-        ${r.type === "request" && r.status === "pending_verification" && r.farmer_id === me.id && !r.farmer_verified_at ? `<button class="btn primary" data-verify-farmer="${r.id}">Verify handoff</button>` : ""}
-        ${r.type === "request" && r.status === "pending" && r.farmer_id === me.id ? `<form class="row" data-ledger-reply="${r.id}"><input name="when" placeholder="Pickup time" required><button class="btn primary">Reply and fulfill</button></form>` : ""}
-        ${role() === "organizer" && r.type === "request" && r.farmer_id !== me.id && r.status !== "picked_up" ? `<button class="btn ghost" data-remind="${r.id}">Prompt trade</button>` : ""}
-        ${r.type === "request" && (r.status === "confirmed" || r.status === "completed") ? `<button class="btn ghost" data-withdraw="${r.id}">Withdraw order</button>` : ""}
-        ${r.type === "request" && r.status === "picked_up" && r.picked_up_at ? `<button class="btn ghost" data-undo="${r.id}">Undo pickup</button>` : ""}</div>
+      <div><b>${r.type === "inventory" ? "INVENTORY" : r.type === "request" ? r.status === "pending" ? "REQUEST PENDING" : r.status === "picked_up" ? "PICKED UP" : r.status === "withdrawn" ? "WITHDRAWN" : r.status === "declined" ? "DECLINED REQUEST" : "CONFIRMED REQUEST" : r.type === "farm_onboarding" ? "FARM ONBOARDED" : r.from_farm}</b>${r.type !== "trade" ? ` · ${r.from_farm}` : ""}${r.buyer ? ` → ${r.buyer}` : ""}
+        <div class="meta">${r.produce || ""}${r.quantity_kg != null ? ` · ${r.quantity_kg} ${r.unit || "kg"}` : ""} · event ${fmtTimestamp(r.created_at)}${r.note ? " · " + r.note : ""}${r.picked_up_by ? " · marked by " + r.picked_up_by : ""}${r.claim_id ? " · claim ID: " + r.claim_id : ""}</div></div>
+      <div>${r.type === "inventory" ? r.status : r.type === "request" ? r.status === "pending" ? "Awaiting reply" : r.status === "pending_verification" ? "Awaiting verification" : r.status === "picked_up" ? "Transaction complete" : r.status === "withdrawn" ? "Withdrawn" : r.status === "declined" ? "Declined" : "Pickup ready" : r.type === "farm_onboarding" ? (r.status === "claimed" ? "Claimed" : "Awaiting claim · " + r.claim_id) : r.myc_tokens_minted + " MYC"}
+        ${role() === "organizer" && r.type === "request" && r.status !== "picked_up" && r.status !== "withdrawn" && r.status !== "declined" ? `<button class="btn ghost" data-remind="${r.id}">Prompt trade</button>` : ""}
+        ${role() === "organizer" && r.type === "request" && r.status === "picked_up" ? `<button class="btn ghost" data-undo="${r.id}">Undo trade</button>` : ""}
+        ${role() === "organizer" && r.type === "request" && r.status !== "withdrawn" && r.status !== "declined" && r.status !== "picked_up" ? `<button class="btn ghost" data-withdraw="${r.id}">Withdraw order</button>` : ""}
+      </div>
     </div>`).join("");
   el.querySelectorAll("[data-remind]").forEach(b => b.onclick = async () => {
     try { await api(`/asks/${b.dataset.remind}/remind`, { method: "POST" }); toast("Reminder sent"); }
     catch (e) { toast(e.message); }
   });
-  el.querySelectorAll("[data-verify-buyer]").forEach(b => b.onclick = async () => {
-    try { await api(`/asks/${b.dataset.verifyBuyer}/picked-up`, { method: "POST" }); toast("Pickup verified"); loadLedger(); }
+  el.querySelectorAll("[data-undo]").forEach(b => b.onclick = async () => {
+    if (!confirm("Undo this trade / pickup as admin?")) return;
+    try { await api(`/asks/${b.dataset.undo}/undo-pickup`, { method: "POST" }); toast("Trade undone"); loadLedger(); }
     catch (e) { toast(e.message); }
-  });
-  el.querySelectorAll("[data-verify-farmer]").forEach(b => b.onclick = async () => {
-    try { await api(`/asks/${b.dataset.verifyFarmer}/farmer-picked-up`, { method: "POST" }); toast("Handoff verified"); loadLedger(); }
-    catch (e) { toast(e.message); }
-  });
-  el.querySelectorAll("[data-ledger-reply]").forEach(form => form.onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await api(`/asks/${form.dataset.ledgerReply}/available`, { method: "POST", body: JSON.stringify({ when_text: form.when.value }) });
-      toast("Pickup made available");
-      loadLedger();
-    } catch (err) { toast(err.message); }
   });
   el.querySelectorAll("[data-withdraw]").forEach(b => b.onclick = async () => {
-    if (!confirm("Withdraw this order? This should be used rarely.")) return;
+    if (!confirm("Withdraw this order as admin?")) return;
     try { await api(`/asks/${b.dataset.withdraw}/withdraw`, { method: "POST" }); toast("Order withdrawn"); loadLedger(); }
-    catch (e) { toast(e.message); }
-  });
-  el.querySelectorAll("[data-undo]").forEach(b => b.onclick = async () => {
-    try { await api(`/asks/${b.dataset.undo}/undo-pickup`, { method: "POST" }); toast("Pickup undone"); loadLedger(); }
     catch (e) { toast(e.message); }
   });
 }
@@ -641,8 +883,18 @@ document.getElementById("add-lot").onclick = () => lotRow(document.getElementByI
 document.getElementById("v-add-lot").onclick = () => lotRow(document.getElementById("v-lots"));
 document.getElementById("claim-farm-form").onsubmit = async (e) => {
   e.preventDefault();
-  try { await api("/nodes/claim", { method: "POST", body: JSON.stringify({ claim_id: e.target.claim_id.value }) }); toast("Farm claimed"); e.target.reset(); loadMyListings(); }
-  catch (err) { toast(err.message); }
+  if (role() === "guest") { show("account"); toast("Log in or create a farmer account to claim this farm"); return; }
+  if (role() !== "farmer" && role() !== "organizer") { toast("Only farmer accounts can claim farms"); return; }
+  try {
+    const res = await api("/nodes/claim", { method: "POST", body: JSON.stringify({ claim_id: e.target.claim_id.value.trim() }) });
+    toast(`${res.farm_name} claimed!`);
+    e.target.reset();
+    loadFarms();
+    if (role() === "farmer" || role() === "organizer") {
+      loadMyListings();
+      loadStallNodes();
+    }
+  } catch (err) { toast(err.message); }
 };
 document.getElementById("login-form").onsubmit = async (e) => {
   e.preventDefault();
@@ -666,10 +918,10 @@ document.getElementById("stall-form").onsubmit = async (e) => {
       pickup_point: document.getElementById("stall-where").value,
       lots: lotsFrom(document.getElementById("lots")),
     })});
-    toast("Listed");
+    toast("Listed on the network");
     document.getElementById("lots").innerHTML = "";
     lotRow(document.getElementById("lots"));
-    loadMyListings();
+    show("browse");
   } catch (err) { toast(err.message); }
 };
 document.getElementById("visit-form").onsubmit = async (e) => {
@@ -697,25 +949,95 @@ document.getElementById("visit-form").onsubmit = async (e) => {
   } catch (err) { toast(err.message); }
 };
 function show(name) {
+  activeView = name;
   document.querySelectorAll("main > section").forEach(s => s.classList.add("hidden"));
   const view = document.getElementById("view-" + name);
   if (!view) return;
   view.classList.remove("hidden");
   renderNav(name);
-  if (name === "browse") loadCatalog();
+  if (name === "browse") {
+    loadCatalog();
+    const myBox = document.getElementById("my-listings-box");
+    if (role() === "farmer" || role() === "organizer") {
+      if (myBox) myBox.classList.remove("hidden");
+      loadMyListings();
+    } else {
+      if (myBox) myBox.classList.add("hidden");
+    }
+  }
   if (name === "farms") loadFarms();
-  if (name === "basket") { renderBasket(); if (role() === "buyer") loadLedger(); }
+  if (name === "basket") loadBasketView();
+  if (name === "listings") loadStallNodes();
   if (name === "visit") { ensureVisitMap(); setTimeout(() => visitMap && visitMap.invalidateSize(), 80); }
   if (name === "ledger") loadLedger();
-  if (name === "ledger") mountLedgerTools();
   if (role() !== "guest") loadOrderAlerts();
 }
-function mountLedgerTools() {
-  const tools = document.getElementById("ledger-tools");
-  const source = document.getElementById("view-listings");
-  if (!tools || tools.children.length || !source || (role() !== "farmer" && role() !== "organizer")) return;
-  [...source.children].forEach(child => tools.appendChild(child));
-  loadMyListings();
+let swReg = null;
+let notifyTimer = null;
+const SEEN_KEY = "sk_seen_asks";
+function seenMap() {
+  try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "{}"); } catch { return {}; }
+}
+function saveSeen(m) { localStorage.setItem(SEEN_KEY, JSON.stringify(m)); }
+function askStamp(a) {
+  return [a.status, a.offer_text || "", a.updated_at || a.created_at || ""].join("|");
+}
+function trayNotify(title, body, tag) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  const opts = { body, tag, icon: "/static/icon.svg", badge: "/static/icon.svg", data: { url: "/" } };
+  if (swReg && swReg.showNotification) {
+    swReg.showNotification(title, opts);
+    return;
+  }
+  try { new Notification(title, opts); } catch {}
+}
+async function enableNotifications(prompt) {
+  if (!("serviceWorker" in navigator)) return;
+  try { swReg = await navigator.serviceWorker.register("/sw.js"); } catch {}
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission === "default" && (prompt || me)) {
+    try { await Notification.requestPermission(); } catch {}
+  }
+  loadOrderAlerts();
+}
+function stopNotifyLoop() {
+  if (notifyTimer) { clearInterval(notifyTimer); notifyTimer = null; }
+}
+function startNotifyLoop() {
+  stopNotifyLoop();
+  pollNotify(true);
+  notifyTimer = setInterval(() => pollNotify(false), 15000);
+  document.removeEventListener("visibilitychange", onVisiblePoll);
+  document.addEventListener("visibilitychange", onVisiblePoll);
+}
+function onVisiblePoll() {
+  if (document.visibilityState === "visible") pollNotify(false);
+}
+async function pollNotify(seedOnly) {
+  if (!me || !token) return;
+  try {
+    const rows = await api("/asks");
+    const seen = seenMap();
+    const initKey = SEEN_KEY + "_init_" + me.id;
+    const first = !localStorage.getItem(initKey);
+    rows.forEach(a => {
+      const stamp = askStamp(a);
+      const prev = seen[a.id];
+      if (prev === stamp) return;
+      seen[a.id] = stamp;
+      if (first || seedOnly) return;
+      if (!prev && a.farmer_id === me.id && a.status === "asked") {
+        trayNotify("Pickup request", `${a.buyer_name} asked for ${a.quantity} ${a.unit} ${a.produce}`, "ask-" + a.id);
+      } else if (prev && a.buyer_id === me.id && (a.status === "confirmed" || a.status === "offered") && a.offer_text) {
+        trayNotify("Farmer replied", `${a.farmer_name}: ${a.offer_text}`, "reply-" + a.id);
+      } else if (prev && a.buyer_id === me.id && a.status === "declined") {
+        trayNotify("Farmer replied", `${a.farmer_name} cannot do it now`, "decline-" + a.id);
+      }
+    });
+    saveSeen(seen);
+    if (first) localStorage.setItem(initKey, "1");
+    loadOrderAlerts();
+  } catch {}
 }
 function clearOrderAlerts() {
   const el = document.getElementById("order-alerts");
@@ -727,15 +1049,26 @@ async function loadOrderAlerts() {
   try {
     const [rows, alerts] = await Promise.all([api("/asks"), api("/alerts")]);
     if (!me || me.id !== customerId || role() === "guest") return;
-    const confirmed = rows.filter(a => a.status === "confirmed" || a.status === "offered");
-    if (!confirmed.length && !alerts.some(a => !a.read)) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+    const unackedIncoming = rows.filter(a => a.farmer_id === me.id && a.status === "asked" && !a.acknowledged_at);
+    const confirmed = rows.filter(a => a.buyer_id === me.id && (a.status === "confirmed" || a.status === "offered") && !a.buyer_verified_at);
+    const unread = alerts.filter(a => !a.read);
+    const showIncomingBanner = unackedIncoming.length && activeView !== "basket";
+    const needPermit = typeof Notification !== "undefined" && Notification.permission === "default";
+    if (!showIncomingBanner && !confirmed.length && !unread.length && !needPermit) { el.classList.add("hidden"); el.innerHTML = ""; return; }
     el.classList.remove("hidden");
-    el.innerHTML = `${confirmed.length ? `<div class="order-alert"><h2>Pickup confirmed</h2>
-      <p class="meta">The farmer has confirmed these orders:</p>
-      ${confirmed.map(a => `<div class="order"><b>${a.produce}</b> · ${a.quantity} ${a.unit}<br>
-        <span>${a.farm_name} · ${a.offer_text}</span>${a.pickup_point ? `<br><span class="meta">Pickup: ${a.pickup_point}</span>` : ""}</div>`).join("")}
-    </div>` : ""}${alerts.filter(a => !a.read).map(a => `<div class="order-alert"><b>Alert</b><div>${a.body}</div><button class="btn ghost" data-read-alert="${a.id}">Clear</button></div>`).join("")}`;
+    const permitBtn = needPermit
+      ? `<button class="btn copper" data-enable-alerts type="button">Turn on phone alerts</button>` : "";
+    el.innerHTML = `${showIncomingBanner ? `<div class="order-alert"><h2>Incoming pickup request${unackedIncoming.length > 1 ? "s" : ""} to fulfill</h2>
+      <p class="meta">${unackedIncoming.map(a => `${esc(a.buyer_name)} asked for ${a.quantity} ${esc(a.unit)} ${esc(a.produce)}`).join(" · ")}</p>
+      <button class="btn primary" data-goto-basket>Go to basket to acknowledge</button>
+    </div>` : ""}${confirmed.length ? `<div class="order-alert"><h2>Farmer replied</h2>
+      ${confirmed.map(a => `<div class="order"><b>${esc(a.produce)}</b> · ${a.quantity} ${esc(a.unit)}
+        ${farmerReplyHtml(a, a.farmer_id === me.id)}
+      </div>`).join("")}
+    </div>` : ""}${unread.map(a => `<div class="order-alert"><b>Alert</b><div>${esc(a.body)}</div><button class="btn ghost" data-read-alert="${a.id}">Clear</button></div>`).join("")}${permitBtn ? `<div class="order-alert">${permitBtn}<p class="meta">Phone alerts go to the notification tray. On iPhone, add Satokori to the home screen first.</p></div>` : ""}`;
+    el.querySelectorAll("[data-enable-alerts]").forEach(b => b.onclick = () => enableNotifications(true));
     el.querySelectorAll("[data-read-alert]").forEach(b => b.onclick = async () => { await api(`/alerts/${b.dataset.readAlert}/read`, { method: "POST" }); loadOrderAlerts(); });
+    el.querySelectorAll("[data-goto-basket]").forEach(b => b.onclick = () => show("basket"));
   } catch (err) { el.classList.add("hidden"); }
 }
 function nextSaturday(hour) {
@@ -753,6 +1086,7 @@ lotRow(document.getElementById("v-lots"));
 renderAuth();
 applyChrome();
 show(me ? defaultView() : "browse");
+if (me) { enableNotifications(); startNotifyLoop(); }
 </script>
 </body>
 </html>
