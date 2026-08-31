@@ -36,10 +36,14 @@ def test_vapid_public_key_is_uncompressed_point(client):
     key = resp.json()["public_key"]
     assert isinstance(key, str) and len(key) > 80
     import base64
+    from pathlib import Path
     pad = "=" * ((4 - len(key) % 4) % 4)
     raw = base64.urlsafe_b64decode(key + pad)
     assert raw[0] == 4
     assert len(raw) == 65
+    stored = Path("data/vapid.json")
+    if stored.is_file():
+        assert "BEGIN" not in stored.read_text(encoding="utf-8")
 
 
 def test_subscribe_upsert_and_unsubscribe(client, db):

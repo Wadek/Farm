@@ -19,27 +19,31 @@ def _vapid_path() -> Path:
     return data_dir / "vapid.json"
 
 
+def _b64url(raw: bytes) -> str:
+    import base64
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
 def _generate_keys() -> tuple[str, str]:
+    """Raw 32-byte EC private scalar + uncompressed public point, both url-safe b64.
+
+    Stored without PEM headers so the working tree does not contain
+    ``BEGIN PRIVATE KEY`` material.
+    """
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.hazmat.primitives import serialization
-    import base64
 
     priv = ec.generate_private_key(ec.SECP256R1())
-    private_pem = priv.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    ).decode()
+    private_raw = priv.private_numbers().private_value.to_bytes(32, "big")
     public_raw = priv.public_key().public_bytes(
         encoding=serialization.Encoding.X962,
         format=serialization.PublicFormat.UncompressedPoint,
     )
-    public_key = base64.urlsafe_b64encode(public_raw).rstrip(b"=").decode()
-    return private_pem, public_key
+    return _b64url(private_raw), _b64url(public_raw)
 
 
 def vapid_keys() -> tuple[str, str]:
-    """Return (private_pem, public_key_urlsafe). Persist so subscriptions stay valid."""
+    """Return (private_b64, public_key_urlsafe). Persist so subscriptions stay valid."""
     global _keys
     if _keys:
         return _keys
@@ -49,14 +53,17 @@ def vapid_keys() -> tuple[str, str]:
     path = _vapid_path()
     if path.is_file():
         data = json.loads(path.read_text(encoding="utf-8"))
-        _keys = (data["private_pem"], data["public_key"])
-        return _keys
-    private_pem, public_key = _generate_keys()
+        private_key = data.get("private_key") or data.get("private_pem")
+        public_key = data.get("public_key")
+        if private_key and public_key and "BEGIN" not in private_key:
+            _keys = (private_key, public_key)
+            return _keys
+    private_key, public_key = _generate_keys()
     path.write_text(
-        json.dumps({"private_pem": private_pem, "public_key": public_key}),
+        json.dumps({"private_key": private_key, "public_key": public_key}),
         encoding="utf-8",
     )
-    _keys = (private_pem, public_key)
+    _keys = (private_key, public_key)
     return _keys
 
 
@@ -79,7 +86,7 @@ def send_to_user(
     rows = db.query(PushSubscription).filter(PushSubscription.user_id == user_id).all()
     if not rows:
         return 0
-    private_pem, _public = vapid_keys()
+    private_key, _public = vapid_keys()
     payload = json.dumps({"title": title or "Satokori", "body": body or "", "tag": tag, "url": url})
     sent = 0
     dead = []
@@ -91,7 +98,7 @@ def send_to_user(
                     "keys": {"p256dh": row.p256dh, "auth": row.auth_key},
                 },
                 data=payload,
-                vapid_private_key=private_pem,
+                vapid_private_key=private_key,
                 vapid_claims={"sub": settings.vapid_contact},
                 ttl=86400,
             )
