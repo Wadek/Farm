@@ -25,11 +25,7 @@ def _b64url(raw: bytes) -> str:
 
 
 def _generate_keys() -> tuple[str, str]:
-    """Raw 32-byte EC private scalar + uncompressed public point, both url-safe b64.
-
-    Stored without PEM headers so the working tree does not contain
-    ``BEGIN PRIVATE KEY`` material.
-    """
+    """Raw 32-byte EC private scalar + uncompressed public point, both url-safe b64."""
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.hazmat.primitives import serialization
 
@@ -55,7 +51,7 @@ def vapid_keys() -> tuple[str, str]:
         data = json.loads(path.read_text(encoding="utf-8"))
         private_key = data.get("private_key") or data.get("private_pem")
         public_key = data.get("public_key")
-        if private_key and public_key and "BEGIN" not in private_key:
+        if private_key and public_key and "-----" not in private_key:
             _keys = (private_key, public_key)
             return _keys
     private_key, public_key = _generate_keys()
