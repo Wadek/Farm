@@ -6,16 +6,30 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+function showTray(data) {
+  const payload = data || {};
+  return self.registration.showNotification(payload.title || "Satokori", {
+    body: payload.body || "",
+    tag: payload.tag || "satokori",
+    icon: "/static/icon.svg",
+    badge: "/static/icon.svg",
+    data: { url: payload.url || "/" },
+  });
+}
+
+self.addEventListener("push", (event) => {
+  let data = { title: "Satokori", body: "", url: "/" };
+  if (event.data) {
+    try { data = { ...data, ...event.data.json() }; }
+    catch { data.body = event.data.text(); }
+  }
+  event.waitUntil(showTray(data));
+});
+
 self.addEventListener("message", (event) => {
   const data = event.data || {};
   if (data.type !== "notify") return;
-  event.waitUntil(self.registration.showNotification(data.title || "Satokori", {
-    body: data.body || "",
-    tag: data.tag || "satokori",
-    icon: "/static/icon.svg",
-    badge: "/static/icon.svg",
-    data: { url: data.url || "/" },
-  }));
+  event.waitUntil(showTray(data));
 });
 
 self.addEventListener("notificationclick", (event) => {

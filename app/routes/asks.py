@@ -15,6 +15,7 @@ from app.models.ask import PickupAsk, AskStatus, SmsLog
 from app.models.message import Message
 from app.dependencies import get_current_user
 from app.services import sms as sms_svc
+from app.services import webpush as push_svc
 
 router = APIRouter(tags=["asks"])
 DECLINE = {"ei", "ei.", "no", "no.", "en voi", "ei pysty", "ei onnistu"}
@@ -84,6 +85,14 @@ def _alert(db: Session, sender_id: str, recipient_id: str, listing_id: str | Non
     ))
 
 
+def _push_alert(db: Session, recipient_id: str, body: str, title: str = "Satokori", tag: str = "satokori") -> None:
+    """Best-effort Web Push after the alert row is committed. Never fails the request."""
+    try:
+        push_svc.send_to_user(db, recipient_id, title=title, body=body, tag=tag)
+    except Exception:
+        return
+
+
 def _farmer_sms(ask: PickupAsk) -> str:
     v = _ask_view(ask)
     qty = f"{ask.quantity:g} {ask.unit}"
@@ -110,13 +119,14 @@ def _buyer_sms(ask: PickupAsk) -> str:
 
 def _apply_reply(ask: PickupAsk, when_text: str, decline: bool, db: Session) -> PickupAsk:
     text = (when_text or "").strip()
+    produce = ask.listing.produce.name if ask.listing and ask.listing.produce else ""
     if decline or text.lower() in DECLINE:
         ask.status = AskStatus.declined
         ask.offer_text = text or "ei"
-        db.add(Message(
-            id=str(uuid.uuid4()), sender_id=ask.farmer_id, recipient_id=ask.buyer_id,
-            listing_id=ask.listing_id, body=f"The farmer cannot fulfill {ask.quantity:g} {ask.unit} {ask.listing.produce.name if ask.listing and ask.listing.produce else ''}."
-        ))
+        alert_body = f"The farmer cannot fulfill {ask.quantity:g} {ask.unit} {produce}."
+        _alert(db, ask.farmer_id, ask.buyer_id, ask.listing_id, alert_body)
+        push_title = "Farmer replied"
+        push_tag = f"decline-{ask.id}"
     else:
         if not text:
             raise HTTPException(status_code=400, detail="Send a time, e.g. la 10")
@@ -128,13 +138,14 @@ def _apply_reply(ask: PickupAsk, when_text: str, decline: bool, db: Session) -> 
         ask.status = AskStatus.confirmed
         ask.offer_text = text
         farmer_name = ask.farmer.name if ask.farmer else "Farmer"
-        _alert(
-            db, ask.farmer_id, ask.buyer_id, ask.listing_id,
-            f"{farmer_name} replied: {text}",
-        )
+        alert_body = f"{farmer_name} replied: {text}"
+        _alert(db, ask.farmer_id, ask.buyer_id, ask.listing_id, alert_body)
+        push_title = "Farmer replied"
+        push_tag = f"reply-{ask.id}"
     ask.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ask)
+    _push_alert(db, ask.buyer_id, alert_body, title=push_title, tag=push_tag)
     if ask.buyer and ask.buyer.phone:
         sms_svc.send_sms(db, ask.buyer.phone, _buyer_sms(ask), ask.id)
     return ask
@@ -174,10 +185,8 @@ def create_ask(
     )
     db.add(ask)
     produce = listing.produce.name if listing.produce else "produce"
-    _alert(
-        db, current_user.id, farmer.id, listing.id,
-        f"{current_user.name} asked for {payload.quantity:g} {listing.unit or 'kg'} {produce}.",
-    )
+    alert_body = f"{current_user.name} asked for {payload.quantity:g} {listing.unit or 'kg'} {produce}."
+    _alert(db, current_user.id, farmer.id, listing.id, alert_body)
     db.commit()
     db.refresh(ask)
     ask = (
@@ -194,6 +203,7 @@ def create_ask(
     sms_result = {"sent": False, "provider": "none"}
     if farmer.phone:
         sms_result = sms_svc.send_sms(db, farmer.phone, _farmer_sms(ask), ask.id)
+    _push_alert(db, farmer.id, alert_body, title="Pickup request", tag=f"ask-{ask.id}")
     view = _ask_view(ask)
     view["sms"] = sms_result
     return view
@@ -284,12 +294,11 @@ def mark_available(
     ask.offer_text = payload.when_text.strip() or "Ready for pickup"
     ask.updated_at = datetime.now(timezone.utc)
     farmer_name = ask.farmer.name if ask.farmer else current_user.name
-    _alert(
-        db, ask.farmer_id, ask.buyer_id, ask.listing_id,
-        f"{farmer_name} replied: {ask.offer_text}",
-    )
+    alert_body = f"{farmer_name} replied: {ask.offer_text}"
+    _alert(db, ask.farmer_id, ask.buyer_id, ask.listing_id, alert_body)
     db.commit()
     db.refresh(ask)
+    _push_alert(db, ask.buyer_id, alert_body, title="Farmer replied", tag=f"reply-{ask.id}")
     if ask.buyer and ask.buyer.phone:
         sms_svc.send_sms(db, ask.buyer.phone, _buyer_sms(ask), ask.id)
     return _ask_view(_load_token(ask.token, db))
@@ -319,13 +328,13 @@ def remind_trade(ask_id: str, current_user: User = Depends(get_current_user), db
     if not ask:
         raise HTTPException(status_code=404, detail="Ask not found")
     produce = ask.listing.produce.name if ask.listing and ask.listing.produce else "the order"
-    db.add_all([
-        Message(id=str(uuid.uuid4()), sender_id=current_user.id, recipient_id=ask.buyer_id,
-                listing_id=ask.listing_id, body=f"Reminder: do you still need {ask.quantity:g} {ask.unit} {produce}?"),
-        Message(id=str(uuid.uuid4()), sender_id=current_user.id, recipient_id=ask.farmer_id,
-                listing_id=ask.listing_id, body=f"Reminder: do you have {ask.quantity:g} {ask.unit} {produce} ready?"),
-    ])
+    buyer_body = f"Reminder: do you still need {ask.quantity:g} {ask.unit} {produce}?"
+    farmer_body = f"Reminder: do you have {ask.quantity:g} {ask.unit} {produce} ready?"
+    _alert(db, current_user.id, ask.buyer_id, ask.listing_id, buyer_body)
+    _alert(db, current_user.id, ask.farmer_id, ask.listing_id, farmer_body)
     db.commit()
+    _push_alert(db, ask.buyer_id, buyer_body, title="Reminder", tag=f"remind-buyer-{ask.id}")
+    _push_alert(db, ask.farmer_id, farmer_body, title="Reminder", tag=f"remind-farmer-{ask.id}")
     return {"status": "sent", "ask_id": ask.id}
 
 
@@ -346,17 +355,18 @@ def confirm_picked_up(
     ask.buyer_verified_at = datetime.now(timezone.utc)
     ask.picked_up_by = current_user.name
     ask.picked_up_at = ask.buyer_verified_at
+    pickup_body = ""
     if ask.farmer_verified_at:
         ask.status = AskStatus.picked_up
     else:
         ask.status = AskStatus.confirmed
-        db.add(Message(
-            id=str(uuid.uuid4()), sender_id=ask.buyer_id, recipient_id=ask.farmer_id,
-            listing_id=ask.listing_id, body="Customer verified pickup. Please verify the handoff to complete the transaction."
-        ))
+        pickup_body = "Customer verified pickup. Please verify the handoff to complete the transaction."
+        _alert(db, ask.buyer_id, ask.farmer_id, ask.listing_id, pickup_body)
     ask.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ask)
+    if pickup_body:
+        _push_alert(db, ask.farmer_id, pickup_body, title="Pickup", tag=f"pickup-{ask.id}")
     return _ask_view(_load_token(ask.token, db))
 
 
@@ -436,16 +446,17 @@ def farmer_confirm_picked_up(
     ask.farmer_verified_at = datetime.now(timezone.utc)
     ask.picked_up_by = current_user.name
     ask.picked_up_at = ask.farmer_verified_at
+    pickup_body = ""
     if ask.buyer_verified_at:
         ask.status = AskStatus.picked_up
     else:
         ask.status = AskStatus.confirmed
-        db.add(Message(
-            id=str(uuid.uuid4()), sender_id=ask.farmer_id, recipient_id=ask.buyer_id,
-            listing_id=ask.listing_id, body="Farmer verified pickup. Please verify the handoff to complete the transaction."
-        ))
+        pickup_body = "Farmer verified pickup. Please verify the handoff to complete the transaction."
+        _alert(db, ask.farmer_id, ask.buyer_id, ask.listing_id, pickup_body)
     ask.updated_at = datetime.now(timezone.utc)
     db.commit()
+    if pickup_body:
+        _push_alert(db, ask.buyer_id, pickup_body, title="Pickup", tag=f"pickup-{ask.id}")
     return _ask_view(_load_token(ask.token, db))
 
 

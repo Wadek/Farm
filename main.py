@@ -6,7 +6,7 @@ from app.models import *  # noqa: ensure all models registered before create_all
 from app.models.ruuvi_reading import RuuviReading  # noqa
 from app.models.flare import DemandFlare  # noqa
 from app.db import Base
-from app.routes import tips, transactions, auth, nodes, produce, agent, square, onboard, asks
+from app.routes import tips, transactions, auth, nodes, produce, agent, square, onboard, asks, push
 
 Base.metadata.create_all(bind=engine)
 
@@ -84,6 +84,7 @@ app.include_router(agent.router)
 app.include_router(square.router)
 app.include_router(onboard.router)
 app.include_router(asks.router)
+app.include_router(push.router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 

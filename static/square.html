@@ -314,9 +314,11 @@ function renderAuth() {
   box.querySelector("[data-account-link]").onclick = () => show("account");
   document.querySelectorAll("[data-account-link]").forEach(b => { b.classList.remove("hidden"); b.onclick = () => show("account"); });
 }
-function logout() {
+async function logout() {
+  try { await unsubscribePush(); } catch {}
   clearOrderAlerts();
   token = ""; me = null;
+  pushReady = false;
   localStorage.removeItem("sk_token");
   localStorage.removeItem("sk_me");
   stopNotifyLoop();
@@ -974,6 +976,7 @@ function show(name) {
 }
 let swReg = null;
 let notifyTimer = null;
+let pushReady = false;
 const SEEN_KEY = "sk_seen_asks";
 function seenMap() {
   try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "{}"); } catch { return {}; }
@@ -982,7 +985,22 @@ function saveSeen(m) { localStorage.setItem(SEEN_KEY, JSON.stringify(m)); }
 function askStamp(a) {
   return [a.status, a.offer_text || "", a.updated_at || a.created_at || ""].join("|");
 }
+function isStandalone() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+function isIos() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+function urlBase64ToUint8Array(b64) {
+  const pad = "=".repeat((4 - b64.length % 4) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
 function trayNotify(title, body, tag) {
+  if (pushReady) return;
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
   const opts = { body, tag, icon: "/static/icon.svg", badge: "/static/icon.svg", data: { url: "/" } };
   if (swReg && swReg.showNotification) {
@@ -991,13 +1009,50 @@ function trayNotify(title, body, tag) {
   }
   try { new Notification(title, opts); } catch {}
 }
+async function subscribePush() {
+  if (!me || !token) return;
+  if (!swReg || !("PushManager" in window)) return;
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  try {
+    const vapid = await api("/push/vapid-public");
+    const key = urlBase64ToUint8Array(vapid.public_key);
+    let sub = await swReg.pushManager.getSubscription();
+    if (sub) {
+      try {
+        await api("/push/subscribe", { method: "POST", body: JSON.stringify(sub.toJSON()) });
+        pushReady = true;
+        return;
+      } catch {
+        try { await sub.unsubscribe(); } catch {}
+        sub = null;
+      }
+    }
+    sub = await swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    await api("/push/subscribe", { method: "POST", body: JSON.stringify(sub.toJSON()) });
+    pushReady = true;
+  } catch {
+    pushReady = false;
+  }
+}
+async function unsubscribePush() {
+  if (!swReg || !token || !("PushManager" in window)) return;
+  try {
+    const sub = await swReg.pushManager.getSubscription();
+    if (!sub) return;
+    await api("/push/subscribe", { method: "DELETE", body: JSON.stringify({ endpoint: sub.endpoint }) });
+  } catch {}
+}
 async function enableNotifications(prompt) {
   if (!("serviceWorker" in navigator)) return;
-  try { swReg = await navigator.serviceWorker.register("/sw.js"); } catch {}
+  try {
+    swReg = await navigator.serviceWorker.register("/sw.js");
+    swReg = await navigator.serviceWorker.ready;
+  } catch {}
   if (typeof Notification === "undefined") return;
-  if (Notification.permission === "default" && (prompt || me)) {
+  if (Notification.permission === "default" && prompt) {
     try { await Notification.requestPermission(); } catch {}
   }
+  if (Notification.permission === "granted") await subscribePush();
   loadOrderAlerts();
 }
 function stopNotifyLoop() {
@@ -1053,11 +1108,22 @@ async function loadOrderAlerts() {
     const confirmed = rows.filter(a => a.buyer_id === me.id && (a.status === "confirmed" || a.status === "offered") && !a.buyer_verified_at);
     const unread = alerts.filter(a => !a.read);
     const showIncomingBanner = unackedIncoming.length && activeView !== "basket";
-    const needPermit = typeof Notification !== "undefined" && Notification.permission === "default";
-    if (!showIncomingBanner && !confirmed.length && !unread.length && !needPermit) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+    const perm = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
+    const needPermit = perm === "default";
+    const blocked = perm === "denied";
+    const iosHint = isIos() && !isStandalone();
+    const showPushSetup = needPermit || blocked || (iosHint && !pushReady) || (perm === "granted" && !pushReady && !iosHint);
+    if (!showIncomingBanner && !confirmed.length && !unread.length && !showPushSetup) { el.classList.add("hidden"); el.innerHTML = ""; return; }
     el.classList.remove("hidden");
-    const permitBtn = needPermit
-      ? `<button class="btn copper" data-enable-alerts type="button">Turn on phone alerts</button>` : "";
+    let pushCard = "";
+    if (showPushSetup) {
+      let hint = "Alerts reach the phone even when Satokori is closed.";
+      if (iosHint) hint = "On iPhone, open Satokori from the home-screen icon, then turn on alerts.";
+      else if (blocked) hint = "Alerts are blocked. Enable them in iPhone Settings → Notifications → Satokori.";
+      else if (perm === "granted" && !pushReady) hint = "Almost there — tap to finish connecting phone alerts.";
+      const btn = blocked ? "" : `<button class="btn copper" data-enable-alerts type="button">${pushReady ? "Phone alerts on" : "Turn on phone alerts"}</button>`;
+      pushCard = `<div class="order-alert">${btn}<p class="meta">${hint}</p></div>`;
+    }
     el.innerHTML = `${showIncomingBanner ? `<div class="order-alert"><h2>Incoming pickup request${unackedIncoming.length > 1 ? "s" : ""} to fulfill</h2>
       <p class="meta">${unackedIncoming.map(a => `${esc(a.buyer_name)} asked for ${a.quantity} ${esc(a.unit)} ${esc(a.produce)}`).join(" · ")}</p>
       <button class="btn primary" data-goto-basket>Go to basket to acknowledge</button>
@@ -1065,7 +1131,7 @@ async function loadOrderAlerts() {
       ${confirmed.map(a => `<div class="order"><b>${esc(a.produce)}</b> · ${a.quantity} ${esc(a.unit)}
         ${farmerReplyHtml(a, a.farmer_id === me.id)}
       </div>`).join("")}
-    </div>` : ""}${unread.map(a => `<div class="order-alert"><b>Alert</b><div>${esc(a.body)}</div><button class="btn ghost" data-read-alert="${a.id}">Clear</button></div>`).join("")}${permitBtn ? `<div class="order-alert">${permitBtn}<p class="meta">Phone alerts go to the notification tray. On iPhone, add Satokori to the home screen first.</p></div>` : ""}`;
+    </div>` : ""}${unread.map(a => `<div class="order-alert"><b>Alert</b><div>${esc(a.body)}</div><button class="btn ghost" data-read-alert="${a.id}">Clear</button></div>`).join("")}${pushCard}`;
     el.querySelectorAll("[data-enable-alerts]").forEach(b => b.onclick = () => enableNotifications(true));
     el.querySelectorAll("[data-read-alert]").forEach(b => b.onclick = async () => { await api(`/alerts/${b.dataset.readAlert}/read`, { method: "POST" }); loadOrderAlerts(); });
     el.querySelectorAll("[data-goto-basket]").forEach(b => b.onclick = () => show("basket"));
