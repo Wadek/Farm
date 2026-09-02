@@ -32,6 +32,18 @@ def test_featured_stays_on_reko_filter_in_the_page():
     assert "tile-flag live" in html
 
 
+def test_saved_chip_filters_and_pins_favorites():
+    html = (ROOT / "static" / "square.html").read_text(encoding="utf-8")
+    assert 'list.push("saved")' in html
+    assert 'filterCat === "saved"' in html
+    assert "function toggleFav" in html
+    assert 't("Removed from saved")' in html
+    assert 't("Nothing saved")' in html
+    assert "sk_favs" in html
+    css = (ROOT / "static" / "css" / "app.css").read_text(encoding="utf-8")
+    assert ".fav.on" in css
+
+
 def test_siuntio_ring_and_farms_are_in_seed():
     seed = (ROOT / "seed.py").read_text(encoding="utf-8")
     assert "REKO Siuntio" in seed

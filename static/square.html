@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css?v=18">
+<link rel="stylesheet" href="/static/css/app.css?v=19">
 </head>
 <body>
 <header id="topbar">
@@ -254,8 +254,10 @@ function produceImg(item, name) {
 function saveFavs() { localStorage.setItem("sk_favs", JSON.stringify(favs)); }
 function isFav(id) { return favs.includes(id); }
 function toggleFav(id) {
-  favs = isFav(id) ? favs.filter(x => x !== id) : favs.concat(id);
+  const on = !isFav(id);
+  favs = on ? favs.concat(id) : favs.filter(x => x !== id);
   saveFavs();
+  toast(on ? t("Saved") : t("Removed from saved"));
 }
 
 function role() { return me && me.role ? me.role : "guest"; }
@@ -672,11 +674,16 @@ function money(item) {
 }
 function catLabel(c) {
   const labels = {
-    all: "All", reko: "REKO", greens: "Greens", root: "Roots",
+    all: "All", reko: "REKO", saved: "Saved", greens: "Greens", root: "Roots",
     berries: "Berries", eggs: "Eggs", dairy: "Dairy", meat: "Meat", preserve: "Preserves",
     feed: "Feed", produce: "Produce",
   };
-  return t(labels[normCat(c)] || c);
+  const label = t(labels[c] || labels[normCat(c)] || c);
+  if (c === "saved") {
+    const n = (catalogItems || []).filter(i => isFav(i.id)).length;
+    return n ? label + " " + n : label;
+  }
+  return label;
 }
 function fmtDrop(drop) {
   if (!drop) return "";
@@ -693,6 +700,7 @@ function renderChips(items) {
   const hasReko = (items || []).some(i => i.drop);
   const list = ["all"];
   if (hasReko) list.push("reko");
+  list.push("saved");
   CATS.forEach(c => { if (c !== "all" && c !== "reko" && found.has(c)) list.push(c); });
   const el = document.getElementById("chips");
   let html = list.map(c => `<button type="button" data-cat="${c}" class="${filterCat === c ? "on" : ""}">${catLabel(c)}</button>`).join("");
@@ -747,7 +755,7 @@ function tileHtml(item) {
             : "";
   return `<article class="tile ${soldOut ? "sold-out" : ""} ${item.featured ? "featured" : ""}" data-open="${item.id}">
     ${flag}
-    <button type="button" class="fav ${isFav(item.id) ? "on" : ""}" data-fav="${item.id}" aria-label="${t("Save")}">♥</button>
+    <button type="button" class="fav ${isFav(item.id) ? "on" : ""}" data-fav="${item.id}" aria-label="${t("Save")}" aria-pressed="${isFav(item.id) ? "true" : "false"}">♥</button>
     <div class="tile-hero">${produceImg(item)}<span>${esc(item.produce_name)}</span></div>
     <div class="tile-body">
       <div class="tile-price">${soldOut ? t("Sold out") : money(item)}</div>
@@ -765,6 +773,7 @@ function bindTiles(root) {
   root.querySelectorAll("[data-fav]").forEach(b => b.onclick = (e) => {
     e.stopPropagation();
     toggleFav(b.dataset.fav);
+    renderChips(catalogItems);
     paintCatalog();
   });
 }
@@ -779,6 +788,7 @@ function paintCatalog() {
   const root = document.getElementById("catalog");
   const rows = catalogItems.filter(item => {
     if (!matchesQuery(item)) return false;
+    if (filterCat === "saved") return isFav(item.id);
     if (item.featured) return true;
     if (filterCat === "reko") {
       if (!item.drop) return false;
@@ -786,14 +796,25 @@ function paintCatalog() {
         const id = item.drop.ring_id || item.drop.id;
         if (id !== filterReko) return false;
       }
-    } else if (filterCat !== "all" && normCat(item.category) !== filterCat) {
+    } else if (filterCat !== "all" && filterCat !== "saved" && normCat(item.category) !== filterCat) {
       return false;
     }
     return true;
   });
+  rows.sort((a, b) => {
+    const fa = a.featured ? 0 : 1;
+    const fb = b.featured ? 0 : 1;
+    if (fa !== fb) return fa - fb;
+    const sa = isFav(a.id) ? 0 : 1;
+    const sb = isFav(b.id) ? 0 : 1;
+    return sa - sb;
+  });
   if (!rows.length) {
-    const hint = filterCat === "reko" ? t("Try another REKO location.") : t("Try another search or category.");
-    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${t("Nothing listed")}</h3><p>${hint}</p></div>`;
+    const hint = filterCat === "saved"
+      ? t("Tap the heart on a listing to keep it here.")
+      : filterCat === "reko" ? t("Try another REKO location.") : t("Try another search or category.");
+    const title = filterCat === "saved" ? t("Nothing saved") : t("Nothing listed");
+    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${title}</h3><p>${hint}</p></div>`;
     return;
   }
   root.innerHTML = rows.map(tileHtml).join("");
@@ -853,7 +874,7 @@ function openAsk(item) {
   body.querySelector("#sheet-close").onclick = closeSheet;
   sheet.onclick = (e) => { if (e.target === sheet) closeSheet(); };
   const favBtn = body.querySelector("[data-fav-detail]");
-  if (favBtn) favBtn.onclick = () => { toggleFav(item.id); openAsk(item); paintCatalog(); };
+  if (favBtn) favBtn.onclick = () => { toggleFav(item.id); openAsk(catalogById[item.id] || item); renderChips(catalogItems); paintCatalog(); };
   const send = body.querySelector("#ask-send");
   if (send) send.onclick = async () => {
     if (role() === "guest") { closeSheet(); show("account"); toast(t("Log in to ask for pickup")); return; }
