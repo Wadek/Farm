@@ -13,11 +13,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css?v=27">
+<link rel="stylesheet" href="/static/css/app.css?v=28">
 </head>
 <body>
 <header id="topbar">
-  <button type="button" id="loc-btn" class="hidden">Hyvinkää<small>80 km</small></button>
+  <div id="brand" class="brand hidden">
+    <img src="/static/logo.jpg" width="28" height="28" alt="">
+    <span data-i18n="Satokori">Satokori</span>
+  </div>
   <div class="searchf hidden" id="search-wrap">
     <input id="q" type="search" placeholder="Maito, munat, lehtikaali…" data-i18n-placeholder="Milk, eggs, kale…" autocomplete="off">
   </div>
@@ -457,7 +460,7 @@ function applyChrome() {
   const browsing = activeView === "browse";
   const home = activeView === "home";
   document.getElementById("search-wrap").classList.toggle("hidden", !browsing);
-  document.getElementById("loc-btn").classList.toggle("hidden", !browsing);
+  document.getElementById("brand").classList.toggle("hidden", !browsing);
   document.getElementById("chips").classList.toggle("hidden", !browsing);
   const title = document.getElementById("page-title");
   title.classList.toggle("hidden", browsing || home);
@@ -1857,7 +1860,6 @@ document.getElementById("q").addEventListener("input", () => {
   filterQ = document.getElementById("q").value;
   paintCatalog();
 });
-document.getElementById("loc-btn").onclick = () => show("farms");
 document.getElementById("farm-save").onclick = async () => {
   const name = document.getElementById("farm-name").value.trim();
   const pickup = document.getElementById("farm-pickup").value.trim();

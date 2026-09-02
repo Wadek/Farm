@@ -123,7 +123,10 @@ def test_service_worker_and_manifest(client):
     assert 'id="view-browse"' in page.text
     assert 'id="view-home"' in page.text
     assert "Satokori" in page.text
-    assert 'id="loc-btn" class="hidden"' in page.text
+    assert 'id="loc-btn"' not in page.text
+    assert "Hyvinkää<small>80 km</small>" not in page.text
+    assert 'id="brand"' in page.text
+    assert 'src="/static/logo.jpg"' in page.text
     assert 'return me ? "browse" : "home"' in page.text
     assert 'show("home")' in page.text
     assert 'show("account")' in page.text
@@ -171,6 +174,7 @@ def test_service_worker_and_manifest(client):
     css = client.get("/static/css/app.css")
     assert css.status_code == 200
     assert "#tabbar" in css.text
+    assert ".brand" in css.text
     assert "safe-area-inset-bottom" in css.text
     assert "html.sheet-open" in css.text
     assert "html.sheet-open *::-webkit-scrollbar" in css.text

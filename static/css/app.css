@@ -123,12 +123,15 @@ html[data-signed-in="1"] #view-home { display: none !important; }
   width: 22px; height: 22px; stroke: currentColor; fill: none;
   stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
 }
-#loc-btn {
-  flex: none; max-width: 38%;
-  font-size: 13px; font-weight: 650; text-align: left;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.brand {
+  flex: none;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 17px; font-weight: 800; letter-spacing: -.03em;
+  color: var(--ink); white-space: nowrap;
 }
-#loc-btn small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+.brand img {
+  width: 28px; height: 28px; border-radius: 7px; object-fit: cover; display: block;
+}
 .searchf {
   flex: 1; display: flex; align-items: center; min-height: 36px;
   background: var(--bg); border-radius: 8px; padding: 0 10px;
