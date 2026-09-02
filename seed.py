@@ -155,6 +155,18 @@ def seed():
              60.5084, 24.7616,
              "Pirttimäentie 178, 05200 Rajamäki — milk, meat, hay. Niina Toikka 044 210 4990.",
              40000, now),
+            ("node-airikkala", "Airikkalan luomutila", NodeType.farm,
+             60.4302, 24.7058,
+             "Airikkalantie 48, 01860 Perttula — Finnish sheep, cut flowers, lamb. Mona and Ilari Airikkala.",
+             8000, now - timedelta(hours=8)),
+            ("node-lohenoja", "Lohenojan luomutila", NodeType.farm,
+             60.4484, 24.6886,
+             "Nummenpää, Klaukkala — organic vegetables. Sells through Nurmijärvi and Hyvinkää REKO.",
+             6000, now - timedelta(hours=6)),
+            ("node-aliolli", "Aliollin alpakkatila", NodeType.hobby_farm,
+             60.3752, 24.7184,
+             "Kuonomäentie 117, 01800 Klaukkala — alpaca wool and farm visits.",
+             4000, now - timedelta(hours=4)),
         ]
         nodes = {"node-kariniemi": kariniemi}
         for node_id, name, ntype, lat, lng, desc, area, created in farms:
@@ -166,27 +178,61 @@ def seed():
             )
         db.flush()
 
-        drop_start = (now + timedelta(days=3)).replace(hour=14, minute=30, second=0, microsecond=0)
-        drop_end = drop_start + timedelta(minutes=30)
-        ring = Ring(
-            id="ring-rajamaki",
-            name="REKO Rajamäki–Hyvinkää",
-            place="S-market Rajamäki lot, Kiljavantie 3",
-            lat=60.5277,
-            lng=24.7512,
-            notes="Cash or MobilePay at the drop. Order by commenting a quantity. No middleman.",
+        def _next_weekday(weekday: int, hour: int, minute: int):
+            d = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            days = (weekday - d.weekday()) % 7
+            if days == 0 and d <= now:
+                days = 7
+            return d + timedelta(days=days)
+
+        hy_start = _next_weekday(2, 18, 0)
+        hy_end = hy_start + timedelta(minutes=30)
+        nj_start = _next_weekday(3, 17, 30)
+        nj_end = nj_start + timedelta(minutes=30)
+
+        hyvinkaa = Ring(
+            id="ring-hyvinkaa",
+            name="Hyvinkään Farmarin Markkinat / REKO",
+            place="Mäkikuumolantie 3, Hyvinkää",
+            lat=60.6325,
+            lng=24.8635,
+            notes="Wed 18:00–18:30. Order a quantity on the listing. Cash or MobilePay at the lot. No middleman.",
+            facebook_url="https://www.facebook.com/groups/hyvinkaanreko",
+            claim_id="claim-ring-hyvinkaa",
         )
-        db.add(ring)
-        db.flush()
-        drop = RingDrop(
-            id="drop-next",
-            ring_id=ring.id,
-            starts_at=drop_start,
-            ends_at=drop_end,
-            order_until=drop_start - timedelta(hours=6),
+        nurmijarvi = Ring(
+            id="ring-nurmijarvi",
+            name="REKO Nurmijärvi",
+            place="Nurmijärven kirkonkylä (confirm lot in the Facebook group)",
+            lat=60.4641,
+            lng=24.8072,
+            notes="Order a quantity. Cash or MobilePay at the lot. Ring admin sets the exact lot.",
+            facebook_url="https://www.facebook.com/groups/rekonurmijarvi",
+            claim_id="claim-ring-nurmijarvi",
         )
-        db.add(drop)
+        db.add(hyvinkaa)
+        db.add(nurmijarvi)
         db.flush()
+        drop_hy = RingDrop(
+            id="drop-hyvinkaa-next",
+            ring_id=hyvinkaa.id,
+            starts_at=hy_start,
+            ends_at=hy_end,
+            order_until=hy_start - timedelta(hours=6),
+        )
+        drop_nj = RingDrop(
+            id="drop-nurmijarvi-next",
+            ring_id=nurmijarvi.id,
+            starts_at=nj_start,
+            ends_at=nj_end,
+            order_until=nj_start - timedelta(hours=6),
+        )
+        db.add(drop_hy)
+        db.add(drop_nj)
+        db.flush()
+        drop = drop_nj
+        drop_start, drop_end = nj_start, nj_end
+        ring = nurmijarvi
 
         _lot(db, "lot-kale", kariniemi.id, "prod-kale", "Lehtikaali (kale)", "greens",
              8.0, 4.0, 490, 0.4, kariniemi.description, unit="kg", perpetual=False)
@@ -226,18 +272,31 @@ def seed():
         _lot(db, "lot-milk-y", nodes["node-ylisjoki"].id, "prod-milk-y", "Tinkimaito",
              "dairy", 15.0, 1.5, 640, 1.2, nodes["node-ylisjoki"].description, unit="L", perpetual=True)
 
+        _lot(db, "lot-lamb-a", nodes["node-airikkala"].id, "prod-lamb-a", "Organic lamb",
+             "feed", 6.0, 22.0, 2400, 10.0, nodes["node-airikkala"].description, unit="kg", perpetual=True)
+        _lot(db, "lot-veg-l", nodes["node-lohenoja"].id, "prod-veg-l", "Organic vegetables",
+             "vegetable", 20.0, 3.5, 250, 0.2, nodes["node-lohenoja"].description, unit="kg")
+        _lot(db, "lot-wool-a", nodes["node-aliolli"].id, "prod-wool-a", "Alpaca yarn",
+             "preserve", 8.0, 18.0, 0, 0.1, nodes["node-aliolli"].description, unit="kpl", perpetual=True)
+
         _lot(db, "lot-reko-milk", toika.id, "prod-reko-milk", "Raw milk", "dairy",
-             12.0, 1.4, 640, 1.2, ring.place, unit="L", drop_id=drop.id,
-             available_from=drop_start, available_until=drop_end, featured=True)
+             12.0, 1.4, 640, 1.2, nurmijarvi.place, unit="L", drop_id=drop_nj.id,
+             available_from=nj_start, available_until=nj_end, featured=True)
+        _lot(db, "lot-reko-veg", nodes["node-lohenoja"].id, "prod-reko-veg", "Organic vegetables",
+             "vegetable", 15.0, 3.5, 250, 0.2, nurmijarvi.place, unit="kg", drop_id=drop_nj.id,
+             available_from=nj_start, available_until=nj_end)
+        _lot(db, "lot-reko-lamb", nodes["node-airikkala"].id, "prod-reko-lamb", "Organic lamb",
+             "feed", 4.0, 22.0, 2400, 10.0, nurmijarvi.place, unit="kg", drop_id=drop_nj.id,
+             available_from=nj_start, available_until=nj_end)
         _lot(db, "lot-reko-eggs", nodes["node-mantymaeki"].id, "prod-reko-eggs", "Organic eggs",
-             "eggs", 30.0, 0.50, 1430, 1.8, ring.place, unit="kpl", drop_id=drop.id,
-             available_from=drop_start, available_until=drop_end)
+             "eggs", 30.0, 0.50, 1430, 1.8, hyvinkaa.place, unit="kpl", drop_id=drop_hy.id,
+             available_from=hy_start, available_until=hy_end)
         _lot(db, "lot-reko-juice", nodes["node-wennborg"].id, "prod-reko-juice", "Berry juice",
-             "preserve", 10.0, 6.0, 180, 0.2, ring.place, unit="L", drop_id=drop.id,
-             available_from=drop_start, available_until=drop_end)
+             "preserve", 10.0, 6.0, 180, 0.2, hyvinkaa.place, unit="L", drop_id=drop_hy.id,
+             available_from=hy_start, available_until=hy_end)
         _lot(db, "lot-reko-kale", kariniemi.id, "prod-reko-kale", "Lehtikaali (kale)", "greens",
-             6.0, 4.0, 490, 0.4, ring.place, unit="kg", drop_id=drop.id,
-             available_from=drop_start, available_until=drop_end)
+             6.0, 4.0, 490, 0.4, hyvinkaa.place, unit="kg", drop_id=drop_hy.id,
+             available_from=hy_start, available_until=hy_end)
 
         db.commit()
         print("Seeded Satokori")
@@ -249,8 +308,11 @@ def seed():
         for node_id, name, *_rest in farms:
             print(f"  {name}")
         print()
-        print("Marketplace: demo listings. Featured: Toikantila raw milk at the REKO drop.")
-        print(f"Next drop: {ring.name} {drop_start:%a %H:%M}–{drop_end:%H:%M} {ring.place}")
+        print("Unclaimed REKO rings — ring admin logs in, then taps This is my REKO ring:")
+        print(f"  {hyvinkaa.name}  {hy_start:%a %H:%M}–{hy_end:%H:%M}  {hyvinkaa.place}")
+        print(f"  {nurmijarvi.name}  {nj_start:%a %H:%M}–{nj_end:%H:%M}  {nurmijarvi.place}")
+        print()
+        print("Marketplace: demo listings. Featured: Toikantila raw milk at REKO Nurmijärvi.")
     finally:
         db.close()
 

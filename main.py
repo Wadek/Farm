@@ -82,9 +82,27 @@ def _ensure_node_claim_columns():
             ))
 
 
+def _ensure_ring_columns():
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    if "rings" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("rings")}
+    with engine.begin() as conn:
+        if "facebook_url" not in cols:
+            conn.execute(text("ALTER TABLE rings ADD COLUMN facebook_url VARCHAR DEFAULT ''"))
+        if "claim_id" not in cols:
+            conn.execute(text("ALTER TABLE rings ADD COLUMN claim_id VARCHAR"))
+        if "claimed_at" not in cols:
+            conn.execute(text("ALTER TABLE rings ADD COLUMN claimed_at DATETIME"))
+        if "admin_id" not in cols:
+            conn.execute(text("ALTER TABLE rings ADD COLUMN admin_id VARCHAR"))
+
+
 _ensure_listing_unit()
 _ensure_ask_pickup_columns()
 _ensure_node_claim_columns()
+_ensure_ring_columns()
 
 app = FastAPI(title="Satokori", version="0.3.0")
 app.include_router(auth.router)

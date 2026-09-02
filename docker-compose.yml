@@ -11,7 +11,7 @@ services:
     environment:
       DATABASE_URL: sqlite:////data/farm.db
       SECRET_KEY: ${SATOKORI_SECRET_KEY:-satokori-local}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://satokori.wakalabs.net}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://satokori.com}
       SMS_PROVIDER: ${SMS_PROVIDER:-log}
       SMS_FROM: ${SMS_FROM:-Satokori}
       ELKS_USERNAME: ${ELKS_USERNAME:-}

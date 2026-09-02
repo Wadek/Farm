@@ -8,6 +8,7 @@ class UserRole(str, enum.Enum):
     organizer = "organizer"
     farmer = "farmer"
     buyer = "buyer"
+    ring_admin = "ring_admin"
 
 
 class User(Base):

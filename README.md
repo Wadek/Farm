@@ -9,7 +9,8 @@ docker compose up -d --build
 ```
 
 Local: http://127.0.0.1:8791  
-Public (after tunnel): https://satokori.wakalabs.net
+Public: https://satokori.com  
+Alias: https://satokori.wakalabs.net
 
 ## Ship
 
@@ -37,7 +38,7 @@ Satokori copies the Facebook REKO ring (not Marketplace classifieds). A producer
 
 ## Phones
 
-The product is the PWA at https://satokori.wakalabs.net. Do not rewrite it as React Native, Flutter, or Expo.
+The product is the PWA at https://satokori.com. Do not rewrite it as React Native, Flutter, or Expo.
 
 - **iPhone (beta):** Safari → Share → Add to Home Screen. Web Push from iOS 16.4 when opened from that icon. App Store later needs an Apple Developer account and a Mac.
 - **Android (Play):** wrap the live PWA as a Trusted Web Activity (PWABuilder / Bubblewrap). Play Console on `wkariniemi@gmail.com`. Store binaries are not in this repo.

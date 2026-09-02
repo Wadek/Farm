@@ -203,6 +203,32 @@ def test_drop_order_sms_and_inbox_include_the_ring(client):
     assert "Lot A" in (public.json()["offer_text"] or "")
 
 
+def test_ring_admin_claims_unclaimed_ring_and_opens_a_drop(client):
+    admin, _ = _register(client, "ra-admin@test.com", "Admin", "organizer")
+    manager, _ = _register(client, "ra-manager@test.com", "Maija", "ring_admin")
+    buyer, _ = _register(client, "ra-buyer@test.com", "Anna", "buyer")
+    start, end = _window()
+    created = client.post("/rings", json={
+        "name": "REKO Hyvinkää", "place": "Lot A", "lat": 60.63, "lng": 24.86,
+        "starts_at": start, "ends_at": end,
+        "facebook_url": "https://www.facebook.com/groups/hyvinkaanreko",
+    }, headers=_auth(admin)).json()
+    ring_id = created["ring_id"]
+    denied = client.post(f"/rings/{ring_id}/claim", json={}, headers=_auth(buyer))
+    assert denied.status_code == 403
+    claimed = client.post(f"/rings/{ring_id}/claim", json={}, headers=_auth(manager))
+    assert claimed.status_code == 200, claimed.text
+    assert claimed.json()["is_unclaimed"] is False
+    assert claimed.json()["admin_name"] == "Maija"
+    later_start, later_end = _window()
+    drop = client.post(f"/rings/{ring_id}/drops", json={
+        "starts_at": later_start, "ends_at": later_end,
+    }, headers=_auth(manager))
+    assert drop.status_code == 201, drop.text
+    public = client.get("/rings").json()
+    assert any(r["id"] == ring_id and r["facebook_url"].endswith("hyvinkaanreko") for r in public["rings"])
+
+
 def test_buyer_cannot_create_a_ring(client):
     buyer, _ = _register(client, "ring-buyer@test.com", "Anna", "buyer")
     start, end = _window()
