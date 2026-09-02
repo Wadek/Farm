@@ -161,6 +161,9 @@ def test_listing_name_picks_a_satokori_woodcut():
         ("Kaura", "preserve", "oats.jpg"),
         ("Strutsin munat", "eggs", "ostrich-egg.jpg"),
         ("Raw milk", "dairy", "dairy.jpg"),
+        ("Tyrni", "berries", "tyrni.jpg"),
+        ("Sea buckthorn", "berries", "tyrni.jpg"),
+        ("Haskap (hunajamarja)", "berries", "blueberry.jpg"),
     ]
     pack = Path("static/produce")
     for name, cat, filename in cases:
