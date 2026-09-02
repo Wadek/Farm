@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,9 +18,13 @@
 <header id="topbar">
   <button type="button" id="loc-btn">Hyvinkää<small>40 km</small></button>
   <div class="searchf" id="search-wrap">
-    <input id="q" type="search" placeholder="Milk, eggs, kale…" autocomplete="off">
+    <input id="q" type="search" placeholder="Milk, eggs, kale…" data-i18n-placeholder="search_placeholder" autocomplete="off">
   </div>
   <div id="page-title" class="hidden"></div>
+  <div id="lang-switch" class="lang">
+    <button type="button" data-lang="en">EN</button>
+    <button type="button" data-lang="fi">FI</button>
+  </div>
 </header>
 <div class="chips" id="chips"></div>
 <main>
@@ -33,35 +37,35 @@
     <div class="grid" id="farms"></div>
   </section>
   <section id="view-basket" class="hidden">
-    <p class="meta" id="basket-meta">Pickup asks and replies live here — same place every time.</p>
+    <p class="meta" id="basket-meta" data-i18n="Pickup asks and replies live here — same place every time.">Pickup asks and replies live here — same place every time.</p>
     <div id="basket"></div>
     <div id="basket-ledger" class="grid"></div>
-    <button class="btn primary block hidden" data-account-link>Log in to send an ask</button>
+    <button class="btn primary block hidden" data-account-link data-i18n="Log in to send an ask">Log in to send an ask</button>
   </section>
   <section id="view-account" class="hidden">
     <div id="you-guest" class="auth-stack">
       <div class="seg" id="auth-seg">
-        <button type="button" class="on" data-auth-mode="login">Log in</button>
-        <button type="button" data-auth-mode="register">Create account</button>
+        <button type="button" class="on" data-auth-mode="login" data-i18n="Log in">Log in</button>
+        <button type="button" data-auth-mode="register" data-i18n="Create account">Create account</button>
       </div>
       <form id="login-form" class="card grid">
-        <label>Email <input name="email" type="email" required></label>
-        <label>Password <input name="password" type="password" required></label>
-        <button class="btn primary" type="submit">Log in</button>
+        <label><span data-i18n="Email">Email</span> <input name="email" type="email" required></label>
+        <label><span data-i18n="Password">Password</span> <input name="password" type="password" required></label>
+        <button class="btn primary" type="submit" data-i18n="Log in">Log in</button>
       </form>
       <form id="register-form" class="card grid hidden">
-        <label>Name <input name="name" required></label>
-        <label>Email <input name="email" type="email" required></label>
-        <label>Password <input name="password" type="password" minlength="6" required></label>
-        <label>I am a
+        <label><span data-i18n="Name">Name</span> <input name="name" required></label>
+        <label><span data-i18n="Email">Email</span> <input name="email" type="email" required></label>
+        <label><span data-i18n="Password">Password</span> <input name="password" type="password" minlength="6" required></label>
+        <label><span data-i18n="I am a">I am a</span>
           <select name="role">
-            <option value="buyer">Customer — I pick up food</option>
-            <option value="farmer">Farmer — I list harvest</option>
+            <option value="buyer" data-i18n="Customer — I pick up food">Customer — I pick up food</option>
+            <option value="farmer" data-i18n="Farmer — I list harvest">Farmer — I list harvest</option>
           </select>
         </label>
-        <button class="btn primary" type="submit">Create account</button>
+        <button class="btn primary" type="submit" data-i18n="Create account">Create account</button>
       </form>
-      <p class="meta">Local test accounts</p>
+      <p class="meta" data-i18n="Local test accounts">Local test accounts</p>
       <div class="btn-row" style="flex-wrap:wrap">
         <button class="btn ghost" type="button" data-demo-email="wade@kariniemi.farm" data-demo-password="farmgate">Admin</button>
         <button class="btn ghost" type="button" data-demo-email="maija@naapuri.fi" data-demo-password="farmgate">Maija</button>
@@ -73,88 +77,88 @@
   </section>
   <section id="view-listings" class="hidden">
     <div id="farm-setup" class="card grid hidden">
-      <h3>Add your farm</h3>
-      <p class="meta">Pin the pickup spot. Then list this week’s harvest. No claim code.</p>
-      <label>Farm name <input id="farm-name" required placeholder="Rajamäki Beds"></label>
-      <label>Pickup point <input id="farm-pickup" required placeholder="Red shed / farm gate"></label>
-      <label>Kind
+      <h3 data-i18n="Add your farm">Add your farm</h3>
+      <p class="meta" data-i18n="Pin the pickup spot. Then list this week’s harvest. No claim code.">Pin the pickup spot. Then list this week’s harvest. No claim code.</p>
+      <label><span data-i18n="Farm name">Farm name</span> <input id="farm-name" required placeholder="Rajamäki Beds"></label>
+      <label><span data-i18n="Pickup point">Pickup point</span> <input id="farm-pickup" required placeholder="Red shed / farm gate"></label>
+      <label><span data-i18n="Kind">Kind</span>
         <select id="farm-type">
-          <option value="hobby_farm">Hobby farm</option>
-          <option value="farm">Farm</option>
-          <option value="backyard">Backyard</option>
-          <option value="garden_bed">Garden bed</option>
+          <option value="hobby_farm" data-i18n="Hobby farm">Hobby farm</option>
+          <option value="farm" data-i18n="Farm">Farm</option>
+          <option value="backyard" data-i18n="Backyard">Backyard</option>
+          <option value="garden_bed" data-i18n="Garden bed">Garden bed</option>
         </select>
       </label>
-      <label>Tap the map</label>
+      <label data-i18n="Tap the map">Tap the map</label>
       <div id="farm-map" class="leaflet-map"></div>
       <div class="row">
-        <label>Lat <input id="farm-lat" value="60.5522" required></label>
-        <label>Lng <input id="farm-lng" value="24.7050" required></label>
+        <label><span data-i18n="Lat">Lat</span> <input id="farm-lat" value="60.5522" required></label>
+        <label><span data-i18n="Lng">Lng</span> <input id="farm-lng" value="24.7050" required></label>
       </div>
-      <button class="btn primary" type="button" id="farm-save">Save farm</button>
+      <button class="btn primary" type="button" id="farm-save" data-i18n="Save farm">Save farm</button>
       <details>
-        <summary class="meta">I already have an admin claim code</summary>
+        <summary class="meta" data-i18n="I already have an admin claim code">I already have an admin claim code</summary>
         <form id="claim-farm-form" class="row" style="margin-top:8px">
-          <input id="claim-farm-input" name="claim_id" placeholder="Claim code">
-          <button class="btn ghost" type="submit">Claim</button>
+          <input id="claim-farm-input" name="claim_id" placeholder="Claim code" data-i18n-placeholder="Claim code">
+          <button class="btn ghost" type="submit" data-i18n="Claim">Claim</button>
         </form>
       </details>
     </div>
     <div id="sell-guest" class="empty hidden">
-      <h3>List your harvest</h3>
-      <p>Create a farmer account, add your farm, then post what you have this week.</p>
-      <button class="btn primary" type="button" data-account-link style="margin-top:12px">Create farmer account</button>
+      <h3 data-i18n="List your harvest">List your harvest</h3>
+      <p data-i18n="Create a farmer account, add your farm, then post what you have this week.">Create a farmer account, add your farm, then post what you have this week.</p>
+      <button class="btn primary" type="button" data-account-link data-i18n="Create farmer account" style="margin-top:12px">Create farmer account</button>
     </div>
     <div id="my-listings-box" class="hidden">
-      <h3>Your listings</h3>
+      <h3 data-i18n="Your listings">Your listings</h3>
       <div id="my-listings" class="grid" style="margin-top:8px"></div>
     </div>
     <form id="stall-form" class="card grid hidden">
-      <h3>List this week</h3>
-      <p class="meta">Amount, unit, price, pickup window.</p>
-      <label>Farm <select id="stall-node" required></select></label>
+      <h3 data-i18n="List this week">List this week</h3>
+      <p class="meta" data-i18n="Amount, unit, price, pickup window.">Amount, unit, price, pickup window.</p>
+      <label><span data-i18n="Farm">Farm</span> <select id="stall-node" required></select></label>
       <div class="row">
-        <label>From <input type="datetime-local" id="stall-from" required></label>
-        <label>Until <input type="datetime-local" id="stall-until" required></label>
+        <label><span data-i18n="From">From</span> <input type="datetime-local" id="stall-from" required></label>
+        <label><span data-i18n="Until">Until</span> <input type="datetime-local" id="stall-until" required></label>
       </div>
-      <label>Pickup <input id="stall-where" required></label>
+      <label><span data-i18n="Pickup">Pickup</span> <input id="stall-where" required></label>
       <div id="lots"></div>
-      <button type="button" class="btn ghost" id="add-lot">Another item</button>
-      <button class="btn primary" type="submit">Post listing</button>
+      <button type="button" class="btn ghost" id="add-lot" data-i18n="Another item">Another item</button>
+      <button class="btn primary" type="submit" data-i18n="Post listing">Post listing</button>
     </form>
   </section>
   <section id="view-visit" class="hidden">
     <form id="visit-form" class="card grid">
-      <h3>Add a farm</h3>
-      <p class="meta">Field visit: standing at the farm, tap the map for the exact spot, then add them to the network.</p>
+      <h3 data-i18n="Add a farm">Add a farm</h3>
+      <p class="meta" data-i18n="Field visit: standing at the farm, tap the map for the exact spot, then add them to the network.">Field visit: standing at the farm, tap the map for the exact spot, then add them to the network.</p>
       <div class="row">
-        <label>Farmer <input id="v-farmer" required></label>
-        <label>Farm <input id="v-farm" required></label>
+        <label><span data-i18n="Farmer">Farmer</span> <input id="v-farmer" required></label>
+        <label><span data-i18n="Farm">Farm</span> <input id="v-farm" required></label>
       </div>
       <div class="row">
         <label>Phone <input id="v-phone" placeholder="040…"></label>
-        <label>Pickup <input id="v-where" required placeholder="Farm gate"></label>
+        <label><span data-i18n="Pickup">Pickup</span> <input id="v-where" required placeholder="Farm gate"></label>
       </div>
-      <label>Tap the map for lat/lng</label>
+      <label data-i18n="Tap the map for lat/lng">Tap the map for lat/lng</label>
       <div id="visit-map" class="leaflet-map"></div>
       <div class="row">
-        <label>Lat <input id="v-lat" value="60.5522" required></label>
-        <label>Lng <input id="v-lng" value="24.7050" required></label>
+        <label><span data-i18n="Lat">Lat</span> <input id="v-lat" value="60.5522" required></label>
+        <label><span data-i18n="Lng">Lng</span> <input id="v-lng" value="24.7050" required></label>
       </div>
       <div class="row">
-        <label>From <input type="datetime-local" id="v-from" required></label>
-        <label>Until <input type="datetime-local" id="v-until" required></label>
+        <label><span data-i18n="From">From</span> <input type="datetime-local" id="v-from" required></label>
+        <label><span data-i18n="Until">Until</span> <input type="datetime-local" id="v-until" required></label>
       </div>
       <div id="v-lots"></div>
-      <button type="button" class="btn ghost" id="v-add-lot">Another item</button>
-      <button class="btn primary" type="submit">Add this farm</button>
+      <button type="button" class="btn ghost" id="v-add-lot" data-i18n="Another item">Another item</button>
+      <button class="btn primary" type="submit" data-i18n="Add this farm">Add this farm</button>
     </form>
     <div id="visit-result" class="card hidden" style="margin-top:1rem"></div>
   </section>
   <section id="view-ledger" class="hidden">
     <div class="card">
-      <h3>Master Ledger</h3>
-      <p class="meta">Admin master view of every network trade, pickup request, and ledger record.</p>
+      <h3 data-i18n="Master Ledger">Master Ledger</h3>
+      <p class="meta" data-i18n="Admin master view of every network trade, pickup request, and ledger record.">Admin master view of every network trade, pickup request, and ledger record.</p>
     </div>
     <div id="ledger"></div>
   </section>
@@ -164,6 +168,7 @@
   <div class="sheet-card" id="sheet-body"></div>
 </div>
 <div id="toast" class="toast hidden"></div>
+<script src="/static/i18n.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const HERE = { lat: 60.5522, lng: 24.7050 };
@@ -197,15 +202,15 @@ function farmerReplyHtml(a, mine) {
   const isConfirmed = a.status === "confirmed" || a.status === "offered";
   if (isConfirmed && a.offer_text) {
     return `<div class="farmer-reply">
-      <div class="kicker">${mine ? "Your reply" : "Farmer replied"}</div>
+      <div class="kicker">${mine ? t("Your reply") : t("Farmer replied")}</div>
       <div class="said">${esc(a.offer_text)}</div>
-      ${a.pickup_point ? `<div class="meta">Pickup: ${esc(a.pickup_point)}</div>` : ""}
+      ${a.pickup_point ? `<div class="meta">${t("Pickup:")} ${esc(a.pickup_point)}</div>` : ""}
     </div>`;
   }
   if (a.status === "declined") {
     return `<div class="farmer-reply">
-      <div class="kicker">${mine ? "You declined" : "Farmer replied"}</div>
-      <div class="said">Cannot do it now</div>
+      <div class="kicker">${mine ? t("You declined") : t("Farmer replied")}</div>
+      <div class="said">${t("Cannot do it now")}</div>
     </div>`;
   }
   return "";
@@ -223,7 +228,7 @@ async function api(path, opts = {}) {
   if (!res.ok) {
     let detail = res.statusText;
     try { detail = (await res.json()).detail || detail; } catch {}
-    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    throw new Error(typeof detail === "string" ? t(detail) : JSON.stringify(detail));
   }
   if (res.status === 204) return null;
   return res.json();
@@ -231,21 +236,41 @@ async function api(path, opts = {}) {
 function unitOf(item) { return item.unit || "kg"; }
 function qtyLabel(item) { return `${item.quantity_kg} ${unitOf(item)}`; }
 function priceLabel(item) {
-  if (item.is_free || item.price_per_kg === 0) return "ask";
+  if (item.is_free || item.price_per_kg === 0) return t("ask");
   return `${item.price_per_kg.toFixed(2)} €/${unitOf(item)}`;
 }
+function loc() { return dateLocale(); }
 function fmtWhen(from, until) {
-  if (!from && !until) return "Hours not posted";
+  if (!from && !until) return t("Hours not posted");
   const a = from ? new Date(from) : null;
   const b = until ? new Date(until) : null;
-  const day = a ? a.toLocaleDateString("fi", { weekday: "short", day: "numeric", month: "short" }) : "";
-  const t1 = a ? a.toLocaleTimeString("fi", { hour: "2-digit", minute: "2-digit" }) : "";
-  const t2 = b ? b.toLocaleTimeString("fi", { hour: "2-digit", minute: "2-digit" }) : "";
+  const day = a ? a.toLocaleDateString(loc(), { weekday: "short", day: "numeric", month: "short" }) : "";
+  const t1 = a ? a.toLocaleTimeString(loc(), { hour: "2-digit", minute: "2-digit" }) : "";
+  const t2 = b ? b.toLocaleTimeString(loc(), { hour: "2-digit", minute: "2-digit" }) : "";
   return `${day} · ${t1}–${t2}`;
 }
 function fmtTimestamp(value) {
-  if (!value) return "unknown time";
-  return new Date(value).toLocaleString("fi", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  if (!value) return t("unknown time");
+  return new Date(value).toLocaleString(loc(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+function paintStatic() {
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.querySelectorAll("#lang-switch [data-lang]").forEach(b => b.classList.toggle("on", b.dataset.lang === getLang()));
+}
+function applyLang() {
+  setLang(getLang());
+  paintStatic();
+  applyChrome();
+  renderNav(activeView);
+  renderAuth();
+  if (activeView === "browse") { renderChips(catalogItems); paintCatalog(); }
+  else if (activeView === "farms") loadFarms();
+  else if (activeView === "basket") loadBasketView();
+  else if (activeView === "listings") loadSellView();
+  else if (activeView === "account") renderYou();
+  else if (activeView === "ledger") loadLedger();
+  else if (activeView === "visit") paintStatic();
 }
 function icn(name) {
   const p = {
@@ -259,16 +284,16 @@ function icn(name) {
 }
 function navItems() {
   return [
-    ["browse", "Search", "search"],
-    ["farms", "Map", "map"],
-    ["listings", "Sell", "sell"],
-    ["basket", "Orders", "orders"],
-    ["account", "You", "you"],
+    ["browse", t("Search"), "search"],
+    ["farms", t("Map"), "map"],
+    ["listings", t("Sell"), "sell"],
+    ["basket", t("Orders"), "orders"],
+    ["account", t("You"), "you"],
   ];
 }
 function defaultView() { return "browse"; }
 function titles() {
-  return { browse: "Search", farms: "Farms", listings: "Sell", basket: "Orders", account: "You", visit: "Field visit", ledger: "Ledger" };
+  return { browse: t("Search"), farms: t("Farms"), listings: t("Sell"), basket: t("Orders"), account: t("You"), visit: t("Field visit"), ledger: t("Ledger") };
 }
 function renderNav(active) {
   const nav = document.getElementById("tabbar");
@@ -298,16 +323,22 @@ function renderYou() {
   }
   guest.classList.add("hidden");
   user.classList.remove("hidden");
-  const pill = me.role === "organizer" ? "Admin" : me.role === "farmer" ? "Farmer" : "Customer";
+  const pill = me.role === "organizer" ? t("Admin") : me.role === "farmer" ? t("Farmer") : t("Customer");
   user.innerHTML = `
     <div class="card">
       <div class="role-pill">${pill}</div>
       <h3 style="margin-top:8px">${esc(me.name)}</h3>
       <p class="meta">${esc(me.email)}</p>
-      <button class="btn ghost" id="logout" type="button">Log out</button>
+      <p class="meta">${t("Language")}</p>
+      <div class="lang">
+        <button type="button" data-lang="en" class="${getLang() === "en" ? "on" : ""}">EN</button>
+        <button type="button" data-lang="fi" class="${getLang() === "fi" ? "on" : ""}">FI</button>
+      </div>
+      <button class="btn ghost" id="logout" type="button">${t("Log out")}</button>
     </div>
     <div class="card grid" id="alert-setup"></div>
-    ${me.role === "organizer" ? `<div class="btn-row"><button class="btn" data-view="ledger">Ledger</button><button class="btn" data-view="visit">Field visit</button></div>` : ""}`;
+    ${me.role === "organizer" ? `<div class="btn-row"><button class="btn" data-view="ledger">${t("Ledger")}</button><button class="btn" data-view="visit">${t("Field visit")}</button></div>` : ""}`;
+  user.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { setLang(b.dataset.lang); applyLang(); });
   user.querySelector("#logout").onclick = logout;
   user.querySelectorAll("[data-view]").forEach(b => b.onclick = () => show(b.dataset.view));
   renderAlertSetup();
@@ -324,13 +355,13 @@ function renderAlertSetup() {
   if (!el) return;
   const perm = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
   if (perm === "granted" && pushReady) {
-    el.innerHTML = `<p class="meta">Phone alerts on.</p>`;
+    el.innerHTML = `<p class="meta">${t("Phone alerts on.")}</p>`;
     return;
   }
-  let hint = "Alerts reach the phone even when Satokori is closed.";
-  if (isIos() && !isStandalone()) hint = "Open Satokori from the home-screen icon, then turn on alerts.";
-  else if (perm === "denied") hint = "Alerts are blocked in iPhone Settings → Notifications → Satokori.";
-  el.innerHTML = `${perm === "denied" ? "" : `<button class="btn primary" data-enable-alerts type="button">Turn on phone alerts</button>`}<p class="meta">${hint}</p>`;
+  let hint = t("Alerts reach the phone even when Satokori is closed.");
+  if (isIos() && !isStandalone()) hint = t("Open Satokori from the home-screen icon, then turn on alerts.");
+  else if (perm === "denied") hint = t("Alerts are blocked in iPhone Settings → Notifications → Satokori.");
+  el.innerHTML = `${perm === "denied" ? "" : `<button class="btn primary" data-enable-alerts type="button">${t("Turn on phone alerts")}</button>`}<p class="meta">${hint}</p>`;
   el.querySelectorAll("[data-enable-alerts]").forEach(b => b.onclick = () => enableNotifications(true));
 }
 async function logout() {
@@ -351,7 +382,7 @@ async function login(email, password) {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ username: email, password }),
   });
-  if (!res.ok) { toast("Login failed"); return; }
+  if (!res.ok) { toast(t("Login failed")); return; }
   clearOrderAlerts();
   token = (await res.json()).access_token;
   me = await api("/auth/me");
@@ -364,15 +395,15 @@ async function login(email, password) {
   if (me.role === "farmer" || me.role === "organizer") {
     try {
       const nodes = await api("/nodes");
-      if (!nodes.length) { show("listings"); toast("Add your farm to start listing"); return; }
+      if (!nodes.length) { show("listings"); toast(t("Add your farm to start listing")); return; }
     } catch {}
   }
   show("browse");
-  toast("Signed in");
+  toast(t("Signed in"));
 }
 async function registerAccount(payload) {
   const res = await fetch("/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  if (!res.ok) { let detail = "Account creation failed"; try { detail = (await res.json()).detail || detail; } catch {} throw new Error(detail); }
+  if (!res.ok) { let detail = t("Account creation failed"); try { detail = t((await res.json()).detail || detail); } catch {} throw new Error(detail); }
   return login(payload.email, payload.password);
 }
 function updateBasketBadge(asks = []) {
@@ -398,7 +429,7 @@ function addToBasket(item) {
     available_until: item.available_until, unit: unitOf(item),
   });
   saveBasket();
-  toast("Added to basket");
+  toast(t("Added to basket"));
 }
 function renderBasket() {
   const el = document.getElementById("basket");
@@ -406,10 +437,10 @@ function renderBasket() {
   const byFarm = {};
   basket.forEach(b => { (byFarm[b.farm_name] ||= []).push(b); });
   el.innerHTML = `
-    <h4 style="margin:.4rem 0">Items in basket</h4>
+    <h4 style="margin:.4rem 0">${t("Items in basket")}</h4>
     ${Object.entries(byFarm).map(([farm, items]) => `
       <div class="basket-line"><b>${farm}</b><span>${fmtWhen(items[0].available_from, items[0].available_until)}</span></div>
-      ${items.map(b => `<div class="basket-line">${b.produce_name}<button class="btn ghost" data-id="${b.listing_id}">Remove</button></div>`).join("")}
+      ${items.map(b => `<div class="basket-line">${b.produce_name}<button class="btn ghost" data-id="${b.listing_id}">${t("Remove")}</button></div>`).join("")}
       <p class="meta">${items[0].pickup_point}</p>
     `).join("")}`;
   el.querySelectorAll("[data-id]").forEach(btn => btn.onclick = () => {
@@ -418,14 +449,15 @@ function renderBasket() {
   });
 }
 function money(item) {
-  if (item.is_free || item.price_per_kg === 0) return "Ask";
+  if (item.is_free || item.price_per_kg === 0) return t("Ask");
   return item.price_per_kg.toFixed(2) + " €";
 }
+function catLabel(c) { return t(c === "all" ? "All" : "cat." + c); }
 function renderChips(items) {
   const found = new Set(items.map(i => (i.category || "").toLowerCase()).filter(Boolean));
   const list = ["all"].concat(CATS.filter(c => c !== "all" && found.has(c)));
   const el = document.getElementById("chips");
-  el.innerHTML = list.map(c => `<button type="button" data-cat="${c}" class="${filterCat === c ? "on" : ""}">${c === "all" ? "All" : c}</button>`).join("");
+  el.innerHTML = list.map(c => `<button type="button" data-cat="${c}" class="${filterCat === c ? "on" : ""}">${catLabel(c)}</button>`).join("");
   el.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { filterCat = b.dataset.cat; paintCatalog(); renderChips(catalogItems); });
 }
 function paintCatalog() {
@@ -437,17 +469,17 @@ function paintCatalog() {
     return [item.produce_name, item.farm_name, item.farmer_name, item.category].join(" ").toLowerCase().includes(q);
   });
   if (!rows.length) {
-    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>Nothing listed</h3><p>Try another search or category.</p></div>`;
+    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${t("Nothing listed")}</h3><p>${t("Try another search or category.")}</p></div>`;
     return;
   }
   root.innerHTML = rows.map(item => {
     const soldOut = item.status === "sold_out";
     const km = item.distance_km != null ? item.distance_km + " km" : "";
     return `<article class="tile ${soldOut ? "sold-out" : ""}" data-open="${item.id}">
-      <button type="button" class="fav ${isFav(item.id) ? "on" : ""}" data-fav="${item.id}" aria-label="Save">♥</button>
+      <button type="button" class="fav ${isFav(item.id) ? "on" : ""}" data-fav="${item.id}" aria-label="${t("Save")}">♥</button>
       <div class="tile-hero" style="background:var(${heroVar(item.category)})"><span>${esc(item.produce_name)}</span></div>
       <div class="tile-body">
-        <div class="tile-price">${soldOut ? "Sold out" : money(item)}</div>
+        <div class="tile-price">${soldOut ? t("Sold out") : money(item)}</div>
         <div class="tile-title">${esc(item.produce_name)}${soldOut ? "" : " · " + qtyLabel(item)}</div>
         <div class="tile-meta">${esc(item.farm_name)}${km ? " · " + km : ""}</div>
       </div>
@@ -481,23 +513,23 @@ function openAsk(item) {
   body.innerHTML = `
     <div class="detail-hero" style="background:var(${heroVar(item.category)})">${esc(item.produce_name)}</div>
     <div class="detail-body">
-      <button class="btn ghost" type="button" id="sheet-close">Close</button>
-      <div class="detail-price">${soldOut ? "Sold out" : money(item)}</div>
+      <button class="btn ghost" type="button" id="sheet-close">${t("Close")}</button>
+      <div class="detail-price">${soldOut ? t("Sold out") : money(item)}</div>
       <div class="detail-title">${esc(item.produce_name)}</div>
       <p class="meta">${esc(item.farm_name)} · ${esc(item.farmer_name || "")}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}<br>${fmtWhen(item.available_from, item.available_until)} · ${esc(item.pickup_point || "")}</p>
-      <p class="meta">${soldOut ? "Sold out. You can still ask when it is back." : qtyLabel(item) + " available."}</p>
-      ${own ? `<p class="meta">This is your listing.</p>` : `
+      <p class="meta">${soldOut ? t("Sold out. You can still ask when it is back.") : qtyLabel(item) + " " + t("available") + "."}</p>
+      ${own ? `<p class="meta">${t("This is your listing.")}</p>` : `
       <form id="ask-form" class="grid">
         <div class="row">
-          <label>How much <input name="qty" type="number" min="0.1" step="0.1" value="1" required></label>
-          <label>Unit <input value="${unitOf(item)}" disabled></label>
+          <label>${t("How much")} <input name="qty" type="number" min="0.1" step="0.1" value="1" required></label>
+          <label>${t("Unit")} <input value="${unitOf(item)}" disabled></label>
         </div>
-        <label>Note <input name="note" placeholder="This week?"></label>
+        <label>${t("Note")} <input name="note" placeholder="${t("This week?")}"></label>
       </form>`}
     </div>
     ${own ? "" : `<div class="detail-bar">
-      <button class="btn ghost" type="button" data-fav-detail="${item.id}">${isFav(item.id) ? "Saved" : "Save"}</button>
-      <button class="btn primary" type="button" id="ask-send">${role() === "guest" ? "Log in to ask" : "Ask to pick up"}</button>
+      <button class="btn ghost" type="button" data-fav-detail="${item.id}">${isFav(item.id) ? t("Saved") : t("Save")}</button>
+      <button class="btn primary" type="button" id="ask-send">${role() === "guest" ? t("Log in to ask") : t("Ask to pick up")}</button>
     </div>`}`;
   sheet.classList.remove("hidden");
   body.querySelector("#sheet-close").onclick = closeSheet;
@@ -506,7 +538,7 @@ function openAsk(item) {
   if (favBtn) favBtn.onclick = () => { toggleFav(item.id); openAsk(item); paintCatalog(); };
   const send = body.querySelector("#ask-send");
   if (send) send.onclick = async () => {
-    if (role() === "guest") { closeSheet(); show("account"); toast("Log in to ask for pickup"); return; }
+    if (role() === "guest") { closeSheet(); show("account"); toast(t("Log in to ask for pickup")); return; }
     const form = body.querySelector("#ask-form");
     try {
       await api("/asks", { method: "POST", body: JSON.stringify({
@@ -515,7 +547,7 @@ function openAsk(item) {
         note: form.note.value,
       })});
       closeSheet();
-      toast("Ask sent. They reply with a time.");
+      toast(t("Ask sent. They reply with a time."));
       show("basket");
     } catch (err) { toast(err.message); }
   };
@@ -525,13 +557,13 @@ async function loadBasketView() {
   const metaEl = document.getElementById("basket-meta");
   const el = document.getElementById("basket-ledger");
   if (role() === "guest") {
-    if (el) el.innerHTML = basket.length ? "" : `<p class="meta">Your basket is empty. Browse What's available to request produce.</p>`;
+    if (el) el.innerHTML = basket.length ? "" : `<p class="meta">${t("Your basket is empty. Browse What's available to request produce.")}</p>`;
     document.querySelectorAll("[data-account-link]").forEach(b => b.classList.remove("hidden"));
-    if (metaEl) metaEl.textContent = "Your pickup list, orders, and ledger transactions.";
+    if (metaEl) metaEl.textContent = t("Your pickup list, orders, and ledger transactions.");
     return;
   }
   document.querySelectorAll("[data-account-link]").forEach(b => b.classList.add("hidden"));
-  if (metaEl) metaEl.textContent = role() === "farmer" ? "Your pickup requests, fulfillments, and personal ledger transactions." : "Your pickup orders, status, and personal ledger transactions.";
+  if (metaEl) metaEl.textContent = role() === "farmer" ? t("Your pickup requests, fulfillments, and personal ledger transactions.") : t("Your pickup orders, status, and personal ledger transactions.");
   await loadBasketLedger();
 }
 function incomingAskCardHtml(a) {
@@ -540,37 +572,37 @@ function incomingAskCardHtml(a) {
   const isPickedUp = a.status === "picked_up";
   const isDeclined = a.status === "declined";
   const isWithdrawn = a.status === "withdrawn";
-  const statusLabel = isAsked ? "Waiting for your reply" : isPickedUp ? "Picked up · Complete" : isDeclined ? "Declined" : isWithdrawn ? "Withdrawn" : "Ready for pickup";
+  const statusLabel = isAsked ? t("Waiting for your reply") : isPickedUp ? t("Picked up · Complete") : isDeclined ? t("Declined") : isWithdrawn ? t("Withdrawn") : t("Ready for pickup");
   return `
       <article class="card ${isConfirmed && a.offer_text ? "has-reply" : ""}">
         <h3>${esc(a.produce)}</h3>
-        <div class="meta"><b>${esc(a.buyer_name)}</b> requested ${a.quantity} ${esc(a.unit)}${a.note ? " · “" + esc(a.note) + "”" : ""} · ${fmtTimestamp(a.created_at)}</div>
-        <div class="meta">Status: <b>${statusLabel}</b></div>
+        <div class="meta"><b>${esc(a.buyer_name)}</b> ${t("requested")} ${a.quantity} ${esc(a.unit)}${a.note ? " · “" + esc(a.note) + "”" : ""} · ${fmtTimestamp(a.created_at)}</div>
+        <div class="meta">${t("Status")}: <b>${statusLabel}</b></div>
         ${farmerReplyHtml(a, true)}
         ${isAsked ? `
           <form class="row" data-reply="${a.id}" style="margin-top:.6rem">
-            <label>Pickup time <input name="when" placeholder="${a.sold_out ? "next sat 10" : "la 10"}" required></label>
-            <input name="partial_qty" type="number" min="0.1" max="${a.quantity}" step="0.1" placeholder="Partial amount" hidden>
+            <label>${t("Pickup time")} <input name="when" placeholder="${a.sold_out ? "next sat 10" : "la 10"}" required></label>
+            <input name="partial_qty" type="number" min="0.1" max="${a.quantity}" step="0.1" placeholder="${t("Partial amount")}" hidden>
             <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:flex-end">
-              <button class="btn primary" type="submit" data-mode="full">Fulfill in full</button>
-              <button class="btn ghost" type="button" data-partial>Fulfill partial</button>
-              <button class="btn ghost" type="button" data-no="${a.id}">Can't do it</button>
+              <button class="btn primary" type="submit" data-mode="full">${t("Fulfill in full")}</button>
+              <button class="btn ghost" type="button" data-partial>${t("Fulfill partial")}</button>
+              <button class="btn ghost" type="button" data-no="${a.id}">${t("Can't do it")}</button>
             </div>
           </form>` : ""}
         ${isConfirmed && !a.farmer_verified_at ? `
           <div style="margin-top:.6rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
-            <button class="btn primary" data-verify-farmer="${a.id}">Verify handoff</button>
-            ${a.buyer_verified_at ? `<span class="meta" style="color:var(--moss)">Customer confirmed pickup. Please verify handoff.</span>` : ""}
+            <button class="btn primary" data-verify-farmer="${a.id}">${t("Verify handoff")}</button>
+            ${a.buyer_verified_at ? `<span class="meta" style="color:var(--acc)">${t("Customer confirmed pickup. Please verify handoff.")}</span>` : ""}
           </div>` : ""}
         ${isConfirmed && a.farmer_verified_at && !a.buyer_verified_at ? `
-          <div class="meta" style="color:var(--moss)">Handoff verified · Awaiting customer verification</div>` : ""}
+          <div class="meta" style="color:var(--acc)">${t("Handoff verified · Awaiting customer verification")}</div>` : ""}
       </article>`;
 }
 async function acknowledgeAsks(ids) {
   for (const id of ids) {
     await api(`/asks/${id}/acknowledge`, { method: "POST" });
   }
-  toast(ids.length > 1 ? "Requests acknowledged" : "Request acknowledged");
+  toast(ids.length > 1 ? t("Requests acknowledged") : t("Request acknowledged"));
   loadBasketView();
   loadOrderAlerts();
 }
@@ -581,9 +613,9 @@ function bindAskActions(el, asks) {
       const askId = f.dataset.reply;
       const targetAsk = asks.find(a => a.id === askId);
       const quantity = f.dataset.mode === "partial" ? Number(f.partial_qty.value) : Number(targetAsk ? targetAsk.quantity : 1);
-      if (!quantity) { toast("Enter a partial amount"); return; }
+      if (!quantity) { toast(t("Enter a partial amount")); return; }
       await api(`/asks/${askId}/available`, { method: "POST", body: JSON.stringify({ quantity, when_text: f.when.value }) });
-      toast("Pickup made ready");
+      toast(t("Pickup made ready"));
       loadBasketView();
       loadOrderAlerts();
     } catch (err) { toast(err.message); }
@@ -592,13 +624,13 @@ function bindAskActions(el, asks) {
     const form = b.closest("form");
     form.partial_qty.hidden = false;
     form.dataset.mode = "partial";
-    b.textContent = "Fulfill partial";
-    form.querySelector("[data-mode]").textContent = "Confirm partial fulfillment";
+    b.textContent = t("Fulfill partial");
+    form.querySelector("[data-mode]").textContent = t("Confirm partial fulfillment");
   });
   el.querySelectorAll("[data-no]").forEach(b => b.onclick = async () => {
     try {
       await api(`/asks/${b.dataset.no}/reply`, { method: "POST", body: JSON.stringify({ decline: true, when_text: "ei" }) });
-      toast("Declined request");
+      toast(t("Declined request"));
       loadBasketView();
       loadOrderAlerts();
     } catch (err) { toast(err.message); }
@@ -606,7 +638,7 @@ function bindAskActions(el, asks) {
   el.querySelectorAll("[data-verify-farmer]").forEach(b => b.onclick = async () => {
     try {
       await api(`/asks/${b.dataset.verifyFarmer}/farmer-picked-up`, { method: "POST" });
-      toast("Handoff verified");
+      toast(t("Handoff verified"));
       loadBasketView();
       loadOrderAlerts();
     } catch (err) { toast(err.message); }
@@ -614,16 +646,16 @@ function bindAskActions(el, asks) {
   el.querySelectorAll("[data-verify-buyer]").forEach(b => b.onclick = async () => {
     try {
       await api(`/asks/${b.dataset.verifyBuyer}/picked-up`, { method: "POST" });
-      toast("Pickup confirmed");
+      toast(t("Pickup confirmed"));
       loadBasketView();
       loadOrderAlerts();
     } catch (err) { toast(err.message); }
   });
   el.querySelectorAll("[data-withdraw]").forEach(b => b.onclick = async () => {
-    if (!confirm("Withdraw this request?")) return;
+    if (!confirm(t("Withdraw this request?"))) return;
     try {
       await api(`/asks/${b.dataset.withdraw}/withdraw`, { method: "POST" });
-      toast("Order withdrawn");
+      toast(t("Order withdrawn"));
       loadBasketView();
       loadOrderAlerts();
     } catch (err) { toast(err.message); }
@@ -652,9 +684,9 @@ async function loadBasketLedger() {
     const ids = unackedIncoming.map(a => a.id).join(",");
     el.innerHTML = `
       <div class="order-alert">
-        <h2>Incoming pickup requests to fulfill</h2>
-        <p class="meta">Acknowledge to return to your basket. The request stays here; handoff and fulfill state do not change.</p>
-        <div style="margin:.7rem 0"><button class="btn primary" data-ack-all="${ids}">Acknowledge</button></div>
+        <h2>${t("Incoming pickup requests to fulfill")}</h2>
+        <p class="meta">${t("Acknowledge to return to your basket. The request stays here; handoff and fulfill state do not change.")}</p>
+        <div style="margin:.7rem 0"><button class="btn primary" data-ack-all="${ids}">${t("Acknowledge")}</button></div>
       </div>
       ${unackedIncoming.map(incomingAskCardHtml).join("")}`;
     bindAskActions(el, asks);
@@ -663,52 +695,52 @@ async function loadBasketLedger() {
   if (cartEl) cartEl.classList.remove("hidden");
 
   if (!basket.length && !incoming.length && !outgoing.length && !myTrades.length && !myInventory.length) {
-    el.innerHTML = `<p class="meta">${role() === "farmer" ? "No pickup requests or transactions yet. When customers request produce, you can fulfill them here." : "No pickup orders or transactions yet. Ask to pick up produce in What's available."}</p>`;
+    el.innerHTML = `<p class="meta">${role() === "farmer" ? t("No pickup requests or transactions yet. When customers request produce, you can fulfill them here.") : t("No pickup orders or transactions yet. Ask to pick up produce in What's available.")}</p>`;
     return;
   }
 
   let html = "";
 
   if (incoming.length) {
-    html += `<h4 style="margin:1rem 0 .4rem">Incoming pickup requests to fulfill</h4>`;
+    html += `<h4 style="margin:1rem 0 .4rem">${t("Incoming pickup requests to fulfill")}</h4>`;
     html += incoming.map(incomingAskCardHtml).join("");
   }
 
   if (outgoing.length) {
-    html += `<h4 style="margin:1rem 0 .4rem">${incoming.length ? "Your requests to other farms" : "Your pickup orders"}</h4>`;
+    html += `<h4 style="margin:1rem 0 .4rem">${incoming.length ? t("Your requests to other farms") : t("Your pickup orders")}</h4>`;
     html += outgoing.map(a => {
       const isAsked = a.status === "asked";
       const isConfirmed = a.status === "confirmed" || a.status === "offered";
       const isPickedUp = a.status === "picked_up";
       const isDeclined = a.status === "declined";
       const isWithdrawn = a.status === "withdrawn";
-      const statusLabel = isAsked ? "Waiting for farmer to reply with a time" : isPickedUp ? "Picked up · Complete" : isDeclined ? "Declined by farmer" : isWithdrawn ? "Withdrawn" : "Farmer named a time";
+      const statusLabel = isAsked ? t("Waiting for farmer to reply with a time") : isPickedUp ? t("Picked up · Complete") : isDeclined ? t("Declined by farmer") : isWithdrawn ? t("Withdrawn") : t("Farmer named a time");
       return `
       <article class="card ${isConfirmed && a.offer_text ? "has-reply" : ""}">
         <h3>${esc(a.produce)}</h3>
-        <div class="meta">From <b>${esc(a.farm_name)}</b> (${esc(a.farmer_name)}) · ${a.quantity} ${esc(a.unit)}${a.note ? " · “" + esc(a.note) + "”" : ""} · ${fmtTimestamp(a.created_at)}</div>
-        <div class="meta">Status: <b>${statusLabel}</b></div>
+        <div class="meta">${t("From farm")} <b>${esc(a.farm_name)}</b> (${esc(a.farmer_name)}) · ${a.quantity} ${esc(a.unit)}${a.note ? " · “" + esc(a.note) + "”" : ""} · ${fmtTimestamp(a.created_at)}</div>
+        <div class="meta">${t("Status")}: <b>${statusLabel}</b></div>
         ${farmerReplyHtml(a, false)}
         <div style="margin-top:.6rem;display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
-          ${isConfirmed && !a.buyer_verified_at ? `<button class="btn primary" data-verify-buyer="${a.id}">Confirm pickup</button>` : ""}
-          ${isConfirmed && a.buyer_verified_at && !a.farmer_verified_at ? `<span class="meta" style="color:var(--moss)">Pickup confirmed · Awaiting farmer handoff verification</span>` : ""}
-          ${(isAsked || isConfirmed) ? `<button class="btn ghost" data-withdraw="${a.id}">Withdraw order</button>` : ""}
+          ${isConfirmed && !a.buyer_verified_at ? `<button class="btn primary" data-verify-buyer="${a.id}">${t("Confirm pickup")}</button>` : ""}
+          ${isConfirmed && a.buyer_verified_at && !a.farmer_verified_at ? `<span class="meta" style="color:var(--acc)">${t("Pickup confirmed · Awaiting farmer handoff verification")}</span>` : ""}
+          ${(isAsked || isConfirmed) ? `<button class="btn ghost" data-withdraw="${a.id}">${t("Withdraw order")}</button>` : ""}
         </div>
       </article>`;
     }).join("");
   }
 
   if (myTrades.length) {
-    html += `<h4 style="margin:1rem 0 .4rem">Completed trades ledger</h4>`;
-    html += myTrades.map(t => `
+    html += `<h4 style="margin:1rem 0 .4rem">${t("Completed trades ledger")}</h4>`;
+    html += myTrades.map(tr => `
       <div class="basket-line card">
         <div>
-          <b>COMPLETED TRADE</b> · ${t.from_farm}${t.buyer ? ` → ${t.buyer}` : ""}
-          <div class="meta">${t.produce} · ${t.quantity_kg} kg · event ${fmtTimestamp(t.created_at)}</div>
+          <b>${t("COMPLETED TRADE")}</b> · ${tr.from_farm}${tr.buyer ? ` → ${tr.buyer}` : ""}
+          <div class="meta">${tr.produce} · ${tr.quantity_kg} kg · event ${fmtTimestamp(tr.created_at)}</div>
         </div>
         <div style="text-align:right">
-          <b>${t.myc_tokens_minted} MYC</b>
-          <div class="meta">${t.co2_saved_kg} kg CO₂ saved</div>
+          <b>${tr.myc_tokens_minted} MYC</b>
+          <div class="meta">${tr.co2_saved_kg} kg CO₂ saved</div>
         </div>
       </div>
     `).join("");
@@ -744,7 +776,7 @@ async function loadFarms() {
   farmMarkers.forEach(m => farmsMap.removeLayer(m));
   farmMarkers = square.stalls.map(s => {
     const unclaimed = s.is_unclaimed || s.farmer_name === "Unclaimed";
-    const popup = `<b>${s.farm_name}</b>${unclaimed ? " (Unclaimed)" : ""}<br>${s.description || s.pickup_point || ""}<br>${fmtWhen(s.available_from, s.available_until)}${s.goods && s.goods.length ? "<br>" + s.goods.map(g => g.produce_name).join(", ") : ""}`;
+    const popup = `<b>${s.farm_name}</b>${unclaimed ? " (" + t("Unclaimed") + ")" : ""}<br>${s.description || s.pickup_point || ""}<br>${fmtWhen(s.available_from, s.available_until)}${s.goods && s.goods.length ? "<br>" + s.goods.map(g => g.produce_name).join(", ") : ""}`;
     const marker = unclaimed
       ? L.circleMarker([s.lat, s.lng], { radius: 11, color: "#b86132", fillColor: "#d4a017", fillOpacity: 0.9, weight: 2 })
       : L.marker([s.lat, s.lng]);
@@ -759,19 +791,19 @@ async function loadFarms() {
     return `
     <article class="card">
       <h3>${esc(s.farm_name)}</h3>
-      <div class="meta">${unclaimed ? "Open to claim" : esc(s.farmer_name)} · ${esc(place)}${km ? " · " + km : ""}</div>
-      ${s.goods && s.goods.length ? s.goods.map(g => `<div class="meta">${esc(g.produce_name)} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("") : `<p class="meta">No produce listed yet.</p>`}
-      ${unclaimed ? `<button class="btn primary" data-claim="${esc(s.claim_id || "")}">This is my farm</button>` : ""}
+      <div class="meta">${unclaimed ? t("Open to claim") : esc(s.farmer_name)} · ${esc(place)}${km ? " · " + km : ""}</div>
+      ${s.goods && s.goods.length ? s.goods.map(g => `<div class="meta">${esc(g.produce_name)} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("") : `<p class="meta">${t("No produce listed yet.")}</p>`}
+      ${unclaimed ? `<button class="btn primary" data-claim="${esc(s.claim_id || "")}">${t("This is my farm")}</button>` : ""}
     </article>`;
-  }).join("") || `<div class="empty"><h3>No farms yet</h3><p>Farmers add themselves from Sell.</p></div>`;
+  }).join("") || `<div class="empty"><h3>${t("No farms yet")}</h3><p>${t("Farmers add themselves from Sell.")}</p></div>`;
 
   document.querySelectorAll("[data-claim]").forEach(b => b.onclick = async () => {
-    if (role() === "guest") { show("account"); toast("Create a farmer account first"); return; }
-    if (role() !== "farmer" && role() !== "organizer") { toast("Farmer accounts only"); return; }
+    if (role() === "guest") { show("account"); toast(t("Create a farmer account first")); return; }
+    if (role() !== "farmer" && role() !== "organizer") { toast(t("Farmer accounts only")); return; }
     if (!b.dataset.claim) { show("listings"); return; }
     try {
       const res = await api("/nodes/claim", { method: "POST", body: JSON.stringify({ claim_id: b.dataset.claim }) });
-      toast(res.farm_name + " is yours");
+      toast(res.farm_name + t(" is yours"));
       loadFarms();
       show("listings");
     } catch (err) { toast(err.message); }
@@ -782,15 +814,15 @@ function lotRow(target) {
   wrap.className = "lot-row card";
   wrap.innerHTML = `
     <div class="row3">
-      <label>Item <input name="name" required placeholder="Milk, berries, kale…"></label>
-      <label>Amount <input name="qty" type="number" min="0.1" step="0.1" value="5" required></label>
-      <label>Unit
+      <label>${t("Item")} <input name="name" required placeholder="${t("Milk, berries, kale…")}"></label>
+      <label>${t("Amount")} <input name="qty" type="number" min="0.1" step="0.1" value="5" required></label>
+      <label>${t("Unit")}
         <select name="unit">${UNITS.map(u => `<option value="${u}" ${u==="kg"?"selected":""}>${u}</option>`).join("")}</select>
       </label>
     </div>
     <div class="row">
-      <label>€ / unit <input name="price" type="number" min="0" step="0.1" value="0"></label>
-      <label>Kind
+      <label>${t("€ / unit")} <input name="price" type="number" min="0" step="0.1" value="0"></label>
+      <label>${t("Kind")}
         <select name="cat">
           <option>greens</option><option>root</option><option>berries</option>
           <option>eggs</option><option>dairy</option><option>preserve</option>
@@ -815,12 +847,12 @@ async function loadStallNodes() {
   if (!sel) return;
   sel.innerHTML = "";
   if (role() !== "farmer" && role() !== "organizer") {
-    sel.innerHTML = `<option value="">Sign in as a farmer to list items</option>`;
+    sel.innerHTML = `<option value="">${t("Sign in as a farmer to list items")}</option>`;
     return;
   }
   const nodes = await api("/nodes");
   if (!nodes.length) {
-    sel.innerHTML = `<option value="">No farm on your account yet</option>`;
+    sel.innerHTML = `<option value="">${t("No farm on your account yet")}</option>`;
     return;
   }
   nodes.forEach(n => {
@@ -838,14 +870,14 @@ async function loadMyListings() {
   }
   const nodes = await api("/nodes");
   if (!nodes.length) {
-    list.innerHTML = `<p class="meta">Add your farm above, then list this week’s harvest.</p>`;
+    list.innerHTML = `<p class="meta">${t("Add your farm above, then list this week’s harvest.")}</p>`;
     return;
   }
   const square = await api("/square");
   const mine = square.stalls.filter(s => !s.is_unclaimed && nodes.some(n => n.id === s.node_id));
   const items = mine.flatMap(s => s.goods.map(g => ({ ...g, farm_name: s.farm_name })));
   if (!items.length) {
-    list.innerHTML = `<p class="meta">Nothing listed at your stalls yet. Use the <a href="#" style="color:var(--moss);font-weight:600" id="go-add-items">Add items</a> tab to list produce.</p>`;
+    list.innerHTML = `<p class="meta">${t("Nothing listed at your stalls yet. Use the Add items tab to list produce.")}</p>`;
     const goAdd = list.querySelector("#go-add-items");
     if (goAdd) goAdd.onclick = (e) => { e.preventDefault(); show("listings"); };
     return;
@@ -859,23 +891,23 @@ async function loadMyListings() {
       .join(" ");
     return `
     <article class="card">
-      <h3>${g.produce_name}${soldOut ? " · sold out" : ""}</h3>
-      <div class="meta">${soldOut ? "Sold out" : qtyLabel(g) + " left"} · ${priceLabel(g)} · ${g.farm_name}</div>
-      ${soldOut ? `<p class="meta">Customers can still request this. Reply in Basket.</p><button class="btn primary" type="button" data-relist="${g.id}">Relist same amount</button>` : `
-      <div class="meta">Quick mark sold</div>
+      <h3>${g.produce_name}${soldOut ? t(" · sold out") : ""}</h3>
+      <div class="meta">${soldOut ? t("Sold out") : qtyLabel(g) + t(" left")} · ${priceLabel(g)} · ${g.farm_name}</div>
+      ${soldOut ? `<p class="meta">${t("Customers can still request this. Reply in Basket.")}</p><button class="btn primary" type="button" data-relist="${g.id}">${t("Relist same amount")}</button>` : `
+      <div class="meta">${t("Quick mark sold")}</div>
       <div>${chips}</div>
       <form class="row" data-custom="${g.id}" style="margin-top:.5rem">
-        <input name="qty" type="number" min="0.1" max="${left}" step="0.1" placeholder="other amount">
-        <button class="btn ghost" type="submit">Sold</button>
+        <input name="qty" type="number" min="0.1" max="${left}" step="0.1" placeholder="${t("other amount")}">
+        <button class="btn ghost" type="submit">${t("Sold")}</button>
       </form>
-      <button class="btn ghost" type="button" data-soldout="${g.id}" style="margin-top:.4rem">Sold out</button>`}
+      <button class="btn ghost" type="button" data-soldout="${g.id}" style="margin-top:.4rem">${t("Sold out")}</button>`}
     </article>`;
   }).join("");
 
   async function markSold(id, qty) {
     try {
       await api(`/listings/${id}/gate`, { method: "POST", body: JSON.stringify({ quantity_kg: Number(qty) }) });
-      toast("Stock updated");
+      toast(t("Stock updated"));
       loadMyListings();
       loadCatalog();
     } catch (e) { toast(e.message); }
@@ -884,13 +916,13 @@ async function loadMyListings() {
   list.querySelectorAll("[data-custom]").forEach(f => f.onsubmit = (e) => {
     e.preventDefault();
     const qty = f.qty.value;
-    if (!qty) { toast("Enter an amount"); return; }
+    if (!qty) { toast(t("Enter an amount")); return; }
     markSold(f.dataset.custom, qty);
   });
   list.querySelectorAll("[data-soldout]").forEach(b => b.onclick = async () => {
     try {
       await api(`/listings/${b.dataset.soldout}/sold-out`, { method: "POST" });
-      toast("Marked sold out");
+      toast(t("Marked sold out"));
       loadMyListings();
       loadCatalog();
     } catch (e) { toast(e.message); }
@@ -898,7 +930,7 @@ async function loadMyListings() {
   list.querySelectorAll("[data-relist]").forEach(b => b.onclick = async () => {
     try {
       await api(`/listings/${b.dataset.relist}/relist`, { method: "POST", body: JSON.stringify({}) });
-      toast("Relisted");
+      toast(t("Relisted"));
       loadMyListings();
       loadCatalog();
     } catch (e) { toast(e.message); }
@@ -907,7 +939,7 @@ async function loadMyListings() {
 async function loadLedger() {
   const rows = await api("/ledger");
   const el = document.getElementById("ledger");
-  if (!rows.length) { el.innerHTML = `<p class="meta">No trades or records in the ledger yet.</p>`; return; }
+  if (!rows.length) { el.innerHTML = `<p class="meta">${t("No trades or records in the ledger yet.")}</p>`; return; }
   el.innerHTML = rows.map(r => `
     <div class="basket-line">
       <div><b>${r.type === "inventory" ? "INVENTORY" : r.type === "request" ? r.status === "pending" ? "REQUEST PENDING" : r.status === "picked_up" ? "PICKED UP" : r.status === "withdrawn" ? "WITHDRAWN" : r.status === "declined" ? "DECLINED REQUEST" : "CONFIRMED REQUEST" : r.type === "farm_onboarding" ? "FARM ONBOARDED" : r.from_farm}</b>${r.type !== "trade" ? ` · ${r.from_farm}` : ""}${r.buyer ? ` → ${r.buyer}` : ""}
@@ -919,17 +951,17 @@ async function loadLedger() {
       </div>
     </div>`).join("");
   el.querySelectorAll("[data-remind]").forEach(b => b.onclick = async () => {
-    try { await api(`/asks/${b.dataset.remind}/remind`, { method: "POST" }); toast("Reminder sent"); }
+    try { await api(`/asks/${b.dataset.remind}/remind`, { method: "POST" }); toast(t("Reminder sent")); }
     catch (e) { toast(e.message); }
   });
   el.querySelectorAll("[data-undo]").forEach(b => b.onclick = async () => {
-    if (!confirm("Undo this trade / pickup as admin?")) return;
-    try { await api(`/asks/${b.dataset.undo}/undo-pickup`, { method: "POST" }); toast("Trade undone"); loadLedger(); }
+    if (!confirm(t("Undo this trade / pickup as admin?"))) return;
+    try { await api(`/asks/${b.dataset.undo}/undo-pickup`, { method: "POST" }); toast(t("Trade undone")); loadLedger(); }
     catch (e) { toast(e.message); }
   });
   el.querySelectorAll("[data-withdraw]").forEach(b => b.onclick = async () => {
-    if (!confirm("Withdraw this order as admin?")) return;
-    try { await api(`/asks/${b.dataset.withdraw}/withdraw`, { method: "POST" }); toast("Order withdrawn"); loadLedger(); }
+    if (!confirm(t("Withdraw this order as admin?"))) return;
+    try { await api(`/asks/${b.dataset.withdraw}/withdraw`, { method: "POST" }); toast(t("Order withdrawn")); loadLedger(); }
     catch (e) { toast(e.message); }
   });
 }
@@ -937,11 +969,11 @@ document.getElementById("add-lot").onclick = () => lotRow(document.getElementByI
 document.getElementById("v-add-lot").onclick = () => lotRow(document.getElementById("v-lots"));
 document.getElementById("claim-farm-form").onsubmit = async (e) => {
   e.preventDefault();
-  if (role() === "guest") { show("account"); toast("Log in or create a farmer account to claim this farm"); return; }
-  if (role() !== "farmer" && role() !== "organizer") { toast("Only farmer accounts can claim farms"); return; }
+  if (role() === "guest") { show("account"); toast(t("Log in or create a farmer account to claim this farm")); return; }
+  if (role() !== "farmer" && role() !== "organizer") { toast(t("Only farmer accounts can claim farms")); return; }
   try {
     const res = await api("/nodes/claim", { method: "POST", body: JSON.stringify({ claim_id: e.target.claim_id.value.trim() }) });
-    toast(`${res.farm_name} claimed!`);
+    toast(`${res.farm_name}${t(" claimed!")}`);
     e.target.reset();
     loadFarms();
     if (role() === "farmer" || role() === "organizer") {
@@ -970,7 +1002,7 @@ document.getElementById("loc-btn").onclick = () => show("farms");
 document.getElementById("farm-save").onclick = async () => {
   const name = document.getElementById("farm-name").value.trim();
   const pickup = document.getElementById("farm-pickup").value.trim();
-  if (!name || !pickup) { toast("Farm name and pickup point are required"); return; }
+  if (!name || !pickup) { toast(t("Farm name and pickup point are required")); return; }
   try {
     await api("/nodes", { method: "POST", body: JSON.stringify({
       name,
@@ -979,14 +1011,14 @@ document.getElementById("farm-save").onclick = async () => {
       lng: Number(document.getElementById("farm-lng").value),
       description: pickup,
     })});
-    toast("Farm saved");
+    toast(t("Farm saved"));
     await loadSellView();
   } catch (err) { toast(err.message); }
 };
 document.getElementById("stall-form").onsubmit = async (e) => {
   e.preventDefault();
   const nodeId = document.getElementById("stall-node").value;
-  if (!nodeId) { toast("No farm on this account"); return; }
+  if (!nodeId) { toast(t("No farm on this account")); return; }
   try {
     await api("/stalls", { method: "POST", body: JSON.stringify({
       node_id: nodeId,
@@ -995,7 +1027,7 @@ document.getElementById("stall-form").onsubmit = async (e) => {
       pickup_point: document.getElementById("stall-where").value,
       lots: lotsFrom(document.getElementById("lots")),
     })});
-    toast("Listed");
+    toast(t("Listed"));
     document.getElementById("lots").innerHTML = "";
     lotRow(document.getElementById("lots"));
     await loadSellView();
@@ -1004,7 +1036,7 @@ document.getElementById("stall-form").onsubmit = async (e) => {
 };
 document.getElementById("visit-form").onsubmit = async (e) => {
   e.preventDefault();
-  if (role() !== "organizer") { toast("Admin only"); return; }
+  if (role() !== "organizer") { toast(t("Admin only")); return; }
   try {
     const body = await api("/onboard", { method: "POST", body: JSON.stringify({
       farmer_name: document.getElementById("v-farmer").value,
@@ -1019,11 +1051,11 @@ document.getElementById("visit-form").onsubmit = async (e) => {
     })});
     const box = document.getElementById("visit-result");
     box.classList.remove("hidden");
-    box.innerHTML = `<h3>${body.farm_name} is on the network</h3>
-      <p>Login for ${body.farmer_name}:</p>
+    box.innerHTML = `<h3>${body.farm_name}${t(" is on the network")}</h3>
+      <p>${t("Login for")} ${body.farmer_name}:</p>
       <p><b>${body.email}</b><br><b>${body.password}</b></p>
       <p class="meta">${body.note}</p>`;
-    toast("Farm added");
+    toast(t("Farm added"));
   } catch (err) { toast(err.message); }
 };
 function show(name) {
@@ -1195,11 +1227,11 @@ async function pollNotify(seedOnly) {
       seen[a.id] = stamp;
       if (first || seedOnly) return;
       if (!prev && a.farmer_id === me.id && a.status === "asked") {
-        trayNotify("Pickup request", `${a.buyer_name} asked for ${a.quantity} ${a.unit} ${a.produce}`, "ask-" + a.id);
+        trayNotify(t("Pickup request"), `${a.buyer_name} ${t("requested")} ${a.quantity} ${a.unit} ${a.produce}`, "ask-" + a.id);
       } else if (prev && a.buyer_id === me.id && (a.status === "confirmed" || a.status === "offered") && a.offer_text) {
-        trayNotify("Farmer replied", `${a.farmer_name}: ${a.offer_text}`, "reply-" + a.id);
+        trayNotify(t("Farmer replied"), `${a.farmer_name}: ${a.offer_text}`, "reply-" + a.id);
       } else if (prev && a.buyer_id === me.id && a.status === "declined") {
-        trayNotify("Farmer replied", `${a.farmer_name} cannot do it now`, "decline-" + a.id);
+        trayNotify(t("Farmer replied"), `${a.farmer_name} ${t("Cannot do it now")}`, "decline-" + a.id);
       }
     });
     saveSeen(seen);
@@ -1231,6 +1263,10 @@ function nextSaturday(hour) {
 const sat10 = nextSaturday(10), sat14 = nextSaturday(14);
 ["stall-from","v-from"].forEach(id => document.getElementById(id).value = sat10.toISOString().slice(0,16));
 ["stall-until","v-until"].forEach(id => document.getElementById(id).value = sat14.toISOString().slice(0,16));
+document.getElementById("lang-switch").querySelectorAll("[data-lang]").forEach(b => {
+  b.onclick = () => { setLang(b.dataset.lang); applyLang(); };
+});
+paintStatic();
 lotRow(document.getElementById("lots"));
 lotRow(document.getElementById("v-lots"));
 renderAuth();
