@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css?v=16">
+<link rel="stylesheet" href="/static/css/app.css?v=17">
 </head>
 <body>
 <header id="topbar">
@@ -25,7 +25,9 @@
     <button type="button" data-lang="en">EN</button>
     <button type="button" data-lang="fi">FI</button>
   </div>
-  <button type="button" id="theme-btn" class="icon-btn" aria-label="Theme"></button>
+  <button type="button" id="theme-btn" class="icon-btn" aria-label="Theme" title="Theme">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.2 13.2A6.2 6.2 0 019 6.4 7 7 0 1016.2 13.2z"/></svg>
+  </button>
   <button type="button" id="settings-btn" class="icon-btn" aria-label="Settings"></button>
 </header>
 <div class="chips" id="chips"></div>
@@ -428,7 +430,7 @@ function settingsHtml() {
 function bindSettings(root) {
   if (!root) return;
   root.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { setLang(b.dataset.lang); applyLang(); });
-  root.querySelectorAll("[data-theme]").forEach(b => b.onclick = () => { setTheme(b.dataset.theme); paintThemeBtn(); applyLang(); });
+  root.querySelectorAll("[data-theme]").forEach(b => b.onclick = () => applyPickedTheme(b.dataset.theme, root));
   root.querySelectorAll("[data-privacy]").forEach(box => box.onchange = () => togglePrivacy(box.checked));
   root.querySelectorAll("[data-copy-recovery]").forEach(b => b.onclick = () => {
     const k = me && loadRecoveryLocal(me.id);
@@ -496,9 +498,17 @@ function settingsGlyph() {
 function paintThemeBtn() {
   const b = document.getElementById("theme-btn");
   if (!b) return;
+  const dark = getTheme() === "dark";
   b.innerHTML = themeGlyph();
   b.setAttribute("aria-label", t("Theme"));
+  b.setAttribute("aria-pressed", dark ? "true" : "false");
   b.title = t("Theme");
+}
+function applyPickedTheme(name, root) {
+  setTheme(name);
+  paintThemeBtn();
+  const scope = root || document;
+  scope.querySelectorAll("[data-theme]").forEach(b => b.classList.toggle("on", b.dataset.theme === getTheme()));
 }
 function openSettings() {
   const sheet = document.getElementById("sheet");
@@ -1806,9 +1816,7 @@ document.getElementById("lang-switch").querySelectorAll("[data-lang]").forEach(b
   b.onclick = () => { setLang(b.dataset.lang); applyLang(); };
 });
 document.getElementById("theme-btn").onclick = () => {
-  setTheme(getTheme() === "dark" ? "light" : "dark");
-  paintThemeBtn();
-  applyLang();
+  applyPickedTheme(getTheme() === "dark" ? "light" : "dark");
 };
 document.getElementById("settings-btn").onclick = () => openSettings();
 function boot() {

@@ -126,6 +126,7 @@ def test_service_worker_and_manifest(client):
     assert 'id="lang-switch"' in page.text
     assert 'id="settings-btn"' in page.text
     assert 'id="theme-btn"' in page.text
+    assert "function applyPickedTheme" in page.text
     assert "function produceSrc" in page.text
     assert "/static/produce/" in page.text
     dairy = client.get("/static/produce/dairy.jpg")

@@ -44,5 +44,6 @@ def test_i18n_bootstrap_uses_i18next():
     assert 'id="guest-settings"' in html
     assert 'id="settings-btn"' in html
     assert 'id="theme-btn"' in html
+    assert "function applyPickedTheme" in html
     assert "function produceSrc" in html
     assert "openSettings" in html

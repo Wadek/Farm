@@ -21,8 +21,12 @@
 
   function applyTheme(name) {
     const theme = name === "dark" ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem(THEME_KEY, theme);
+    const root = document.documentElement;
+    root.setAttribute("data-theme", theme);
+    root.style.colorScheme = theme;
+    try { localStorage.setItem(THEME_KEY, theme); } catch (_) {}
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#0e1511" : "#f6f3ec");
     return theme;
   }
 
