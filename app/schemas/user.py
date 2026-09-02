@@ -16,6 +16,8 @@ class UserResponse(BaseModel):
     name: str
     role: UserRole
     phone: str = ""
+    privacy: bool = False
+    disabled: bool = False
 
     model_config = {"from_attributes": True}
 

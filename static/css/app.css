@@ -154,6 +154,11 @@ main { max-width: 720px; margin: 0 auto; padding: 8px 8px 16px; }
 .tile-flag.gold { background: var(--gold); color: #fff; }
 .tile-flag.demo { color: var(--copper); }
 .tile-flag.drop { background: #17241c; color: #f6f3ec; }
+.tile-flag.lock, .tag .lock-ico { display: inline-flex; align-items: center; gap: 4px; }
+.lock-ico { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; vertical-align: -2px; }
+.privacy-row { align-items: center; gap: 12px; }
+.privacy-row input { width: auto; min-height: 22px; }
+.farm-item { cursor: pointer; }
 .admin-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
 .admin-tile { background: var(--surface); border-radius: 10px; padding: 12px; }
 .admin-tile .l { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }

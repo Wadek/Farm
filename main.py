@@ -35,6 +35,18 @@ def _ensure_listing_unit():
     if "image_url" not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE listings ADD COLUMN image_url VARCHAR"))
+    if "private" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE listings ADD COLUMN private BOOLEAN DEFAULT 0"))
+    if "privacy_v" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE listings ADD COLUMN privacy_v VARCHAR"))
+    if "privacy_iv" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE listings ADD COLUMN privacy_iv VARCHAR"))
+    if "privacy_ct" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE listings ADD COLUMN privacy_ct VARCHAR"))
 
 
 def _ensure_ask_pickup_columns():
@@ -89,6 +101,27 @@ def _ensure_node_claim_columns():
             conn.execute(text("ALTER TABLE nodes ADD COLUMN claim_pending_at DATETIME"))
 
 
+def _ensure_user_privacy_columns():
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    if "users" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("users")}
+    with engine.begin() as conn:
+        if "privacy" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN privacy BOOLEAN DEFAULT 0"))
+        if "disabled" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN disabled BOOLEAN DEFAULT 0"))
+        if "last_sync_at" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN last_sync_at DATETIME"))
+        if "lockbox_v" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN lockbox_v VARCHAR"))
+        if "lockbox_iv" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN lockbox_iv VARCHAR"))
+        if "lockbox_ct" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN lockbox_ct VARCHAR"))
+
+
 def _ensure_ring_columns():
     from sqlalchemy import inspect, text
     insp = inspect(engine)
@@ -110,6 +143,7 @@ _ensure_listing_unit()
 _ensure_ask_pickup_columns()
 _ensure_node_claim_columns()
 _ensure_ring_columns()
+_ensure_user_privacy_columns()
 
 app = FastAPI(title="Satokori", version="0.3.0", docs_url=None, redoc_url=None)
 app.include_router(auth.router)

@@ -16,6 +16,12 @@ from app.routes.produce import _haversine, _listing_view
 router = APIRouter(tags=["square"])
 
 
+class LockboxIn(BaseModel):
+    v: str | int = 1
+    iv: str
+    ct: str
+
+
 class LotIn(BaseModel):
     produce_name: str
     category: str = "produce"
@@ -27,6 +33,8 @@ class LotIn(BaseModel):
     co2_kg_per_kg: float = 0.4
     perpetual: bool = False
     demo: bool = False
+    private: bool = False
+    lockbox: LockboxIn | None = None
 
 
 class StallOpen(BaseModel):
@@ -282,6 +290,10 @@ def open_stall(
             available_from=drop.starts_at if drop else (None if perpetual else payload.available_from),
             available_until=drop.ends_at if drop else (None if perpetual else payload.available_until),
             status=ListingStatus.active,
+            private=bool(lot.private or getattr(current_user, "privacy", False) or lot.lockbox),
+            privacy_v=str(lot.lockbox.v) if lot.lockbox else None,
+            privacy_iv=lot.lockbox.iv if lot.lockbox else None,
+            privacy_ct=lot.lockbox.ct if lot.lockbox else None,
         )
         db.add(listing)
         created.append(listing)
@@ -315,7 +327,7 @@ def catalog(
                 **good,
                 "farm_name": stall["farm_name"],
                 "farmer_name": stall["farmer_name"],
-                "pickup_point": good.get("pickup_point") or stall["pickup_point"],
+                "pickup_point": "" if good.get("private") else (good.get("pickup_point") or stall["pickup_point"]),
                 "available_from": good.get("available_from") or stall["available_from"],
                 "available_until": good.get("available_until") or stall["available_until"],
                 "distance_km": stall["distance_km"],

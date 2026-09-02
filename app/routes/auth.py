@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -43,12 +44,46 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if getattr(user, "disabled", False):
+        raise HTTPException(status_code=403, detail="Account disabled")
+    user.last_sync_at = datetime.now(timezone.utc)
+    db.commit()
     return Token(access_token=create_token(user.id, user.role))
 
 
 @router.get("/me", response_model=UserResponse)
-def me(current_user: User = Depends(get_current_user)):
+def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    current_user.last_sync_at = datetime.now(timezone.utc)
+    db.commit()
     return current_user
+
+
+class PrivacyIn(BaseModel):
+    privacy: bool
+    lockbox: dict | None = None
+
+
+@router.post("/privacy")
+def set_privacy(payload: PrivacyIn, current_user: User = Depends(get_current_user),
+                db: Session = Depends(get_db)):
+    current_user.privacy = bool(payload.privacy)
+    box = payload.lockbox or {}
+    if current_user.privacy and box.get("iv") and box.get("ct"):
+        current_user.lockbox_v = str(box.get("v") or "1")
+        current_user.lockbox_iv = str(box["iv"])
+        current_user.lockbox_ct = str(box["ct"])
+        current_user.phone = ""
+    else:
+        current_user.lockbox_v = None
+        current_user.lockbox_iv = None
+        current_user.lockbox_ct = None
+    db.commit()
+    db.refresh(current_user)
+    return {
+        "privacy": current_user.privacy,
+        "id": current_user.id,
+        "lockbox": bool(current_user.lockbox_iv),
+    }
 
 
 class ApiKeyCreate(BaseModel):

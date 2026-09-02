@@ -176,7 +176,8 @@ def listing_image_url(l: Listing) -> str:
 
 def _listing_view(l: Listing) -> dict:
     created_at = l.created_at.isoformat() if l.created_at else None
-    return {
+    private = bool(getattr(l, "private", False))
+    view = {
         "id": l.id,
         "node_id": l.node_id,
         "produce_id": l.produce_id,
@@ -186,7 +187,7 @@ def _listing_view(l: Listing) -> dict:
         "unit": getattr(l, "unit", None) or "kg",
         "price_per_kg": l.price_per_kg,
         "is_free": l.is_free,
-        "pickup_point": l.pickup_point,
+        "pickup_point": "" if private else l.pickup_point,
         "available_from": l.available_from.isoformat() if l.available_from else None,
         "available_until": l.available_until.isoformat() if l.available_until else None,
         "perpetual": bool(getattr(l, "perpetual", False)) or (
@@ -204,7 +205,11 @@ def _listing_view(l: Listing) -> dict:
         "farm_created_at": l.node.created_at.isoformat() if l.node and l.node.created_at else None,
         "drop": _drop_brief(l),
         "image_url": listing_image_url(l),
+        "private": private,
     }
+    if private and getattr(l, "privacy_iv", None) and getattr(l, "privacy_ct", None):
+        view["lockbox"] = {"v": l.privacy_v or "1", "iv": l.privacy_iv, "ct": l.privacy_ct}
+    return view
 
 
 def _drop_brief(l: Listing) -> dict | None:

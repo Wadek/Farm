@@ -175,6 +175,7 @@
     <div class="admin-tiles" id="admin-tiles"></div>
     <div class="card" id="admin-claims" style="margin-bottom:8px"></div>
     <div class="card" id="admin-featured" style="margin-bottom:8px"></div>
+    <div class="card" id="admin-farm-detail" style="margin-bottom:8px"></div>
     <div class="card" id="admin-farms"></div>
   </section>
   <section id="view-ledger" class="hidden">
@@ -192,6 +193,7 @@
 <div id="toast" class="toast hidden"></div>
 <script src="/static/vendor/i18next.min.js"></script>
 <script src="/static/i18n.js"></script>
+<script src="/static/privacy.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const HERE = { lat: 60.5522, lng: 24.7050 };
@@ -368,8 +370,26 @@ function applyChrome() {
   title.classList.toggle("hidden", browsing);
   title.textContent = titles()[activeView] || "Satokori";
 }
+function lockGlyph() {
+  return `<svg class="lock-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.4" width="14" height="10" rx="2.8"/><path d="M8.4 10.4V7.8a3.6 3.6 0 0 1 7.2 0v2.6"/></svg>`;
+}
 function settingsHtml() {
   const theme = (typeof getTheme === "function" && getTheme()) || "light";
+  const privateOn = !!(me && me.privacy);
+  const recovery = me && typeof loadRecoveryLocal === "function" ? loadRecoveryLocal(me.id) : "";
+  const privacyBlock = me ? `
+      <h3>${lockGlyph()} ${t("Privacy")}</h3>
+      <p class="meta">${t("Beta. Listings are sealed with AES-GCM on this phone before they reach Satokori. The recovery key never goes to the server. The organizer cannot open the lockbox. Produce, price, and REKO drop stay the public shop window.")}</p>
+      <label class="row between privacy-row">
+        <span>${t("Keep my farm private")}</span>
+        <input type="checkbox" data-privacy ${privateOn ? "checked" : ""}>
+      </label>
+      <p class="meta">${privateOn ? t("Encrypted on the server. Save your recovery key.") : t("Turn on to encrypt harvest details and your phone. Even the Satokori organizer cannot read the lockbox.")}</p>
+      ${privateOn && recovery ? `<p class="meta">${t("Recovery key")}</p>
+        <button class="btn ghost" type="button" data-copy-recovery>${esc(recovery)}</button>` : ""}
+      ${privateOn && !recovery ? `<p class="meta">${t("Unlock on this phone")}</p>
+        <input id="privacy-paste" placeholder="${t("Recovery key")}">
+        <button class="btn primary" type="button" data-unlock-privacy>${t("Unlock")}</button>` : ""}` : "";
   return `<div class="card grid settings-card">
       <h3>${t("Settings")}</h3>
       <p class="meta">${t("Language")}</p>
@@ -383,13 +403,67 @@ function settingsHtml() {
         <button type="button" data-theme="dark" class="${theme === "dark" ? "on" : ""}">${t("Dark")}</button>
       </div>
       <div class="alert-setup grid"></div>
+      ${privacyBlock}
     </div>`;
 }
 function bindSettings(root) {
   if (!root) return;
   root.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { setLang(b.dataset.lang); applyLang(); });
   root.querySelectorAll("[data-theme]").forEach(b => b.onclick = () => { setTheme(b.dataset.theme); paintThemeBtn(); applyLang(); });
+  root.querySelectorAll("[data-privacy]").forEach(box => box.onchange = () => togglePrivacy(box.checked));
+  root.querySelectorAll("[data-copy-recovery]").forEach(b => b.onclick = () => {
+    const k = me && loadRecoveryLocal(me.id);
+    if (!k) return;
+    navigator.clipboard && navigator.clipboard.writeText(k).catch(() => {});
+    toast(t("Recovery key copied"));
+  });
+  root.querySelectorAll("[data-unlock-privacy]").forEach(b => b.onclick = () => {
+    const paste = root.querySelector("#privacy-paste");
+    const k = paste && paste.value.trim();
+    if (!k || !me) return;
+    saveRecoveryLocal(me.id, k);
+    toast(t("Unlock"));
+    if (activeView === "account") renderYou();
+    else openSettings();
+  });
   renderAlertSetup();
+}
+async function togglePrivacy(on) {
+  if (!me) { show("account"); return; }
+  if (on) {
+    if (!confirm(t("Harvest notes and your phone will be encrypted before they leave this phone. Copy the recovery key — it is the only way to open the lockbox on a new device."))) {
+      if (activeView === "account") renderYou();
+      else openSettings();
+      return;
+    }
+    const key = generateRecoveryKey();
+    saveRecoveryLocal(me.id, key);
+    let lockbox = null;
+    try {
+      const cryptoKey = await importKey(key);
+      lockbox = Object.assign({ v: 1 }, await encryptJson({ phone: me.phone || "", name: me.name }, cryptoKey));
+    } catch {}
+    try {
+      await api("/auth/privacy", { method: "POST", body: JSON.stringify({ privacy: true, lockbox }) });
+      me.privacy = true;
+      localStorage.setItem("sk_me", JSON.stringify(me));
+      toast(t("Private mode on. Copy your recovery key."));
+    } catch (e) { toast(e.message); }
+  } else {
+    if (!confirm(t("Satokori will store those details in the clear again. You can lock it later."))) {
+      if (activeView === "account") renderYou();
+      else openSettings();
+      return;
+    }
+    try {
+      await api("/auth/privacy", { method: "POST", body: JSON.stringify({ privacy: false }) });
+      me.privacy = false;
+      localStorage.setItem("sk_me", JSON.stringify(me));
+      toast(t("Private mode off"));
+    } catch (e) { toast(e.message); }
+  }
+  if (activeView === "account") renderYou();
+  else openSettings();
 }
 function themeGlyph() {
   if (getTheme() === "dark") {
@@ -620,13 +694,15 @@ function tileHtml(item) {
   const soldOut = item.status === "sold_out";
   const km = item.distance_km != null ? item.distance_km + " km" : "";
   const when = item.drop ? fmtDrop(item.drop) : fmtWhen(item.available_from, item.available_until, item.perpetual);
-  const flag = item.featured
-    ? `<span class="tile-flag gold">${t("Featured")}</span>`
-    : item.drop
-      ? `<span class="tile-flag drop">${t("This week's REKO")}</span>`
-      : item.demo
-        ? `<span class="tile-flag demo">${t("Demo")}</span>`
-        : "";
+  const flag = item.private
+    ? `<span class="tile-flag lock">${lockGlyph()} ${t("Private")}</span>`
+    : item.featured
+      ? `<span class="tile-flag gold">${t("Featured")}</span>`
+      : item.drop
+        ? `<span class="tile-flag drop">${t("This week's REKO")}</span>`
+        : item.demo
+          ? `<span class="tile-flag demo">${t("Demo")}</span>`
+          : "";
   return `<article class="tile ${soldOut ? "sold-out" : ""} ${item.featured ? "featured" : ""}" data-open="${item.id}">
     ${flag}
     <button type="button" class="fav ${isFav(item.id) ? "on" : ""}" data-fav="${item.id}" aria-label="${t("Save")}">♥</button>
@@ -1358,6 +1434,20 @@ document.getElementById("stall-form").onsubmit = async (e) => {
       if (fromVal) body.available_from = new Date(fromVal).toISOString();
       if (untilVal) body.available_until = new Date(untilVal).toISOString();
     }
+    if (me && me.privacy) {
+      const rec = typeof loadRecoveryLocal === "function" ? loadRecoveryLocal(me.id) : "";
+      if (rec && typeof sealListing === "function") {
+        const key = await importKey(rec);
+        for (const lot of lots) {
+          const env = await sealListing(Object.assign({}, lot, { pickup_point: body.pickup_point }), key);
+          lot.private = true;
+          lot.lockbox = { v: 1, iv: env.iv, ct: env.ct };
+        }
+      } else {
+        lots.forEach(lot => { lot.private = true; });
+      }
+      body.lots = lots;
+    }
     await api("/stalls", { method: "POST", body: JSON.stringify(body) });
     toast(t("Listed"));
     document.getElementById("lots").innerHTML = "";
@@ -1418,7 +1508,8 @@ async function loadAdmin() {
   document.getElementById("admin-tiles").innerHTML = `
     <div class="admin-tile"><div class="l">${t("Farms")}</div><div class="v">${data.farm_count}</div></div>
     <div class="admin-tile"><div class="l">${t("Open to claim")}</div><div class="v">${data.unclaimed_count}</div></div>
-    <div class="admin-tile"><div class="l">${t("Pending claims")}</div><div class="v">${pending.length}</div></div>
+    <div class="admin-tile"><div class="l">${t("Private lockbox")}</div><div class="v">${data.private_count || 0}</div></div>
+    <div class="admin-tile"><div class="l">${t("Active 7d")}</div><div class="v">${data.active_count || 0}</div></div>
     <div class="admin-tile"><div class="l">${t("Listings")}</div><div class="v">${data.listing_count}</div></div>`;
   const claimsEl = document.getElementById("admin-claims");
   if (claimsEl) {
@@ -1445,15 +1536,15 @@ async function loadAdmin() {
   const feat = data.featured;
   document.getElementById("admin-featured").innerHTML = `
     <h3>${t("Featured listing")}</h3>
-    <p class="meta">${feat ? `${esc(feat.produce_name)} · ${esc(feat.node_name || "")}` : t("Nothing featured. Pick one below.")}</p>
+    <p class="meta">${feat ? `${feat.private ? t("Private listing") : esc(feat.produce_name)} · ${esc(feat.node_name || "")}` : t("Nothing featured. Pick one below.")}</p>
     ${feat ? `<button class="btn ghost" type="button" id="clear-featured">${t("Clear featured")}</button>` : ""}
     <div class="grid" style="margin-top:8px">${(data.listings || []).map(l => `
       <div class="farm-row">
         <div>
-          <div><b>${esc(l.produce_name)}</b> ${l.featured ? `<span class="tag gold">${t("Featured")}</span>` : ""} ${l.demo ? `<span class="tag copper">${t("Demo")}</span>` : ""}</div>
-          <div class="meta">${esc(l.node_name || "")} · ${qtyLabel(l)} · ${money(l)}</div>
+          <div><b>${l.private ? t("Private listing") : esc(l.produce_name)}</b> ${l.private ? `<span class="tag">${lockGlyph()} ${t("Private")}</span>` : ""} ${l.featured ? `<span class="tag gold">${t("Featured")}</span>` : ""} ${l.demo ? `<span class="tag copper">${t("Demo")}</span>` : ""}</div>
+          <div class="meta">${esc(l.node_name || "")}${l.private ? "" : " · " + qtyLabel(l) + " · " + money(l)}</div>
         </div>
-        <button class="btn ${l.featured ? "ghost" : "primary"}" type="button" data-feature="${esc(l.id)}">${l.featured ? t("Featured") : t("Feature")}</button>
+        ${l.private ? "" : `<button class="btn ${l.featured ? "ghost" : "primary"}" type="button" data-feature="${esc(l.id)}">${l.featured ? t("Featured") : t("Feature")}</button>`}
       </div>`).join("")}</div>`;
   const clearBtn = document.getElementById("clear-featured");
   if (clearBtn) clearBtn.onclick = async () => {
@@ -1464,17 +1555,44 @@ async function loadAdmin() {
     try { await api("/admin/featured", { method: "POST", body: JSON.stringify({ listing_id: b.dataset.feature }) }); toast(t("Featured updated")); loadAdmin(); loadCatalog(); }
     catch (e) { toast(e.message); }
   });
+  const detail = document.getElementById("admin-farm-detail");
+  if (detail) detail.innerHTML = "";
   document.getElementById("admin-farms").innerHTML = `
     <h3>${t("All farms")}</h3>
     ${(data.farms || []).map(f => `
-      <div class="farm-row">
+      <div class="farm-row farm-item" data-farm="${esc(f.id)}">
         <div>
-          <div><b>${esc(f.name)}</b> ${f.is_unclaimed ? `<span class="tag gold">${t("Open to claim")}</span>` : `<span class="tag acc">${t("Claimed")}</span>`}</div>
-          <div class="meta">${esc(f.owner_name || t("Unclaimed"))}${f.owner_phone ? " · " + esc(f.owner_phone) : ""}</div>
-          <div class="meta">${esc(f.description || "")}</div>
-          <div class="meta">${f.listing_count} ${t("listings")} · ${f.demo_count} ${t("Demo")}</div>
+          <div><b>${esc(f.name)}</b>
+            ${f.private ? `<span class="tag">${lockGlyph()} ${t("Private")}</span>` : ""}
+            ${f.is_unclaimed ? `<span class="tag gold">${t("Open to claim")}</span>` : `<span class="tag acc">${t("Claimed")}</span>`}
+            ${f.owner_disabled ? `<span class="tag">${t("Account disabled")}</span>` : ""}</div>
+          <div class="meta">${f.private ? t("Private lockbox") : esc(f.owner_name || t("Unclaimed"))}${!f.private && f.owner_phone ? " · " + esc(f.owner_phone) : ""}</div>
+          <div class="meta">${f.listing_count} ${t("listings")}${f.last_sync_at ? " · " + esc(f.last_sync_at) : ""}</div>
         </div>
       </div>`).join("") || `<p class="meta">${t("No farms yet")}</p>`}`;
+  document.getElementById("admin-farms").querySelectorAll("[data-farm]").forEach(row => {
+    row.onclick = () => paintAdminFarm(data.farms.find(f => f.id === row.dataset.farm));
+  });
+}
+function paintAdminFarm(f) {
+  const el = document.getElementById("admin-farm-detail");
+  if (!el || !f) return;
+  el.innerHTML = `
+    <h3>${esc(f.name)} ${f.private ? lockGlyph() : ""}</h3>
+    ${f.private ? `<p class="meta">${t("Private lockbox. Harvest details are not on this server in the clear.")}</p>` : ""}
+    <div class="meta">${f.is_unclaimed ? t("Open to claim") : t("Claimed")} · ${f.listing_count} ${t("listings")}</div>
+    ${f.private ? "" : `<div class="meta">${esc(f.owner_name || "")}${f.owner_email ? " · " + esc(f.owner_email) : ""}${f.owner_phone ? " · " + esc(f.owner_phone) : ""}</div>
+    <div class="meta">${esc(f.description || "")}</div>`}
+    ${(f.listings || []).map(l => `<div class="meta">${l.private ? t("Private listing") : esc(l.produce_name || "")}</div>`).join("")}
+    ${f.owner_id && !f.is_unclaimed ? `<button class="btn ghost" type="button" data-disable-user="${esc(f.owner_id)}" style="margin-top:8px">${f.owner_disabled ? t("Enable account") : t("Disable account")}</button>` : ""}`;
+  const btn = el.querySelector("[data-disable-user]");
+  if (btn) btn.onclick = async () => {
+    try {
+      await api("/admin/users/disable", { method: "POST", body: JSON.stringify({ user_id: btn.dataset.disableUser, disabled: !f.owner_disabled }) });
+      toast(f.owner_disabled ? t("Enable account") : t("Disable account"));
+      loadAdmin();
+    } catch (e) { toast(e.message); }
+  };
 }
 async function loadSellView() {
   const setup = document.getElementById("farm-setup");
