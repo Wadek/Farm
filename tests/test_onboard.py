@@ -48,6 +48,35 @@ def test_organizer_onboards_farm_in_one_visit(client):
     assert catalog["items"][0]["farm_name"] == "Rajamäki Beds"
 
 
+def test_farmer_self_onboards_farm_without_claim_code(client):
+    farmer = _token(client, "self-farm@test.com", "Maija", "farmer")
+    node = client.post("/nodes", json={
+        "name": "Maija Beds", "type": "hobby_farm",
+        "lat": 60.53, "lng": 24.74, "description": "Red shed",
+    }, headers=_auth(farmer))
+    assert node.status_code == 201, node.text
+    body = node.json()
+    assert body["name"] == "Maija Beds"
+    assert body["claimed_at"]
+    square = client.get("/square").json()
+    stall = next(s for s in square["stalls"] if s["farm_name"] == "Maija Beds")
+    assert stall["is_unclaimed"] is False
+    assert stall["farmer_name"] == "Maija"
+
+
+def test_organizer_can_claim_unclaimed_farm(client):
+    admin = _token(client, "claim-org@test.com", "Admin", "organizer")
+    farm = client.post("/onboard", json={
+        "farmer_name": "Placeholder",
+        "farm_name": "Org Claim Farm",
+        "pickup_point": "gate",
+        "lat": 60.5, "lng": 24.7,
+    }, headers=_auth(admin)).json()
+    claimed = client.post("/nodes/claim", json={"claim_id": farm["claim_id"]}, headers=_auth(admin))
+    assert claimed.status_code == 200, claimed.text
+    assert claimed.json()["farm_name"] == "Org Claim Farm"
+
+
 def test_buyer_cannot_onboard(client):
     token = _token(client, "anna@test.com", "Anna", "buyer")
     resp = client.post("/onboard", json={

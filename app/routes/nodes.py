@@ -1,3 +1,4 @@
+import secrets
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -44,6 +45,7 @@ def create_node(payload: NodeCreate, current_user: User = Depends(get_current_us
     node = Node(
         id=str(uuid.uuid4()),
         owner_id=current_user.id,
+        claim_id=secrets.token_urlsafe(10),
         claimed_at=datetime.now(timezone.utc),
         **payload.model_dump(),
     )
@@ -61,7 +63,7 @@ def list_nodes(current_user: User = Depends(get_current_user), db: Session = Dep
 
 @router.post("/claim")
 def claim_node(payload: ClaimFarm, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user.role != UserRole.farmer:
+    if current_user.role not in (UserRole.farmer, UserRole.organizer):
         raise HTTPException(status_code=403, detail="Only farmer accounts can claim farms")
     node = db.query(Node).filter(Node.claim_id == payload.claim_id.strip()).first()
     if not node:

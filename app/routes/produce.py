@@ -159,6 +159,7 @@ def _listing_view(l: Listing) -> dict:
         "node_id": l.node_id,
         "produce_id": l.produce_id,
         "produce_name": l.produce.name if l.produce else None,
+        "category": l.produce.category if l.produce else "produce",
         "quantity_kg": l.quantity_kg,
         "unit": getattr(l, "unit", None) or "kg",
         "price_per_kg": l.price_per_kg,

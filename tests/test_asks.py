@@ -101,6 +101,14 @@ def test_service_worker_and_manifest(client):
     assert sw.status_code == 200
     assert "showNotification" in sw.text
     assert 'addEventListener("push"' in sw.text
+    page = client.get("/")
+    assert page.status_code == 200
+    assert 'id="tabbar"' in page.text
+    assert "/static/css/app.css" in page.text
+    assert "Ask to pick up" in page.text or "tile-hero" in page.text
+    css = client.get("/static/css/app.css")
+    assert css.status_code == 200
+    assert "#tabbar" in css.text
     manifest = client.get("/static/manifest.webmanifest")
     assert manifest.status_code == 200
     assert "Satokori" in manifest.text
