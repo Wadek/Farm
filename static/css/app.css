@@ -76,6 +76,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 input, select, textarea { font: inherit; color: var(--ink); }
 a { color: var(--acc); text-decoration: none; }
 .hidden { display: none !important; }
+html[data-signed-in="1"] #view-home { display: none !important; }
+
+.home { max-width: 400px; margin: 0 auto; padding: 28px 12px 16px; }
+.home h1 { font-size: 32px; font-weight: 800; letter-spacing: -.04em; }
+.home .lede { font-size: 18px; font-weight: 600; margin: 10px 0 6px; }
+.home .btn { margin-top: 10px; }
 
 #topbar {
   position: sticky; top: 0; z-index: 30;

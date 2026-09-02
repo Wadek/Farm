@@ -30,6 +30,8 @@ def test_i18n_bootstrap_uses_i18next():
     assert "/static/locales/fi.json" in boot
     assert "/static/vendor/i18next.min.js" in html
     assert 'id="view-browse"' in html
+    assert 'id="view-home"' in html
+    assert 'return me ? "account" : "home"' in html
     assert 't("Satokori")' in html
     assert '["reko", t("REKO")' not in html
     assert 'filterCat === "reko"' in html

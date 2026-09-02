@@ -120,6 +120,12 @@ def test_service_worker_and_manifest(client):
     assert "maija@naapuri.fi" not in page.text
     assert "anna@hyvinkaa.fi" not in page.text
     assert 'id="view-browse"' in page.text
+    assert 'id="view-home"' in page.text
+    assert "Satokori" in page.text
+    assert 'id="loc-btn" class="hidden"' in page.text
+    assert 'return me ? "account" : "home"' in page.text
+    assert 'show("home")' in page.text
+    assert 'show("account")' in page.text
     assert '["reko", t("REKO")' not in page.text
     assert "viewport-fit=cover" in page.text
     assert "/static/css/app.css" in page.text
