@@ -32,8 +32,12 @@
   <section id="view-browse" class="hidden">
     <div class="tiles" id="catalog"></div>
   </section>
+  <section id="view-reko" class="hidden">
+    <div class="tiles" id="reko-catalog"></div>
+  </section>
   <section id="view-farms" class="hidden">
     <div id="farms-map" class="leaflet-map"></div>
+    <div id="map-rings" class="grid"></div>
     <div class="grid" id="farms"></div>
   </section>
   <section id="view-basket" class="hidden">
@@ -66,7 +70,7 @@
         </label>
         <button class="btn primary" type="submit" data-i18n="Create account">Create account</button>
       </form>
-      <button class="btn ghost" type="button" data-demo-email="wkariniemi@proton.me" data-demo-password="farmgate" data-i18n="Admin">Admin</button>
+      <div class="card" id="guest-settings"></div>
       <div class="card">
         <h3 data-i18n="How Satokori works">How Satokori works</h3>
         <p class="meta" data-i18n="REKO drop: order a quantity, farmer confirms, pay cash or MobilePay at the shared lot.">REKO drop: order a quantity, farmer confirms, pay cash or MobilePay at the shared lot.</p>
@@ -142,7 +146,7 @@
         <label><span data-i18n="Farm">Farm</span> <input id="v-farm" required></label>
       </div>
       <div class="row">
-        <label>Phone <input id="v-phone" placeholder="040…"></label>
+        <label><span data-i18n="Phone">Phone</span> <input id="v-phone" placeholder="040…"></label>
         <label><span data-i18n="Pickup">Pickup</span> <input id="v-where" required placeholder="Farm gate"></label>
       </div>
       <label data-i18n="Tap the map for lat/lng">Tap the map for lat/lng</label>
@@ -167,6 +171,7 @@
       <p class="meta" data-i18n="Farms, claims, and the listing that sits first in Search.">Farms, claims, and the listing that sits first in Search.</p>
     </div>
     <div class="admin-tiles" id="admin-tiles"></div>
+    <div class="card" id="admin-claims" style="margin-bottom:8px"></div>
     <div class="card" id="admin-featured" style="margin-bottom:8px"></div>
     <div class="card" id="admin-farms"></div>
   </section>
@@ -183,7 +188,7 @@
   <div class="sheet-card" id="sheet-body"></div>
 </div>
 <div id="toast" class="toast hidden"></div>
-<script src="https://unpkg.com/i18next@23.16.8/dist/umd/i18next.min.js"></script>
+<script src="/static/vendor/i18next.min.js"></script>
 <script src="/static/i18n.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -282,6 +287,7 @@ function applyLang() {
   renderNav(activeView);
   renderAuth();
   if (activeView === "browse") { renderChips(catalogItems); paintCatalog(); }
+  else if (activeView === "reko") paintReko();
   else if (activeView === "farms") loadFarms();
   else if (activeView === "basket") loadBasketView();
   else if (activeView === "listings") loadSellView();
@@ -297,6 +303,7 @@ function icn(name) {
   const p = {
     map: '<path d="M12 21s7-7.2 7-12a7 7 0 10-14 0c0 4.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.2"/>',
     sell: '<path d="M12 5v14M5 12h14"/>',
+    reko: '<rect x="5" y="8" width="14" height="11" rx="2"/><path d="M8 8V6.5A4 4 0 0116 6.5V8M9 13h6"/>',
     orders: '<path d="M6 7h15l-1.4 8.2a2 2 0 01-2 1.8H9.2a2 2 0 01-2-1.6L5 4H2"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/>',
     you: '<circle cx="12" cy="8" r="3.2"/><path d="M5 19c1.2-3.2 3.4-5 7-5s5.8 1.8 7 5"/>',
   };
@@ -305,6 +312,7 @@ function icn(name) {
 function navItems() {
   return [
     ["browse", t("Search"), "logo"],
+    ["reko", t("REKO"), "reko"],
     ["farms", t("Map"), "map"],
     ["listings", t("Sell"), "sell"],
     ["basket", t("Orders"), "orders"],
@@ -313,7 +321,7 @@ function navItems() {
 }
 function defaultView() { return "browse"; }
 function titles() {
-  return { browse: t("Search"), farms: t("Farms"), listings: t("Sell"), basket: t("Orders"), account: t("You"), visit: t("Field visit"), ledger: t("Ledger"), admin: t("Admin") };
+  return { browse: t("Search"), reko: t("REKO"), farms: t("Farms"), listings: t("Sell"), basket: t("Orders"), account: t("You"), visit: t("Field visit"), ledger: t("Ledger"), admin: t("Admin") };
 }
 function renderNav(active) {
   const nav = document.getElementById("tabbar");
@@ -325,20 +333,45 @@ function renderNav(active) {
 }
 function applyChrome() {
   document.body.dataset.role = role();
-  const browsing = activeView === "browse";
+  const browsing = activeView === "browse" || activeView === "reko";
   document.getElementById("search-wrap").classList.toggle("hidden", !browsing);
-  document.getElementById("loc-btn").classList.toggle("hidden", !browsing);
-  document.getElementById("chips").classList.toggle("hidden", !browsing);
+  document.getElementById("loc-btn").classList.toggle("hidden", activeView !== "browse");
+  document.getElementById("chips").classList.toggle("hidden", activeView !== "browse");
   const title = document.getElementById("page-title");
   title.classList.toggle("hidden", browsing);
   title.textContent = titles()[activeView] || "Satokori";
 }
+function settingsHtml() {
+  const theme = (typeof getTheme === "function" && getTheme()) || "light";
+  return `<div class="card grid" id="settings-card">
+      <h3>${t("Settings")}</h3>
+      <p class="meta">${t("Language")}</p>
+      <div class="lang">
+        <button type="button" data-lang="en" class="${getLang() === "en" ? "on" : ""}">EN</button>
+        <button type="button" data-lang="fi" class="${getLang() === "fi" ? "on" : ""}">FI</button>
+      </div>
+      <p class="meta">${t("Theme")}</p>
+      <div class="lang">
+        <button type="button" data-theme="light" class="${theme === "light" ? "on" : ""}">${t("Light")}</button>
+        <button type="button" data-theme="dark" class="${theme === "dark" ? "on" : ""}">${t("Dark")}</button>
+      </div>
+      <div id="alert-setup" class="grid"></div>
+    </div>`;
+}
+function bindSettings(root) {
+  if (!root) return;
+  root.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { setLang(b.dataset.lang); applyLang(); });
+  root.querySelectorAll("[data-theme]").forEach(b => b.onclick = () => { setTheme(b.dataset.theme); applyLang(); });
+  renderAlertSetup();
+}
 function renderYou() {
   const guest = document.getElementById("you-guest");
   const user = document.getElementById("you-user");
+  const guestSettings = document.getElementById("guest-settings");
   if (!me) {
     guest.classList.remove("hidden");
     user.classList.add("hidden");
+    if (guestSettings) { guestSettings.innerHTML = settingsHtml(); bindSettings(guestSettings); }
     return;
   }
   guest.classList.add("hidden");
@@ -349,26 +382,18 @@ function renderYou() {
       <div class="role-pill">${pill}</div>
       <h3 style="margin-top:8px">${esc(me.name)}</h3>
       <p class="meta">${esc(me.email)}</p>
-      <p class="meta">${t("Language")}</p>
-      <div class="lang">
-        <button type="button" data-lang="en" class="${getLang() === "en" ? "on" : ""}">EN</button>
-        <button type="button" data-lang="fi" class="${getLang() === "fi" ? "on" : ""}">FI</button>
-      </div>
       <button class="btn ghost" id="logout" type="button">${t("Log out")}</button>
     </div>
-    <div class="card grid" id="alert-setup"></div>
-    <div id="claim-rings" class="grid"></div>
+    ${settingsHtml()}
     <div class="card">
       <h3>${t("How Satokori works")}</h3>
       <p class="meta">${t("REKO drop: order a quantity, farmer confirms, pay cash or MobilePay at the shared lot.")}</p>
       <p class="meta">${t("Farm gate: ask anytime. The farmer names a pickup time.")}</p>
     </div>
     ${me.role === "organizer" ? `<div class="btn-row"><button class="btn" data-view="admin">${t("Admin")}</button><button class="btn" data-view="ledger">${t("Ledger")}</button></div><div class="btn-row" style="margin-top:8px"><button class="btn" data-view="visit">${t("Field visit")}</button></div>` : ""}`;
-  user.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { setLang(b.dataset.lang); applyLang(); });
   user.querySelector("#logout").onclick = logout;
-  paintOpenRings(user.querySelector("#claim-rings"));
+  bindSettings(user);
   user.querySelectorAll("[data-view]").forEach(b => b.onclick = () => show(b.dataset.view));
-  renderAlertSetup();
 }
 function renderAuth() {
   renderYou();
@@ -494,8 +519,7 @@ function fmtDrop(drop) {
 }
 function renderChips(items) {
   const found = new Set(items.map(i => (i.category || "").toLowerCase()).filter(Boolean));
-  const hasDrop = items.some(i => i.drop);
-  const list = ["all"].concat(hasDrop ? ["drop"] : []).concat(CATS.filter(c => c !== "all" && found.has(c)));
+  const list = ["all"].concat(CATS.filter(c => c !== "all" && found.has(c)));
   const el = document.getElementById("chips");
   el.innerHTML = list.map(c => `<button type="button" data-cat="${c}" class="${filterCat === c ? "on" : ""}">${catLabel(c)}</button>`).join("");
   el.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { filterCat = b.dataset.cat; paintCatalog(); renderChips(catalogItems); });
@@ -514,7 +538,7 @@ function tileHtml(item) {
   return `<article class="tile ${soldOut ? "sold-out" : ""} ${item.featured ? "featured" : ""}" data-open="${item.id}">
     ${flag}
     <button type="button" class="fav ${isFav(item.id) ? "on" : ""}" data-fav="${item.id}" aria-label="${t("Save")}">♥</button>
-    <div class="tile-hero" style="background:var(${heroVar(item.category)})"><span>${esc(item.produce_name)}</span></div>
+    <div class="tile-hero" style="background:var(${heroVar(item.category)})"><img src="${esc(item.image_url || "/static/produce/produce.jpg")}" alt=""><span>${esc(item.produce_name)}</span></div>
     <div class="tile-body">
       <div class="tile-price">${soldOut ? t("Sold out") : money(item)}</div>
       <div class="tile-title">${esc(item.produce_name)}${soldOut ? "" : " · " + qtyLabel(item)}</div>
@@ -522,35 +546,8 @@ function tileHtml(item) {
     </div>
   </article>`;
 }
-function dropBannerHtml(drop) {
-  if (!drop) return "";
-  const extra = drop.notes ? " · " + drop.notes : "";
-  return `<div class="drop-banner"><p class="meta">${t("This week's REKO")}</p><h3>${esc(drop.ring_name || t("This week's REKO"))}</h3><p class="meta">${esc(fmtDrop(drop) + extra)}</p><p class="meta">${t("Comment a quantity. Pay cash or MobilePay at the lot.")}</p></div>`;
-}
-function paintCatalog() {
-  const root = document.getElementById("catalog");
-  const q = filterQ.trim().toLowerCase();
-  const rows = catalogItems.filter(item => {
-    if (filterCat === "drop") {
-      if (!item.drop) return false;
-    } else if (filterCat !== "all" && (item.category || "").toLowerCase() !== filterCat) {
-      return false;
-    }
-    if (!q) return true;
-    return [item.produce_name, item.farm_name, item.farmer_name, item.category,
-      item.drop && item.drop.ring_name, item.drop && item.drop.place]
-      .join(" ").toLowerCase().includes(q);
-  });
-  if (!rows.length) {
-    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${t("Nothing listed")}</h3><p>${t("Try another search or category.")}</p></div>`;
-    return;
-  }
-  const dropRows = rows.filter(item => item.drop);
-  const gateRows = rows.filter(item => !item.drop);
-  const showBanner = filterCat === "all" || filterCat === "drop";
-  const banner = showBanner ? dropBannerHtml(dropRows[0] && dropRows[0].drop) : "";
-  const ordered = filterCat === "drop" ? dropRows : dropRows.concat(gateRows);
-  root.innerHTML = banner + ordered.map(tileHtml).join("");
+function bindTiles(root) {
+  if (!root) return;
   root.querySelectorAll("[data-open]").forEach(el => el.onclick = (e) => {
     if (e.target.closest("[data-fav]")) return;
     openAsk(catalogById[el.dataset.open]);
@@ -558,8 +555,41 @@ function paintCatalog() {
   root.querySelectorAll("[data-fav]").forEach(b => b.onclick = (e) => {
     e.stopPropagation();
     toggleFav(b.dataset.fav);
-    paintCatalog();
+    if (activeView === "reko") paintReko();
+    else paintCatalog();
   });
+}
+function matchesQuery(item) {
+  const q = filterQ.trim().toLowerCase();
+  if (!q) return true;
+  return [item.produce_name, item.farm_name, item.farmer_name, item.category,
+    item.drop && item.drop.ring_name, item.drop && item.drop.place]
+    .join(" ").toLowerCase().includes(q);
+}
+function paintCatalog() {
+  const root = document.getElementById("catalog");
+  const rows = catalogItems.filter(item => {
+    if (item.drop) return false;
+    if (filterCat !== "all" && (item.category || "").toLowerCase() !== filterCat) return false;
+    return matchesQuery(item);
+  });
+  if (!rows.length) {
+    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${t("Nothing listed")}</h3><p>${t("Try another search or category.")}</p></div>`;
+    return;
+  }
+  root.innerHTML = rows.map(tileHtml).join("");
+  bindTiles(root);
+}
+function paintReko() {
+  const root = document.getElementById("reko-catalog");
+  if (!root) return;
+  const rows = catalogItems.filter(item => item.drop && matchesQuery(item));
+  if (!rows.length) {
+    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${t("Nothing listed")}</h3><p>${t("Comment a quantity. Pay cash or MobilePay at the lot.")}</p></div>`;
+    return;
+  }
+  root.innerHTML = rows.map(tileHtml).join("");
+  bindTiles(root);
 }
 async function loadCatalog() {
   const data = await api(`/catalog?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=40`);
@@ -568,6 +598,7 @@ async function loadCatalog() {
   catalogItems.forEach(item => { catalogById[item.id] = item; });
   renderChips(catalogItems);
   paintCatalog();
+  paintReko();
 }
 function closeSheet() { document.getElementById("sheet").classList.add("hidden"); }
 function openAsk(item) {
@@ -589,7 +620,7 @@ function openAsk(item) {
     ? t("Log in to ask")
     : drop ? t("Order for this week's REKO") : t("Ask to pick up");
   body.innerHTML = `
-    <div class="detail-hero" style="background:var(${heroVar(item.category)})">${esc(item.produce_name)}</div>
+    <div class="detail-hero" style="background:var(${heroVar(item.category)})"><img src="${esc(item.image_url || "/static/produce/produce.jpg")}" alt=""><span>${esc(item.produce_name)}</span></div>
     <div class="detail-body">
       <button class="btn ghost" type="button" id="sheet-close">${t("Close")}</button>
       <div class="detail-price">${soldOut ? t("Sold out") : money(item)}</div>
@@ -896,11 +927,13 @@ async function loadFarms() {
       <h3>${esc(s.farm_name)}</h3>
       <div class="meta">${unclaimed ? t("Open to claim") : esc(s.farmer_name)} · ${esc(place)}${km ? " · " + km : ""}</div>
       ${s.goods && s.goods.length ? s.goods.map(g => `<div class="meta">${esc(g.produce_name)} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("") : `<p class="meta">${t("No produce listed yet.")}</p>`}
-      ${unclaimed ? `<button class="btn primary" data-claim-node="${esc(s.node_id)}" data-claim="${esc(s.claim_id || "")}">${t("This is my farm")}</button>` : ""}
+      ${unclaimed && !s.claim_pending ? `<button class="btn primary" data-claim-node="${esc(s.node_id)}" data-claim="${esc(s.claim_id || "")}">${t("This is my farm")}</button>` : ""}
+      ${s.claim_pending && me && s.claim_pending_user_id === me.id ? `<p class="meta">${t("Waiting for admin to approve your claim.")}</p>` : ""}
     </article>`;
   }).join("") || `<div class="empty"><h3>${t("No farms yet")}</h3><p>${t("Farmers add themselves from Sell.")}</p></div>`;
 
   bindClaimButtons(document.getElementById("farms"));
+  paintOpenRings(document.getElementById("map-rings"));
 }
 async function claimFarm(nodeId, claimId) {
   if (role() === "guest") { show("account"); toast(t("Create a farmer account first")); return; }
@@ -910,7 +943,7 @@ async function claimFarm(nodeId, claimId) {
   else if (claimId) body.claim_id = claimId;
   else { show("listings"); return; }
   const res = await api("/nodes/claim", { method: "POST", body: JSON.stringify(body) });
-  toast(res.farm_name + t(" is yours"));
+  toast(res.status === "pending" ? t("Claim sent. An admin will approve it.") : res.farm_name + t(" is yours"));
   show("listings");
 }
 function bindClaimButtons(root) {
@@ -1178,13 +1211,16 @@ document.getElementById("register-form").onsubmit = async (e) => {
   try { await registerAccount({ name: e.target.name.value, email: e.target.email.value, password: e.target.password.value, role: e.target.role.value }); }
   catch (err) { toast(err.message); }
 };
-document.querySelectorAll("[data-demo-email]").forEach(b => b.onclick = () => login(b.dataset.demoEmail, b.dataset.demoPassword));
 document.getElementById("auth-seg").querySelectorAll("[data-auth-mode]").forEach(b => b.onclick = () => {
   document.getElementById("auth-seg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
   document.getElementById("login-form").classList.toggle("hidden", b.dataset.authMode !== "login");
   document.getElementById("register-form").classList.toggle("hidden", b.dataset.authMode !== "register");
 });
-document.getElementById("q").addEventListener("input", () => { filterQ = document.getElementById("q").value; paintCatalog(); });
+document.getElementById("q").addEventListener("input", () => {
+  filterQ = document.getElementById("q").value;
+  if (activeView === "reko") paintReko();
+  else paintCatalog();
+});
 document.getElementById("loc-btn").onclick = () => show("farms");
 document.getElementById("farm-save").onclick = async () => {
   const name = document.getElementById("farm-name").value.trim();
@@ -1264,7 +1300,7 @@ function show(name) {
   view.classList.remove("hidden");
   renderNav(name);
   applyChrome();
-  if (name === "browse") loadCatalog();
+  if (name === "browse" || name === "reko") loadCatalog();
   if (name === "farms") loadFarms();
   if (name === "basket") loadBasketView();
   if (name === "listings") loadSellView();
@@ -1297,11 +1333,34 @@ async function loadAdmin() {
   let data;
   try { data = await api("/admin/overview"); }
   catch (e) { toast(e.message); return; }
+  const pending = data.pending_claims || [];
   document.getElementById("admin-tiles").innerHTML = `
     <div class="admin-tile"><div class="l">${t("Farms")}</div><div class="v">${data.farm_count}</div></div>
     <div class="admin-tile"><div class="l">${t("Open to claim")}</div><div class="v">${data.unclaimed_count}</div></div>
-    <div class="admin-tile"><div class="l">${t("Listings")}</div><div class="v">${data.listing_count}</div></div>
-    <div class="admin-tile"><div class="l">${t("Demo")}</div><div class="v">${data.demo_count}</div></div>`;
+    <div class="admin-tile"><div class="l">${t("Pending claims")}</div><div class="v">${pending.length}</div></div>
+    <div class="admin-tile"><div class="l">${t("Listings")}</div><div class="v">${data.listing_count}</div></div>`;
+  const claimsEl = document.getElementById("admin-claims");
+  if (claimsEl) {
+    claimsEl.innerHTML = `<h3>${t("Pending claims")}</h3>` + (pending.length ? pending.map(f => `
+      <div class="farm-row">
+        <div>
+          <div><b>${esc(f.name)}</b></div>
+          <div class="meta">${esc(f.claim_pending_name || "")} · ${esc(f.claim_pending_email || "")}</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" type="button" data-claim-ok="${esc(f.id)}">${t("Approve")}</button>
+          <button class="btn ghost" type="button" data-claim-no="${esc(f.id)}">${t("Decline")}</button>
+        </div>
+      </div>`).join("") : `<p class="meta">${t("Nothing listed")}</p>`);
+    claimsEl.querySelectorAll("[data-claim-ok]").forEach(b => b.onclick = async () => {
+      try { await api("/admin/claims", { method: "POST", body: JSON.stringify({ node_id: b.dataset.claimOk, approve: true }) }); toast(t("Claim approved")); loadAdmin(); }
+      catch (e) { toast(e.message); }
+    });
+    claimsEl.querySelectorAll("[data-claim-no]").forEach(b => b.onclick = async () => {
+      try { await api("/admin/claims", { method: "POST", body: JSON.stringify({ node_id: b.dataset.claimNo, approve: false }) }); toast(t("Claim declined")); loadAdmin(); }
+      catch (e) { toast(e.message); }
+    });
+  }
   const feat = data.featured;
   document.getElementById("admin-featured").innerHTML = `
     <h3>${t("Featured listing")}</h3>

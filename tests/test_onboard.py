@@ -104,9 +104,14 @@ def test_farmer_claims_onboarded_farm(client):
     assert stall["farmer_name"] == "Unclaimed"
     claimed = client.post("/nodes/claim", json={"claim_id": claim_id}, headers=_auth(farmer))
     assert claimed.status_code == 200, claimed.text
-    assert claimed.json()["farm_name"] == "Claimable Farm"
+    assert claimed.json()["status"] == "pending"
     again = client.post("/nodes/claim", json={"claim_id": claim_id}, headers=_auth(farmer))
-    assert again.status_code == 409
+    assert again.status_code == 200
+    assert again.json()["status"] == "pending"
+    ok = client.post("/admin/claims", json={"node_id": response.json()["node_id"], "approve": True}, headers=_auth(admin))
+    assert ok.status_code == 200
+    taken = client.post("/nodes/claim", json={"claim_id": claim_id}, headers=_auth(farmer))
+    assert taken.status_code == 409
 
 
 def test_gate_sale_drops_stock_without_ledger(client):

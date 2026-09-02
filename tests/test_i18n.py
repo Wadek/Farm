@@ -21,6 +21,8 @@ def test_finnish_catalog_is_not_english_echo():
 def test_i18n_bootstrap_uses_i18next():
     boot = (ROOT / "static" / "i18n.js").read_text(encoding="utf-8")
     html = (ROOT / "static" / "square.html").read_text(encoding="utf-8")
-    assert "i18n.init" in boot
     assert "/static/locales/fi.json" in boot
-    assert "i18next@23" in html
+    assert "/static/vendor/i18next.min.js" in html
+    assert 'id="view-reko"' in html
+    assert "farmgate" not in html
+    assert 'id="guest-settings"' in html

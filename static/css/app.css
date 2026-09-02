@@ -28,6 +28,31 @@
   --hero-produce: #d9e4d2;
 }
 
+html[data-theme="dark"] {
+  --bg: #121a16;
+  --surface: #1c2620;
+  --ink: #f3efe6;
+  --muted: #a39886;
+  --line: #2a352e;
+  --acc: #3d9a58;
+  --acc-2: #2f7a44;
+  --on-acc: #fff;
+  --hero-dairy: #3a3424;
+  --hero-greens: #243328;
+  --hero-berries: #3a2428;
+  --hero-eggs: #3a3420;
+  --hero-root: #3a2e20;
+  --hero-vegetable: #283428;
+  --hero-preserve: #3a3224;
+  --hero-feed: #322c24;
+  --hero-produce: #243028;
+}
+html[data-theme="dark"] #topbar,
+html[data-theme="dark"] .chips { background: var(--surface); }
+html[data-theme="dark"] .searchf { background: var(--bg); }
+html[data-theme="dark"] .lang button.on { background: var(--bg); color: var(--ink); }
+html[data-theme="dark"] .chips button.on { background: var(--acc); }
+
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body { background: var(--bg); color: var(--ink); }
 body {
@@ -87,10 +112,18 @@ main { max-width: 720px; margin: 0 auto; padding: 8px 8px 16px; }
 .tile:active { opacity: .92; }
 .tile-hero {
   aspect-ratio: 1; display: flex; align-items: flex-end;
-  padding: 10px; color: var(--ink);
+  padding: 10px; color: #fff;
   font-size: 22px; font-weight: 750; letter-spacing: -.03em; line-height: 1.05;
+  position: relative; overflow: hidden;
 }
-.tile-hero span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tile-hero img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+}
+.tile-hero span {
+  position: relative; z-index: 1;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  text-shadow: 0 1px 8px rgba(17,24,16,.85);
+}
 .tile-body { padding: 8px 8px 10px; }
 .tile-price { font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
 .tile-title { font-size: 13px; font-weight: 600; margin-top: 2px;
@@ -186,7 +219,10 @@ input, select, textarea {
 .detail-hero {
   aspect-ratio: 4/3; display: flex; align-items: flex-end; padding: 16px;
   font-size: 32px; font-weight: 800; letter-spacing: -.03em; line-height: 1.05;
+  position: relative; overflow: hidden; color: #fff;
 }
+.detail-hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.detail-hero span { position: relative; z-index: 1; text-shadow: 0 1px 8px rgba(17,24,16,.85); }
 .detail-body { padding: 12px 12px 90px; }
 .detail-price { font-size: 28px; font-weight: 800; letter-spacing: -.03em; }
 .detail-title { font-size: 20px; font-weight: 700; margin-top: 4px; }

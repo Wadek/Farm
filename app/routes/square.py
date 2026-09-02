@@ -101,6 +101,8 @@ def _stall_view(node: Node, km: float | None = None, listing: Listing | None = N
         "claim_id": node.claim_id,
         "claimed_at": _iso(node.claimed_at),
         "is_unclaimed": not claimed,
+        "claim_pending": bool(getattr(node, "claim_pending_user_id", None)) and not claimed,
+        "claim_pending_user_id": getattr(node, "claim_pending_user_id", None) or "",
         "created_at": _iso(node.created_at),
         "matched_flares": [],
         "goods": [],

@@ -79,11 +79,42 @@ def claim_node(payload: ClaimFarm, current_user: User = Depends(get_current_user
         raise HTTPException(status_code=400, detail="Send a farm or a claim code")
     if node.claimed_at:
         raise HTTPException(status_code=409, detail="Farm has already been claimed")
-    node.owner_id = current_user.id
-    node.claimed_at = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    if current_user.role == UserRole.organizer:
+        node.owner_id = current_user.id
+        node.claimed_at = now
+        node.claim_pending_user_id = None
+        node.claim_pending_at = None
+        db.commit()
+        db.refresh(node)
+        return {
+            "node_id": node.id,
+            "farm_name": node.name,
+            "status": "claimed",
+            "claimed_at": node.claimed_at.isoformat(),
+        }
+    if node.claim_pending_user_id and node.claim_pending_user_id != current_user.id:
+        raise HTTPException(status_code=409, detail="Someone already asked to claim this farm.")
+    node.claim_pending_user_id = current_user.id
+    node.claim_pending_at = now
+    from app.models.message import Message
+    organizer = db.query(User).filter(User.role == UserRole.organizer).first()
+    if organizer:
+        db.add(Message(
+            id=str(uuid.uuid4()),
+            sender_id=current_user.id,
+            recipient_id=organizer.id,
+            listing_id=None,
+            body=f"{current_user.name} asked to claim {node.name}.",
+        ))
     db.commit()
     db.refresh(node)
-    return {"node_id": node.id, "farm_name": node.name, "claimed_at": node.claimed_at.isoformat()}
+    return {
+        "node_id": node.id,
+        "farm_name": node.name,
+        "status": "pending",
+        "claimed_at": None,
+    }
 
 
 @router.get("/{node_id}")

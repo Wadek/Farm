@@ -25,8 +25,11 @@ class Node(Base):
     myc_tokens = Column(Float, default=0.0)
     claim_id = Column(String, unique=True, nullable=True, index=True)
     claimed_at = Column(DateTime, nullable=True)
+    claim_pending_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    claim_pending_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
-    owner = relationship("User", back_populates="nodes")
+    owner = relationship("User", back_populates="nodes", foreign_keys=[owner_id])
+    claim_pending_user = relationship("User", foreign_keys=[claim_pending_user_id])
     produce = relationship("Produce", back_populates="node")
     listings = relationship("Listing", back_populates="node")

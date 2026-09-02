@@ -32,6 +32,9 @@ def _ensure_listing_unit():
     if "drop_id" not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE listings ADD COLUMN drop_id VARCHAR"))
+    if "image_url" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE listings ADD COLUMN image_url VARCHAR"))
 
 
 def _ensure_ask_pickup_columns():
@@ -80,6 +83,10 @@ def _ensure_node_claim_columns():
                 "UPDATE nodes SET claimed_at = CURRENT_TIMESTAMP"
                 " WHERE owner_id IS NOT NULL AND claimed_at IS NULL"
             ))
+        if "claim_pending_user_id" not in cols:
+            conn.execute(text("ALTER TABLE nodes ADD COLUMN claim_pending_user_id VARCHAR"))
+        if "claim_pending_at" not in cols:
+            conn.execute(text("ALTER TABLE nodes ADD COLUMN claim_pending_at DATETIME"))
 
 
 def _ensure_ring_columns():

@@ -22,6 +22,6 @@ class User(Base):
     phone = Column(String, default="")
     created_at = Column(DateTime, server_default=func.now())
 
-    nodes = relationship("Node", back_populates="owner")
+    nodes = relationship("Node", back_populates="owner", foreign_keys="Node.owner_id")
     messages_sent = relationship("Message", foreign_keys="Message.sender_id", back_populates="sender")
     api_keys = relationship("ApiKey", back_populates="user")

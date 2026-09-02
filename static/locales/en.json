@@ -1,5 +1,6 @@
 {
   "Search": "Search",
+  "REKO": "REKO",
   "Map": "Map",
   "Sell": "Sell",
   "Orders": "Orders",
@@ -272,5 +273,24 @@
   "Drop posted": "Drop posted",
   "Ring admins only": "Ring admins only",
   "Only ring admins can claim a ring": "Only ring admins can claim a ring",
-  "Create a ring-admin account first": "Create a ring-admin account first"
+  "Create a ring-admin account first": "Create a ring-admin account first",
+  "Status:": "Status:",
+  "Phone": "Phone",
+  "Settings": "Settings",
+  "Theme": "Theme",
+  "Light": "Light",
+  "Dark": "Dark",
+  "Alerts": "Alerts",
+  "Pending claims": "Pending claims",
+  "Approve": "Approve",
+  "Decline": "Decline",
+  "Claim approved": "Claim approved",
+  "Claim declined": "Claim declined",
+  "Waiting for admin to approve your claim.": "Waiting for admin to approve your claim.",
+  "Claim sent. An admin will approve it.": "Claim sent. An admin will approve it.",
+  "Someone already asked to claim this farm.": "Someone already asked to claim this farm.",
+  "event": "event",
+  "marked by": "marked by",
+  "claim ID:": "claim ID:",
+  "Hyvinkää": "Hyvinkää"
 }

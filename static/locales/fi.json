@@ -1,5 +1,6 @@
 {
   "Search": "Haku",
+  "REKO": "REKO",
   "Map": "Kartta",
   "Sell": "Myy",
   "Orders": "Tilaukset",
@@ -272,5 +273,24 @@
   "Drop posted": "Jako julkaistu",
   "Ring admins only": "Vain rengasvastaaville",
   "Only ring admins can claim a ring": "Vain rengasvastaava voi lunastaa renkaan",
-  "Create a ring-admin account first": "Luo ensin rengasvastaavan tili"
+  "Create a ring-admin account first": "Luo ensin rengasvastaavan tili",
+  "Status:": "Tila:",
+  "Phone": "Puhelin",
+  "Settings": "Asetukset",
+  "Theme": "Teema",
+  "Light": "Vaalea",
+  "Dark": "Tumma",
+  "Alerts": "Ilmoitukset",
+  "Pending claims": "Odottavat lunastukset",
+  "Approve": "Hyväksy",
+  "Decline": "Hylkää",
+  "Claim approved": "Lunastus hyväksytty",
+  "Claim declined": "Lunastus hylätty",
+  "Waiting for admin to approve your claim.": "Odottaa ylläpitäjän hyväksyntää.",
+  "Claim sent. An admin will approve it.": "Lunastuspyyntö lähetetty. Ylläpitäjä hyväksyy sen.",
+  "Someone already asked to claim this farm.": "Joku on jo pyytänyt tämän tilan lunastusta.",
+  "event": "tapahtuma",
+  "marked by": "merkitsi",
+  "claim ID:": "lunastuskoodi:",
+  "Hyvinkää": "Hyvinkää"
 }

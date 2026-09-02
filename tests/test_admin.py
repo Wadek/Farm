@@ -106,7 +106,15 @@ def test_farmer_claims_unclaimed_farm_by_node_id(client):
     }, headers=_auth(admin)).json()
     claimed = client.post("/nodes/claim", json={"node_id": farm["node_id"]}, headers=_auth(farmer))
     assert claimed.status_code == 200, claimed.text
-    assert claimed.json()["farm_name"] == "Toikantila"
+    assert claimed.json()["status"] == "pending"
+    square = client.get("/square").json()
+    stall = next(s for s in square["stalls"] if s["farm_name"] == "Toikantila")
+    assert stall["is_unclaimed"] is True
+    assert stall["claim_pending"] is True
+    overview = client.get("/admin/overview", headers=_auth(admin)).json()
+    assert overview["pending_claims"]
+    approved = client.post("/admin/claims", json={"node_id": farm["node_id"], "approve": True}, headers=_auth(admin))
+    assert approved.status_code == 200, approved.text
     square = client.get("/square").json()
     stall = next(s for s in square["stalls"] if s["farm_name"] == "Toikantila")
     assert stall["is_unclaimed"] is False

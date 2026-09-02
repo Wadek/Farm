@@ -28,6 +28,7 @@ class Listing(Base):
     demo = Column(Boolean, default=False)
     featured = Column(Boolean, default=False)
     drop_id = Column(String, ForeignKey("ring_drops.id"), nullable=True, index=True)
+    image_url = Column(String, nullable=True)
     status = Column(Enum(ListingStatus), default=ListingStatus.active)
     created_at = Column(DateTime, server_default=func.now())
 

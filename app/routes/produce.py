@@ -154,6 +154,26 @@ def _produce_view(p: Produce) -> dict:
     }
 
 
+_PRODUCE_ICONS = {
+    "dairy", "eggs", "greens", "berries", "vegetable", "root",
+    "preserve", "feed", "produce", "meat",
+}
+_MEAT_WORDS = ("beef", "lamb", "meat", "liha", "karitsa", "nauta", "poro")
+
+
+def listing_image_url(l: Listing) -> str:
+    custom = getattr(l, "image_url", None)
+    if custom:
+        return custom
+    name = ((l.produce.name if l.produce else "") or "").lower()
+    cat = ((l.produce.category if l.produce else None) or "produce").lower()
+    if any(w in name for w in _MEAT_WORDS):
+        cat = "meat"
+    if cat not in _PRODUCE_ICONS:
+        cat = "produce"
+    return f"/static/produce/{cat}.jpg"
+
+
 def _listing_view(l: Listing) -> dict:
     created_at = l.created_at.isoformat() if l.created_at else None
     return {
@@ -183,6 +203,7 @@ def _listing_view(l: Listing) -> dict:
         "node_lng": l.node.lng if l.node else None,
         "farm_created_at": l.node.created_at.isoformat() if l.node and l.node.created_at else None,
         "drop": _drop_brief(l),
+        "image_url": listing_image_url(l),
     }
 
 
