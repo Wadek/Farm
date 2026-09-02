@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css?v=23">
+<link rel="stylesheet" href="/static/css/app.css?v=24">
 </head>
 <body>
 <header id="topbar">
@@ -118,6 +118,11 @@
       <p data-i18n="Create a farmer account, add your farm, then post what you have this week.">Create a farmer account, add your farm, then post what you have this week.</p>
       <button class="btn primary" type="button" data-account-link data-i18n="Create farmer account" style="margin-top:12px">Create farmer account</button>
     </div>
+    <div id="reko-week" class="card grid hidden">
+      <h3 data-i18n="This week's REKO">This week's REKO</h3>
+      <p class="meta" data-i18n="Mark if you will be at the drop. Your current lots go with you.">Mark if you will be at the drop. Your current lots go with you.</p>
+      <div id="reko-week-list"></div>
+    </div>
     <div id="my-listings-box" class="hidden">
       <h3 data-i18n="Your listings">Your listings</h3>
       <div id="my-listings" class="grid" style="margin-top:8px"></div>
@@ -214,10 +219,9 @@ let dropById = {};
 let catalogItems = [];
 let activeView = "browse";
 let filterQ = "";
-let filterCat = "all";
-let filterReko = "all";
+let filterRing = "all";
 let favs = JSON.parse(localStorage.getItem("sk_favs") || "[]");
-const CATS = ["all","reko","greens","root","berries","eggs","dairy","meat","preserve","feed"];
+const CATS = ["greens","root","berries","eggs","dairy","meat","preserve","feed"];
 const HERO = { dairy:"--hero-dairy", greens:"--hero-greens", berries:"--hero-berries", eggs:"--hero-eggs", root:"--hero-root", preserve:"--hero-preserve", feed:"--hero-feed", produce:"--hero-produce", meat:"--hero-root" };
 const PRODUCE_ICONS = { dairy:1, eggs:1, greens:1, berries:1, root:1, preserve:1, feed:1, produce:1, meat:1 };
 function normCat(c) {
@@ -675,19 +679,6 @@ function money(item) {
   if (item.is_free || item.price_per_kg === 0) return t("Ask");
   return item.price_per_kg.toFixed(2) + " €";
 }
-function catLabel(c) {
-  const labels = {
-    all: "All", reko: "REKO", saved: "Saved", greens: "Greens", root: "Roots",
-    berries: "Berries", eggs: "Eggs", dairy: "Dairy", meat: "Meat", preserve: "Preserves",
-    feed: "Feed", produce: "Produce",
-  };
-  const label = t(labels[c] || labels[normCat(c)] || c);
-  if (c === "saved") {
-    const n = (catalogItems || []).filter(i => isFav(i.id)).length;
-    return n ? label + " " + n : label;
-  }
-  return label;
-}
 function fmtDrop(drop) {
   if (!drop) return "";
   const when = drop.starts_at ? fmtTimestamp(drop.starts_at) : "";
@@ -698,42 +689,31 @@ function ringChipLabel(drop) {
   if (!name) return (drop && drop.place) || t("REKO");
   return name.replace(/\s*\/\s*REKO$/i, "").replace(/^REKO\s+/i, "").trim() || name;
 }
-function renderChips(items) {
-  const found = new Set((items || []).map(i => normCat(i.category)).filter(Boolean));
-  const hasReko = (items || []).some(i => i.drop);
-  const list = ["all"];
-  if (hasReko) list.push("reko");
-  list.push("saved");
-  CATS.forEach(c => { if (c !== "all" && c !== "reko" && found.has(c)) list.push(c); });
-  const el = document.getElementById("chips");
-  let html = list.map(c => `<button type="button" data-cat="${c}" class="${filterCat === c ? "on" : ""}">${catLabel(c)}</button>`).join("");
-  if (filterCat === "reko") {
-    const rings = [];
-    const seen = new Set();
-    (items || []).forEach(item => {
-      const d = item.drop;
-      if (!d) return;
-      const id = d.ring_id || d.id;
-      if (!id || seen.has(id)) return;
-      seen.add(id);
-      rings.push({ id, label: ringChipLabel(d) });
-    });
-    rings.sort((a, b) => a.label.localeCompare(b.label, dateLocale()));
-    if (filterReko !== "all" && !seen.has(filterReko)) filterReko = "all";
-    html += rings.map(r =>
-      `<button type="button" data-ring="${esc(r.id)}" class="${filterReko === r.id ? "on" : ""}">${esc(r.label)}</button>`
-    ).join("");
-  }
-  el.innerHTML = html;
-  el.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => {
-    filterCat = b.dataset.cat;
-    if (filterCat !== "reko") filterReko = "all";
-    paintCatalog();
-    renderChips(catalogItems);
+function catalogRings(items) {
+  const rings = [];
+  const seen = new Set();
+  (items || []).forEach(item => {
+    const d = item.drop;
+    if (!d) return;
+    const id = d.ring_id || d.id;
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    rings.push({ id, label: ringChipLabel(d) });
   });
+  rings.sort((a, b) => a.label.localeCompare(b.label, dateLocale()));
+  return rings;
+}
+function renderChips(items) {
+  const el = document.getElementById("chips");
+  const rings = catalogRings(items);
+  if (filterRing !== "all" && !rings.some(r => r.id === filterRing)) filterRing = "all";
+  let html = `<button type="button" data-ring="all" class="${filterRing === "all" ? "on" : ""}">${t("All")}</button>`;
+  html += rings.map(r =>
+    `<button type="button" data-ring="${esc(r.id)}" class="${filterRing === r.id ? "on" : ""}">${esc(r.label)}</button>`
+  ).join("");
+  el.innerHTML = html;
   el.querySelectorAll("[data-ring]").forEach(b => b.onclick = () => {
-    filterCat = "reko";
-    filterReko = b.dataset.ring === filterReko ? "all" : b.dataset.ring;
+    filterRing = b.dataset.ring;
     paintCatalog();
     renderChips(catalogItems);
   });
@@ -794,18 +774,9 @@ function paintCatalog() {
   const root = document.getElementById("catalog");
   const rows = catalogItems.filter(item => {
     if (!matchesQuery(item)) return false;
-    if (filterCat === "saved") return isFav(item.id);
-    if (item.featured) return true;
-    if (filterCat === "reko") {
-      if (!item.drop) return false;
-      if (filterReko !== "all") {
-        const id = item.drop.ring_id || item.drop.id;
-        if (id !== filterReko) return false;
-      }
-    } else if (filterCat !== "all" && filterCat !== "saved" && normCat(item.category) !== filterCat) {
-      return false;
-    }
-    return true;
+    if (filterRing === "all") return true;
+    const id = item.drop && (item.drop.ring_id || item.drop.id);
+    return id === filterRing;
   });
   rows.sort((a, b) => {
     const fa = a.featured ? 0 : 1;
@@ -816,10 +787,8 @@ function paintCatalog() {
     return sa - sb;
   });
   if (!rows.length) {
-    const hint = filterCat === "saved"
-      ? t("Tap the heart on a listing to keep it here.")
-      : filterCat === "reko" ? t("Try another REKO location.") : t("Try another search or category.");
-    const title = filterCat === "saved" ? t("Nothing saved") : t("Nothing listed");
+    const hint = filterRing === "all" ? t("Try another search or category.") : t("Try another REKO location.");
+    const title = t("Nothing listed");
     root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${title}</h3><p>${hint}</p></div>`;
     return;
   }
@@ -926,6 +895,12 @@ function bindSheetDismiss() {
   });
   card.addEventListener("touchmove", (e) => {
     if (armed && dragging && e.cancelable) e.preventDefault();
+  }, { passive: false });
+  window.addEventListener("wheel", (e) => {
+    if (sheet.classList.contains("hidden")) return;
+    const box = scroller();
+    if (box && box.scrollHeight > box.clientHeight + 1) box.scrollTop += e.deltaY;
+    if (e.cancelable) e.preventDefault();
   }, { passive: false });
 }
 function sameProduceListings(item) {
@@ -1711,7 +1686,7 @@ document.getElementById("visit-form").onsubmit = async (e) => {
 };
 function show(name) {
   closeSheet();
-  if (name === "reko") { filterCat = "reko"; name = "browse"; }
+  if (name === "reko") { filterRing = "all"; name = "browse"; }
   activeView = name;
   document.querySelectorAll("main > section").forEach(s => s.classList.add("hidden"));
   const view = document.getElementById("view-" + name);
@@ -1825,15 +1800,56 @@ function paintAdminFarm(f) {
     } catch (e) { toast(e.message); }
   };
 }
+async function loadRekoWeek() {
+  const box = document.getElementById("reko-week");
+  const list = document.getElementById("reko-week-list");
+  if (!box || !list) return;
+  if (role() !== "farmer" && role() !== "organizer") {
+    box.classList.add("hidden");
+    return;
+  }
+  const nodes = await api("/nodes");
+  const nodeId = nodes[0] && nodes[0].id;
+  if (!nodeId) { box.classList.add("hidden"); return; }
+  const data = await api("/rings");
+  const drops = data.drops || [];
+  if (!drops.length) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  list.innerHTML = drops.map(d => {
+    const going = (d.offers || []).some(o => o.node_id === nodeId && String(o.status) === "active");
+    return `<div class="reko-week-row">
+      <div class="grow">
+        <div><b>${esc(ringChipLabel(d))}</b></div>
+        <div class="meta">${esc(fmtDrop(d))}</div>
+      </div>
+      <button class="btn ${going ? "primary" : "ghost"}" type="button" data-attend="${esc(d.id)}" data-going="1">${t("I'll be there")}</button>
+      <button class="btn ${going ? "ghost" : "primary"}" type="button" data-attend="${esc(d.id)}" data-going="0">${t("Not this week")}</button>
+    </div>`;
+  }).join("");
+  list.querySelectorAll("[data-attend]").forEach(b => b.onclick = async () => {
+    try {
+      await api(`/drops/${b.dataset.attend}/attend`, {
+        method: "POST",
+        body: JSON.stringify({ going: b.dataset.going === "1", node_id: nodeId }),
+      });
+      toast(b.dataset.going === "1" ? t("Marked for this week's REKO") : t("Not going to this REKO"));
+      await loadRekoWeek();
+      await loadMyListings();
+      if (activeView === "browse") loadCatalog();
+    } catch (err) { toast(err.message); }
+  });
+}
 async function loadSellView() {
   const setup = document.getElementById("farm-setup");
   const stall = document.getElementById("stall-form");
   const guest = document.getElementById("sell-guest");
   const mine = document.getElementById("my-listings-box");
+  const week = document.getElementById("reko-week");
   if (role() === "guest" || role() === "buyer") {
     setup.classList.add("hidden");
     stall.classList.add("hidden");
     mine.classList.add("hidden");
+    if (week) week.classList.add("hidden");
     guest.classList.remove("hidden");
     return;
   }
@@ -1843,6 +1859,7 @@ async function loadSellView() {
     setup.classList.remove("hidden");
     stall.classList.add("hidden");
     mine.classList.add("hidden");
+    if (week) week.classList.add("hidden");
     ensureFarmMap();
     return;
   }
@@ -1851,6 +1868,7 @@ async function loadSellView() {
   mine.classList.remove("hidden");
   await loadStallNodes();
   await loadStallChannel();
+  await loadRekoWeek();
   await loadMyListings();
 }
 function ensureFarmMap() {

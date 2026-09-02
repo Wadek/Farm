@@ -73,7 +73,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 html.sheet-open, html.sheet-open body {
-  overflow: hidden;
+  overflow: hidden !important;
+  height: 100%;
   overscroll-behavior: none;
   touch-action: none;
 }
@@ -83,6 +84,7 @@ html.sheet-open body {
   left: 0;
   right: 0;
 }
+html.sheet-open main { overflow: hidden; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 input, select, textarea { font: inherit; color: var(--ink); }
 a { color: var(--acc); text-decoration: none; }
@@ -291,7 +293,7 @@ input, select, textarea {
   stroke-width: 2.2; stroke-linecap: round;
 }
 .detail-hero {
-  flex: 0 0 auto; aspect-ratio: 1; max-height: min(42vw, 220px); min-height: 140px;
+  flex: 0 0 auto; aspect-ratio: 1; max-height: min(28vw, 150px); min-height: 96px;
   display: flex; align-items: flex-end; padding: 0;
   font-size: 22px; font-weight: 800; letter-spacing: -.03em; line-height: 1.05;
   position: relative; overflow: hidden; color: #fff; background: var(--paper);
@@ -311,8 +313,9 @@ input, select, textarea {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: none;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
+.detail-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .detail-price { font-size: 28px; font-weight: 800; letter-spacing: -.03em; }
 .detail-title { font-size: 20px; font-weight: 700; margin-top: 4px; }
 .detail-bar {
@@ -327,6 +330,13 @@ input, select, textarea {
 }
 .ask-channels .btn { min-height: 56px; font-size: 17px; font-weight: 800; }
 .ask-channels .btn:disabled { opacity: .45; }
+.reko-week-row {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 10px 0; border-top: 1px solid var(--line);
+}
+.reko-week-row:first-child { border-top: 0; padding-top: 0; }
+.reko-week-row .grow { flex: 1 1 160px; }
+.reko-week-row .btn { min-height: 44px; }
 
 .listing-row { display: grid; grid-template-columns: 72px 1fr; gap: 10px; align-items: start; }
 .listing-row .produce-icon {

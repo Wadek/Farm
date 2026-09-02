@@ -178,8 +178,11 @@ def test_service_worker_and_manifest(client):
     assert "drop-banner" not in css.text
     assert "drop-banner" not in page.text
     assert 't("Satokori")' in page.text
-    assert 'filterCat === "reko"' in page.text
-    assert 'list.push("saved")' in page.text
+    assert "function catalogRings" in page.text
+    assert "filterRing" in page.text
+    assert 'data-ring="all"' in page.text
+    assert 'list.push("saved")' not in page.text
+    assert "scrollbar-width: none" in css.text
     assert "data-ring" in page.text
     assert "object-fit: contain" in css.text
     assert "min-height: 44px" in css.text
