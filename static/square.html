@@ -61,6 +61,7 @@
           <select name="role">
             <option value="buyer" data-i18n="Customer — I pick up food">Customer — I pick up food</option>
             <option value="farmer" data-i18n="Farmer — I list harvest">Farmer — I list harvest</option>
+            <option value="ring_admin" data-i18n="REKO ring admin — I run a drop">REKO ring admin — I run a drop</option>
           </select>
         </label>
         <button class="btn primary" type="submit" data-i18n="Create account">Create account</button>
@@ -182,6 +183,7 @@
   <div class="sheet-card" id="sheet-body"></div>
 </div>
 <div id="toast" class="toast hidden"></div>
+<script src="https://unpkg.com/i18next@23.16.8/dist/umd/i18next.min.js"></script>
 <script src="/static/i18n.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -341,7 +343,7 @@ function renderYou() {
   }
   guest.classList.add("hidden");
   user.classList.remove("hidden");
-  const pill = me.role === "organizer" ? t("Admin") : me.role === "farmer" ? t("Farmer") : t("Customer");
+  const pill = me.role === "organizer" ? t("Admin") : me.role === "farmer" ? t("Farmer") : me.role === "ring_admin" ? t("REKO rings") : t("Customer");
   user.innerHTML = `
     <div class="card">
       <div class="role-pill">${pill}</div>
@@ -355,6 +357,7 @@ function renderYou() {
       <button class="btn ghost" id="logout" type="button">${t("Log out")}</button>
     </div>
     <div class="card grid" id="alert-setup"></div>
+    <div id="claim-rings" class="grid"></div>
     <div class="card">
       <h3>${t("How Satokori works")}</h3>
       <p class="meta">${t("REKO drop: order a quantity, farmer confirms, pay cash or MobilePay at the shared lot.")}</p>
@@ -363,6 +366,7 @@ function renderYou() {
     ${me.role === "organizer" ? `<div class="btn-row"><button class="btn" data-view="admin">${t("Admin")}</button><button class="btn" data-view="ledger">${t("Ledger")}</button></div><div class="btn-row" style="margin-top:8px"><button class="btn" data-view="visit">${t("Field visit")}</button></div>` : ""}`;
   user.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { setLang(b.dataset.lang); applyLang(); });
   user.querySelector("#logout").onclick = logout;
+  paintOpenRings(user.querySelector("#claim-rings"));
   user.querySelectorAll("[data-view]").forEach(b => b.onclick = () => show(b.dataset.view));
   renderAlertSetup();
 }
@@ -477,7 +481,7 @@ function money(item) {
 }
 function catLabel(c) {
   const labels = {
-    all: "All", drop: "Next drop", greens: "Greens", vegetable: "Vegetables", root: "Roots",
+    all: "All", drop: "This week's REKO", greens: "Greens", vegetable: "Vegetables", root: "Roots",
     berries: "Berries", eggs: "Eggs", dairy: "Dairy", preserve: "Preserves",
     feed: "Feed", produce: "Produce",
   };
@@ -503,7 +507,7 @@ function tileHtml(item) {
   const flag = item.featured
     ? `<span class="tile-flag gold">${t("Featured")}</span>`
     : item.drop
-      ? `<span class="tile-flag drop">${t("Next drop")}</span>`
+      ? `<span class="tile-flag drop">${t("This week's REKO")}</span>`
       : item.demo
         ? `<span class="tile-flag demo">${t("Demo")}</span>`
         : "";
@@ -521,7 +525,7 @@ function tileHtml(item) {
 function dropBannerHtml(drop) {
   if (!drop) return "";
   const extra = drop.notes ? " · " + drop.notes : "";
-  return `<div class="drop-banner"><h3>${esc(drop.ring_name || t("Next drop"))}</h3><p class="meta">${esc(fmtDrop(drop) + extra)}</p></div>`;
+  return `<div class="drop-banner"><p class="meta">${t("This week's REKO")}</p><h3>${esc(drop.ring_name || t("This week's REKO"))}</h3><p class="meta">${esc(fmtDrop(drop) + extra)}</p><p class="meta">${t("Comment a quantity. Pay cash or MobilePay at the lot.")}</p></div>`;
 }
 function paintCatalog() {
   const root = document.getElementById("catalog");
@@ -577,13 +581,13 @@ function openAsk(item) {
   const hint = soldOut
     ? t("Sold out. You can still ask when it is back.")
     : drop
-      ? t("Pay cash or MobilePay at the lot.")
+      ? t("Comment a quantity. Pay cash or MobilePay at the lot.")
       : item.perpetual
         ? t("Ask anytime — they name a pickup time")
         : qtyLabel(item) + " " + t("available") + ".";
   const sendLabel = role() === "guest"
     ? t("Log in to ask")
-    : drop ? t("Order for the drop") : t("Ask to pick up");
+    : drop ? t("Order for this week's REKO") : t("Ask to pick up");
   body.innerHTML = `
     <div class="detail-hero" style="background:var(${heroVar(item.category)})">${esc(item.produce_name)}</div>
     <div class="detail-body">
@@ -917,6 +921,33 @@ function bindClaimButtons(root) {
       catch (err) { toast(err.message); }
     };
   });
+}
+async function paintOpenRings(el) {
+  if (!el) return;
+  if (role() === "guest" || role() === "buyer") { el.innerHTML = ""; return; }
+  try {
+    const data = await api("/rings");
+    const open = (data.rings || []).filter(r => r.is_unclaimed);
+    if (!open.length) { el.innerHTML = ""; return; }
+    el.innerHTML = `<div class="card"><h3>${t("Is this your REKO ring?")}</h3>
+      <p class="meta">${t("Log in as a ring admin or farmer, then claim.")}</p>
+      ${open.map(r => `
+        <article class="card">
+          <h3>${esc(r.name)}</h3>
+          <div class="meta">${esc(r.place)}</div>
+          ${r.facebook_url ? `<p class="meta"><a href="${esc(r.facebook_url)}" target="_blank" rel="noopener">${t("Facebook group")}</a></p>` : ""}
+          <button class="btn primary" type="button" data-claim-ring="${esc(r.id)}">${t("This is my REKO ring")}</button>
+        </article>`).join("")}</div>`;
+    el.querySelectorAll("[data-claim-ring]").forEach(b => {
+      b.onclick = async () => {
+        try {
+          await api(`/rings/${b.dataset.claimRing}/claim`, { method: "POST", body: JSON.stringify({}) });
+          toast(t("Ring claimed"));
+          renderYou();
+        } catch (err) { toast(err.message); }
+      };
+    });
+  } catch { el.innerHTML = ""; }
 }
 function lotRow(target) {
   const wrap = document.createElement("div");
@@ -1498,13 +1529,17 @@ const sat10 = nextSaturday(10), sat14 = nextSaturday(14);
 document.getElementById("lang-switch").querySelectorAll("[data-lang]").forEach(b => {
   b.onclick = () => { setLang(b.dataset.lang); applyLang(); };
 });
-paintStatic();
-lotRow(document.getElementById("lots"));
-lotRow(document.getElementById("v-lots"));
-renderAuth();
-applyChrome();
-show(me ? defaultView() : "browse");
-if (me) { enableNotifications(); startNotifyLoop(); }
+function boot() {
+  paintStatic();
+  lotRow(document.getElementById("lots"));
+  lotRow(document.getElementById("v-lots"));
+  renderAuth();
+  applyChrome();
+  show(me ? defaultView() : "browse");
+  if (me) { enableNotifications(); startNotifyLoop(); }
+}
+if (window.i18nReady) window.i18nReady.then(boot).catch(() => boot());
+else boot();
 </script>
 </body>
 </html>

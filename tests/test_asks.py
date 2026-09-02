@@ -123,12 +123,15 @@ def test_service_worker_and_manifest(client):
     assert "/static/i18n.js" in page.text
     i18n = client.get("/static/i18n.js")
     assert i18n.status_code == 200
-    assert "Pyydä noutoa" in i18n.text
-    assert "Kirjaudu" in i18n.text
-    assert "Vihreät" in i18n.text
-    assert "Maito, munat, lehtikaali…" in i18n.text
-    assert "search_placeholder" not in i18n.text
-    assert "cat.greens" not in i18n.text
+    fi = client.get("/static/locales/fi.json")
+    assert fi.status_code == 200
+    assert "Pyydä noutoa" in fi.text
+    assert "Kirjaudu" in fi.text
+    assert "Vihreät" in fi.text
+    assert "Maito, munat, lehtikaali…" in fi.text
+    assert "Tämän viikon REKO-jako" in fi.text
+    assert "search_placeholder" not in fi.text
+    assert "cat.greens" not in fi.text
     assert "Ask to pick up" in page.text or "tile-hero" in page.text
     css = client.get("/static/css/app.css")
     assert css.status_code == 200

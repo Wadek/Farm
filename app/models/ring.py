@@ -14,9 +14,14 @@ class Ring(Base):
     lat = Column(Float, nullable=False)
     lng = Column(Float, nullable=False)
     notes = Column(String, default="")
+    facebook_url = Column(String, default="")
+    claim_id = Column(String, unique=True, nullable=True, index=True)
+    claimed_at = Column(DateTime, nullable=True)
+    admin_id = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     drops = relationship("RingDrop", back_populates="ring")
+    admin = relationship("User")
 
 
 class RingDrop(Base):
