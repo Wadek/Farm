@@ -182,7 +182,11 @@ def test_service_worker_and_manifest(client):
     assert "filterRing" in page.text
     assert 'data-ring="all"' in page.text
     assert 'data-ring="saved"' in page.text
+    assert "const PRODUCE_CATALOG" in page.text
+    assert "function filterProduceSet" in page.text
+    assert 't("Item not found, add a new item")' in page.text
     assert "scrollbar-width: none" in css.text
+    assert ".item-suggest" in css.text
     assert "data-ring" in page.text
     assert "object-fit: contain" in css.text
     assert "min-height: 44px" in css.text

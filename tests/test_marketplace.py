@@ -51,6 +51,27 @@ def test_saved_chip_filters_and_pins_favorites():
     assert "scrollbar-width: none" in css
 
 
+def test_produce_picker_filters_set_list():
+    html = (ROOT / "static" / "square.html").read_text(encoding="utf-8")
+    assert "const PRODUCE_CATALOG" in html
+    assert 'name: "Tyrni"' in html
+    assert 'name: "Raw milk"' in html
+    assert 'name: "Lehtikaali (kale)"' in html
+    assert "function filterProduceSet" in html
+    assert "function paintProduceSuggest" in html
+    assert "function addProduceNew" in html
+    assert "function confirmLotPicks" in html
+    assert 'class="item-suggest hidden"' in html
+    assert 'class="item-pick"' in html
+    assert 't("Item not found, add a new item")' in html
+    assert 't("Pick an item, or add a new one.")' in html
+    assert "produceSearchBlob(item).includes(s)" in html
+    assert "dataset.produceName" in html
+    css = (ROOT / "static" / "css" / "app.css").read_text(encoding="utf-8")
+    assert ".item-suggest" in css
+    assert ".item-new" in css
+
+
 def test_siuntio_ring_and_farms_are_in_seed():
     seed = (ROOT / "seed.py").read_text(encoding="utf-8")
     assert "REKO Siuntio" in seed
