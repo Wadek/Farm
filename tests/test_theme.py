@@ -23,15 +23,25 @@ def test_dark_and_light_tokens_are_real_themes():
     assert "#ece6d8" not in hero
 
 
-def test_theme_toggle_wires_header_and_settings():
-    assert 'id="theme-btn"' in HTML
+def test_theme_toggle_lives_in_settings_not_header():
+    assert 'id="theme-btn"' not in HTML
+    assert 'id="lang-switch"' not in HTML
+    assert 'id="settings-btn"' in HTML
+    assert 'data-theme="light"' in HTML
+    assert 'data-theme="dark"' in HTML
     assert "function applyPickedTheme" in HTML
-    assert "applyPickedTheme(getTheme()" in HTML
     assert "setTheme(name)" in HTML
     assert 'setAttribute("data-theme"' in I18N
     assert "theme-color" in I18N
     assert "colorScheme" in I18N
     assert 'THEME_KEY = "sk_theme"' in I18N
+
+
+def test_default_language_is_finnish():
+    assert 'html lang="fi"' in HTML
+    assert 'let lang = "fi"' in I18N
+    assert 'return "fi"' in I18N
+    assert "navigator.language" not in I18N
 
 
 def test_theme_assets_are_served(client):
@@ -40,7 +50,9 @@ def test_theme_assets_are_served(client):
     assert b"html[data-theme=\"dark\"]" in css.content
     assert b"color-scheme: dark" in css.content
     page = client.get("/")
-    assert 'id="theme-btn"' in page.text
+    assert 'id="theme-btn"' not in page.text
+    assert 'id="settings-btn"' in page.text
+    assert 'html lang="fi"' in page.text
     js = client.get("/static/i18n.js")
     assert js.status_code == 200
     assert b"applyTheme" in js.content
