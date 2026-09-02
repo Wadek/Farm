@@ -105,6 +105,12 @@ def test_service_worker_and_manifest(client):
     assert page.status_code == 200
     assert 'id="tabbar"' in page.text
     assert "/static/css/app.css" in page.text
+    assert 'id="lang-switch"' in page.text
+    assert "/static/i18n.js" in page.text
+    i18n = client.get("/static/i18n.js")
+    assert i18n.status_code == 200
+    assert "Pyydä noutoa" in i18n.text
+    assert "Kirjaudu" in i18n.text
     assert "Ask to pick up" in page.text or "tile-hero" in page.text
     css = client.get("/static/css/app.css")
     assert css.status_code == 200
