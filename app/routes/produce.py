@@ -182,6 +182,26 @@ def _listing_view(l: Listing) -> dict:
         "node_lat": l.node.lat if l.node else None,
         "node_lng": l.node.lng if l.node else None,
         "farm_created_at": l.node.created_at.isoformat() if l.node and l.node.created_at else None,
+        "drop": _drop_brief(l),
+    }
+
+
+def _drop_brief(l: Listing) -> dict | None:
+    drop = getattr(l, "drop", None)
+    if not drop:
+        return None
+    ring = drop.ring
+    return {
+        "id": drop.id,
+        "ring_id": drop.ring_id,
+        "ring_name": ring.name if ring else "",
+        "place": ring.place if ring else "",
+        "lat": ring.lat if ring else None,
+        "lng": ring.lng if ring else None,
+        "starts_at": drop.starts_at.isoformat() if drop.starts_at else None,
+        "ends_at": drop.ends_at.isoformat() if drop.ends_at else None,
+        "order_until": drop.order_until.isoformat() if drop.order_until else None,
+        "notes": (ring.notes if ring else "") or "",
     }
 
 

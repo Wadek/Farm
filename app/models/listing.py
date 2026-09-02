@@ -27,9 +27,11 @@ class Listing(Base):
     perpetual = Column(Boolean, default=False)
     demo = Column(Boolean, default=False)
     featured = Column(Boolean, default=False)
+    drop_id = Column(String, ForeignKey("ring_drops.id"), nullable=True, index=True)
     status = Column(Enum(ListingStatus), default=ListingStatus.active)
     created_at = Column(DateTime, server_default=func.now())
 
     node = relationship("Node", back_populates="listings")
     produce = relationship("Produce", back_populates="listings")
+    drop = relationship("RingDrop", back_populates="listings")
     transactions = relationship("Transaction", back_populates="listing")

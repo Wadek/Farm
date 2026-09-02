@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import Base, SessionLocal, engine
-from app.models import Listing, ListingStatus, Node, NodeType, Produce, User, UserRole
+from app.models import Listing, ListingStatus, Node, NodeType, Produce, Ring, RingDrop, User, UserRole
 from app.services.auth_service import hash_password
 
 DATA_DIR = Path("data")
@@ -52,7 +52,8 @@ def _node(db: Session, node_id: str, owner_id: str | None, name: str, ntype: Nod
 def _lot(db: Session, listing_id: str, node_id: str, produce_id: str, name: str,
          category: str, qty: float, price: float, kcal: float, co2: float,
          pickup: str, unit: str = "kg", perpetual: bool = False,
-         demo: bool = True, featured: bool = False):
+         demo: bool = True, featured: bool = False, drop_id: str | None = None,
+         available_from=None, available_until=None):
     produce = Produce(
         id=produce_id,
         node_id=node_id,
@@ -72,11 +73,12 @@ def _lot(db: Session, listing_id: str, node_id: str, produce_id: str, name: str,
         price_per_kg=price,
         pickup_point=pickup,
         is_free=price == 0,
-        available_from=None,
-        available_until=None,
-        perpetual=perpetual,
+        available_from=available_from,
+        available_until=available_until,
+        perpetual=perpetual and not drop_id,
         demo=demo,
         featured=featured,
+        drop_id=drop_id,
         status=ListingStatus.active,
     )
     db.add(listing)
@@ -164,6 +166,28 @@ def seed():
             )
         db.flush()
 
+        drop_start = (now + timedelta(days=3)).replace(hour=14, minute=30, second=0, microsecond=0)
+        drop_end = drop_start + timedelta(minutes=30)
+        ring = Ring(
+            id="ring-rajamaki",
+            name="REKO Rajamäki–Hyvinkää",
+            place="S-market Rajamäki lot, Kiljavantie 3",
+            lat=60.5277,
+            lng=24.7512,
+            notes="Cash or MobilePay at the drop. Order by commenting a quantity. No middleman.",
+        )
+        db.add(ring)
+        db.flush()
+        drop = RingDrop(
+            id="drop-next",
+            ring_id=ring.id,
+            starts_at=drop_start,
+            ends_at=drop_end,
+            order_until=drop_start - timedelta(hours=6),
+        )
+        db.add(drop)
+        db.flush()
+
         _lot(db, "lot-kale", kariniemi.id, "prod-kale", "Lehtikaali (kale)", "greens",
              8.0, 4.0, 490, 0.4, kariniemi.description, unit="kg", perpetual=False)
         _lot(db, "lot-eggs", kariniemi.id, "prod-eggs", "Farm eggs", "eggs",
@@ -173,7 +197,7 @@ def seed():
 
         toika = nodes["node-toikantila"]
         _lot(db, "lot-milk-toikka", toika.id, "prod-milk-toikka", "Raw milk", "dairy",
-             20.0, 1.4, 640, 1.2, toika.description, unit="L", perpetual=True, featured=True)
+             20.0, 1.4, 640, 1.2, toika.description, unit="L", perpetual=True)
         _lot(db, "lot-beef", toika.id, "prod-beef", "Farm beef", "feed",
              10.0, 18.0, 2500, 12.0, toika.description, unit="kg", perpetual=True)
         _lot(db, "lot-hay-t", toika.id, "prod-hay-t", "Hay bales", "feed",
@@ -202,6 +226,19 @@ def seed():
         _lot(db, "lot-milk-y", nodes["node-ylisjoki"].id, "prod-milk-y", "Tinkimaito",
              "dairy", 15.0, 1.5, 640, 1.2, nodes["node-ylisjoki"].description, unit="L", perpetual=True)
 
+        _lot(db, "lot-reko-milk", toika.id, "prod-reko-milk", "Raw milk", "dairy",
+             12.0, 1.4, 640, 1.2, ring.place, unit="L", drop_id=drop.id,
+             available_from=drop_start, available_until=drop_end, featured=True)
+        _lot(db, "lot-reko-eggs", nodes["node-mantymaeki"].id, "prod-reko-eggs", "Organic eggs",
+             "eggs", 30.0, 0.50, 1430, 1.8, ring.place, unit="kpl", drop_id=drop.id,
+             available_from=drop_start, available_until=drop_end)
+        _lot(db, "lot-reko-juice", nodes["node-wennborg"].id, "prod-reko-juice", "Berry juice",
+             "preserve", 10.0, 6.0, 180, 0.2, ring.place, unit="L", drop_id=drop.id,
+             available_from=drop_start, available_until=drop_end)
+        _lot(db, "lot-reko-kale", kariniemi.id, "prod-reko-kale", "Lehtikaali (kale)", "greens",
+             6.0, 4.0, 490, 0.4, ring.place, unit="kg", drop_id=drop.id,
+             available_from=drop_start, available_until=drop_end)
+
         db.commit()
         print("Seeded Satokori")
         print()
@@ -212,8 +249,8 @@ def seed():
         for node_id, name, *_rest in farms:
             print(f"  {name}")
         print()
-        print("Marketplace: demo listings only. Featured: Toikantila raw milk.")
-        print("Latest farm at top: Toikantila.")
+        print("Marketplace: demo listings. Featured: Toikantila raw milk at the REKO drop.")
+        print(f"Next drop: {ring.name} {drop_start:%a %H:%M}–{drop_end:%H:%M} {ring.place}")
     finally:
         db.close()
 

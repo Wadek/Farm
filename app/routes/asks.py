@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from app.db import get_db
 from app.config import settings
-from app.models import Listing, ListingStatus, Node, User, UserRole
+from app.models import Listing, ListingStatus, Node, RingDrop, User, UserRole
 from app.models.ask import PickupAsk, AskStatus, SmsLog
 from app.models.message import Message
 from app.dependencies import get_current_user
@@ -41,6 +41,31 @@ def _iso(dt):
     return dt.isoformat() if dt else None
 
 
+def _ask_drop(listing):
+    drop = getattr(listing, "drop", None) if listing else None
+    if not drop:
+        return None
+    ring = drop.ring
+    return {
+        "id": drop.id,
+        "ring_name": ring.name if ring else "",
+        "place": ring.place if ring else "",
+        "starts_at": _iso(drop.starts_at),
+        "ends_at": _iso(drop.ends_at),
+    }
+
+
+def _drop_when(listing) -> str:
+    drop = getattr(listing, "drop", None) if listing else None
+    if not drop or not drop.starts_at:
+        return "vahvistettu"
+    start = drop.starts_at
+    place = ""
+    if drop.ring and drop.ring.place:
+        place = f" {drop.ring.place}"
+    return f"{start.strftime('%a %H:%M')}{place}"
+
+
 def _ask_view(ask: PickupAsk) -> dict:
     listing = ask.listing
     produce = listing.produce.name if listing and listing.produce else ""
@@ -56,6 +81,7 @@ def _ask_view(ask: PickupAsk) -> dict:
         "pickup_point": pickup,
         "sold_out": listing_status == "sold_out",
         "perpetual": bool(listing and getattr(listing, "perpetual", False)),
+        "drop": _ask_drop(listing),
         "buyer_name": ask.buyer.name if ask.buyer else "",
         "farmer_name": ask.farmer.name if ask.farmer else "",
         "buyer_id": ask.buyer_id,
@@ -103,6 +129,12 @@ def _farmer_sms(ask: PickupAsk) -> str:
             f"{v['buyer_name']} pyytää {qty} {v['produce']} (loppu). "
             f"Vastaa milloin on taas, esim. la 10 — tai avaa {v['reply_url']}"
         )
+    if v.get("drop"):
+        place = v["drop"].get("place") or v.get("pickup_point") or ""
+        return (
+            f"{v['buyer_name']} tilaa {qty} {v['produce']} REKO-jakoon {place}. "
+            f"Vahvista tai avaa {v['reply_url']}"
+        )
     return (
         f"{v['buyer_name']} kysyy: voinko hakea {qty} {v['produce']}?{extra} "
         f"Vastaa ajalla, esim. la 10 — tai avaa {v['reply_url']}"
@@ -129,9 +161,12 @@ def _apply_reply(ask: PickupAsk, when_text: str, decline: bool, db: Session) -> 
         push_title = "Farmer replied"
         push_tag = f"decline-{ask.id}"
     else:
-        if not text:
-            raise HTTPException(status_code=400, detail="Send a time, e.g. la 10")
         listing = ask.listing
+        if not text:
+            if listing and getattr(listing, "drop_id", None):
+                text = _drop_when(listing)
+            else:
+                raise HTTPException(status_code=400, detail="Send a time, e.g. la 10")
         perpetual = bool(listing and getattr(listing, "perpetual", False))
         if listing and not perpetual and listing.quantity_kg < ask.quantity:
             listing.quantity_kg += ask.quantity - max(listing.quantity_kg, 0)
@@ -163,7 +198,11 @@ def create_ask(
 ):
     listing = (
         db.query(Listing)
-        .options(joinedload(Listing.node).joinedload(Node.owner), joinedload(Listing.produce))
+        .options(
+            joinedload(Listing.node).joinedload(Node.owner),
+            joinedload(Listing.produce),
+            joinedload(Listing.drop).joinedload(RingDrop.ring),
+        )
         .filter(Listing.id == payload.listing_id)
         .first()
     )
@@ -193,7 +232,10 @@ def create_ask(
     )
     db.add(ask)
     produce = listing.produce.name if listing.produce else "produce"
-    alert_body = f"{current_user.name} asked for {payload.quantity:g} {listing.unit or 'kg'} {produce}."
+    if listing.drop_id:
+        alert_body = f"{current_user.name} ordered {payload.quantity:g} {listing.unit or 'kg'} {produce} for the drop."
+    else:
+        alert_body = f"{current_user.name} asked for {payload.quantity:g} {listing.unit or 'kg'} {produce}."
     _alert(db, current_user.id, farmer.id, listing.id, alert_body)
     db.commit()
     db.refresh(ask)
@@ -202,6 +244,7 @@ def create_ask(
         .options(
             joinedload(PickupAsk.listing).joinedload(Listing.produce),
             joinedload(PickupAsk.listing).joinedload(Listing.node),
+            joinedload(PickupAsk.listing).joinedload(Listing.drop).joinedload(RingDrop.ring),
             joinedload(PickupAsk.buyer),
             joinedload(PickupAsk.farmer),
         )
@@ -224,6 +267,7 @@ def list_asks(current_user: User = Depends(get_current_user), db: Session = Depe
         .options(
             joinedload(PickupAsk.listing).joinedload(Listing.produce),
             joinedload(PickupAsk.listing).joinedload(Listing.node),
+            joinedload(PickupAsk.listing).joinedload(Listing.drop).joinedload(RingDrop.ring),
             joinedload(PickupAsk.buyer),
             joinedload(PickupAsk.farmer),
         )
@@ -253,6 +297,7 @@ def reply_ask(
         .options(
             joinedload(PickupAsk.listing).joinedload(Listing.produce),
             joinedload(PickupAsk.listing).joinedload(Listing.node),
+            joinedload(PickupAsk.listing).joinedload(Listing.drop).joinedload(RingDrop.ring),
             joinedload(PickupAsk.buyer),
             joinedload(PickupAsk.farmer),
         )
@@ -279,6 +324,7 @@ def mark_available(
         .options(
             joinedload(PickupAsk.listing).joinedload(Listing.node).joinedload(Node.owner),
             joinedload(PickupAsk.listing).joinedload(Listing.produce),
+            joinedload(PickupAsk.listing).joinedload(Listing.drop).joinedload(RingDrop.ring),
             joinedload(PickupAsk.buyer),
             joinedload(PickupAsk.farmer),
         )
@@ -489,6 +535,7 @@ def _load_token(token: str, db: Session) -> PickupAsk:
         .options(
             joinedload(PickupAsk.listing).joinedload(Listing.produce),
             joinedload(PickupAsk.listing).joinedload(Listing.node),
+            joinedload(PickupAsk.listing).joinedload(Listing.drop).joinedload(RingDrop.ring),
             joinedload(PickupAsk.buyer),
             joinedload(PickupAsk.farmer),
         )
@@ -537,6 +584,7 @@ async def sms_inbound(request: Request, db: Session = Depends(get_db)):
         .options(
             joinedload(PickupAsk.listing).joinedload(Listing.produce),
             joinedload(PickupAsk.listing).joinedload(Listing.node),
+            joinedload(PickupAsk.listing).joinedload(Listing.drop).joinedload(RingDrop.ring),
             joinedload(PickupAsk.buyer),
             joinedload(PickupAsk.farmer),
         )

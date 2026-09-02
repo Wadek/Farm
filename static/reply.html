@@ -38,6 +38,17 @@ async function load() {
     app.innerHTML = `<div class="ok"><h1>Lähetetty</h1><p>${a.status === "declined" ? "Ei onnistu." : a.offer_text}</p></div>`;
     return;
   }
+  if (a.drop) {
+    const place = (a.drop.place || a.pickup_point || "");
+    app.innerHTML = `
+      <h1>${a.buyer_name} tilaa</h1>
+      <p class="meta">${a.quantity} ${a.unit} ${a.produce}${a.note ? "<br>" + a.note : ""}<br>REKO-jako ${place}<br>${a.farm_name}</p>
+      <button type="button" id="yes">Vahvista tilaus</button>
+      <button type="button" class="ghost" id="no">Ei onnistu</button>`;
+    document.getElementById("yes").onclick = () => send("", false);
+    document.getElementById("no").onclick = () => send("ei", true);
+    return;
+  }
   app.innerHTML = `
     <h1>${a.buyer_name} kysyy</h1>
     <p class="meta">Voinko hakea ${a.quantity} ${a.unit} ${a.produce}?${a.note ? "<br>" + a.note : ""}<br>${a.farm_name}</p>

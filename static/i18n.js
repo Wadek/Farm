@@ -246,6 +246,21 @@
     "Featured cleared": "Nosto poistettu",
     "Featured updated": "Nosto päivitetty",
     "All farms": "Kaikki tilat",
+    "Next drop": "Seuraava jako",
+    "Post to the next REKO drop, or keep it at the farm gate.": "Julkaise seuraavaan REKO-jakoon tai pidä tilan portilla.",
+    "Where it sells": "Missä myydään",
+    "Farm gate — they ask, you name a time": "Tilan portti — he kysyvät, sinä kerrot ajan",
+    "Order for the drop": "Tilaa jakoon",
+    "Order sent. The farmer confirms.": "Tilaus lähetetty. Viljelijä vahvistaa.",
+    "Pay cash or MobilePay at the lot.": "Maksa käteisellä tai MobilePaylla jaossa.",
+    "Confirm order": "Vahvista tilaus",
+    "Order confirmed": "Tilaus vahvistettu",
+    "Waiting for farmer to confirm the drop order": "Odottaa viljelijän vahvistusta jakoon",
+    "Confirmed for the drop": "Vahvistettu jakoon",
+    "How Satokori works": "Näin Satokori toimii",
+    "REKO drop: order a quantity, farmer confirms, pay cash or MobilePay at the shared lot.": "REKO-jako: tilaa määrä, viljelijä vahvistaa, maksa käteisellä tai MobilePaylla yhteisessä jaossa.",
+    "Farm gate: ask anytime. The farmer names a pickup time.": "Tilan portti: kysy milloin vain. Viljelijä kertoo noutajan.",
+    "2 L": "2 L",
   };
 
   const KEY = "sk_lang";
