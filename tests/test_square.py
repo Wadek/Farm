@@ -73,6 +73,7 @@ def test_listing_unit_liters(client):
     assert resp.json()["lots"][0]["unit"] == "L"
     catalog = client.get("/catalog").json()
     assert catalog["items"][0]["unit"] == "L"
+    assert catalog["items"][0]["category"] == "dairy"
 
 
 def test_square_radius_filter(client):

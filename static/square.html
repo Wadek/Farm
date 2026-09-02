@@ -11,140 +11,107 @@
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<style>
-  :root {
-    --paper: #f7f1e4; --ink: #241c12; --moss: #2f5d3a; --copper: #b86132;
-    --line: #d9ccb3; --gold: #d4a017; --chalk: #17241c;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: "Source Sans 3", system-ui, sans-serif; background: var(--paper); color: var(--ink); }
-  header { background: var(--chalk); color: #f7f1e4; padding: 1rem 1.2rem; }
-  header .eyebrow { letter-spacing: .28em; font-size: .68rem; color: var(--gold); text-transform: uppercase; }
-  header h1 { font-family: Fraunces, Georgia, serif; font-size: 1.7rem; }
-  header p { color: #c9d6c4; font-size: .95rem; }
-  header .bar { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
-  nav { display: flex; flex-wrap: wrap; gap: .4rem; padding: .7rem 1rem; background: #efe4c8; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
-  nav button, .btn { font-family: inherit; border: 1px solid var(--moss); background: transparent; color: var(--moss); padding: .55rem .9rem; border-radius: 999px; cursor: pointer; min-height: 44px; font-weight: 600; flex: 0 0 auto; }
-  nav button.active, .btn.primary { background: var(--moss); color: #f7f1e4; }
-  body[data-role="farmer"] nav button.active, body[data-role="buyer"] nav button.active { background: #000; color: #fff; border-color: #fff; }
-  .btn.copper { border-color: var(--copper); color: var(--copper); }
-  .btn.copper.primary, .btn.copper:hover { background: var(--copper); color: #fff; }
-  .btn.ghost { border-color: var(--line); color: var(--ink); }
-  main { max-width: 980px; margin: 0 auto; padding: 1.1rem; }
-  .hidden { display: none !important; }
-  .grid { display: grid; gap: .8rem; }
-  .card { background: #fffdf7; border: 1px solid var(--line); border-radius: 14px; padding: .9rem; }
-  .card.golden { border-color: var(--gold); }
-  .card.sold-out { opacity: 0.78; }
-  .card h3 { font-family: Fraunces, serif; }
-  .meta { color: #5c5140; font-size: .88rem; margin: .2rem 0 .5rem; }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
-  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .6rem; }
-  label { font-size: .82rem; font-weight: 600; color: #5c5140; display: block; }
-  input, select, textarea { width: 100%; font: inherit; padding: .7rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; min-height: 44px; margin-top: .2rem; }
-  .leaflet-map { height: 260px; border-radius: 14px; margin: .4rem 0 1rem; border: 1px solid var(--line); }
-  #visit-map { height: 280px; }
-  .item { display: grid; grid-template-columns: 1fr auto; gap: .6rem; align-items: center; }
-  .price { color: var(--moss); font-weight: 600; }
-  .toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); background: var(--chalk); color: #f7f1e4; padding: .7rem 1rem; border-radius: 999px; z-index: 50; max-width: 90%; }
-  .order-alert { background: #fff5cf; border: 2px solid var(--gold); border-radius: 14px; padding: 1rem; margin-bottom: 1rem; animation: pulse-alert 1.4s ease-in-out 3; }
-  .order-alert h2 { font-family: Fraunces, serif; color: var(--moss); font-size: 1.25rem; }
-  .order-alert .order { padding: .65rem 0; border-top: 1px solid #e7d58f; }
-  #order-alerts { position: sticky; top: 52px; z-index: 19; }
-  .farmer-reply { background: #fff5cf; border: 2px solid var(--gold); border-radius: 12px; padding: .85rem 1rem; margin: .7rem 0 .3rem; }
-  .farmer-reply .kicker { font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--copper); font-weight: 700; }
-  .farmer-reply .said { font-family: Fraunces, serif; font-size: 1.35rem; color: var(--chalk); margin-top: .15rem; }
-  .card.has-reply { border-color: var(--gold); box-shadow: 0 0 0 3px #fff5cf; }
-  @keyframes pulse-alert {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(212, 160, 23, 0); }
-    50% { box-shadow: 0 0 0 6px rgba(212, 160, 23, 0.45); }
-  }
-  .auth { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
-  .auth small { color: #c9d6c4; }
-  .basket-line { display: flex; justify-content: space-between; gap: .6rem; padding: .5rem 0; border-bottom: 1px dashed var(--line); }
-  #ledger-tools { display: grid; gap: .8rem; margin: 1rem 0; }
-  #ledger { display: grid; gap: .35rem; }
-  .role-pill { display: inline-block; background: #2a3d32; color: var(--gold); font-size: .75rem; letter-spacing: .08em; padding: .15rem .5rem; border-radius: 999px; text-transform: uppercase; }
-  @media (max-width: 640px) { .row, .row3, .item { grid-template-columns: 1fr; } }
-</style>
+<link rel="stylesheet" href="/static/css/app.css">
 </head>
 <body>
-<header>
-  <div class="bar">
-    <div>
-      <h1>Satokori</h1>
-      <p id="tagline">Who has what, when, and where.</p>
-    </div>
-    <div class="auth" id="auth-box"></div>
+<header id="topbar">
+  <button type="button" id="loc-btn">Hyvinkää<small>40 km</small></button>
+  <div class="searchf" id="search-wrap">
+    <input id="q" type="search" placeholder="Milk, eggs, kale…" autocomplete="off">
   </div>
+  <div id="page-title" class="hidden"></div>
 </header>
-<nav id="nav"></nav>
+<div class="chips" id="chips"></div>
 <main>
   <div id="order-alerts" class="hidden"></div>
   <section id="view-browse" class="hidden">
-    <div id="ask-box" class="card hidden" style="margin-bottom:1rem"></div>
-    <div id="my-listings-box" class="card hidden" style="margin-bottom:1rem">
-      <h3 style="font-family:Fraunces,serif">Your currently listed items</h3>
-      <p class="meta">Manage stock and mark items sold at your stalls.</p>
-      <div id="my-listings" class="grid" style="margin-top:.6rem"></div>
-    </div>
-    <div class="grid" id="catalog"></div>
+    <div class="tiles" id="catalog"></div>
   </section>
   <section id="view-farms" class="hidden">
-    <div class="card grid" id="claim-farm-box" style="margin-bottom:1rem">
-      <h3>Claim a farm</h3>
-      <p class="meta">Enter the unique ID shared by the admin to claim farm ownership.</p>
-      <form id="claim-farm-form" class="row"><input id="claim-farm-input" name="claim_id" placeholder="Farm claim ID" required><button class="btn primary">Claim farm</button></form>
-    </div>
     <div id="farms-map" class="leaflet-map"></div>
     <div class="grid" id="farms"></div>
   </section>
   <section id="view-basket" class="hidden">
-    <div class="card grid" style="gap:1rem">
-      <div>
-        <h3>Basket</h3>
-        <p class="meta" id="basket-meta">Your pickup list, orders, and ledger transactions.</p>
-      </div>
-      <div id="basket"></div>
-      <div id="basket-ledger" class="grid" style="gap:.6rem"></div>
-      <button class="btn primary hidden" data-account-link>Log in or create account</button>
-    </div>
+    <p class="meta" id="basket-meta">Pickup asks and replies live here — same place every time.</p>
+    <div id="basket"></div>
+    <div id="basket-ledger" class="grid"></div>
+    <button class="btn primary block hidden" data-account-link>Log in to send an ask</button>
   </section>
   <section id="view-account" class="hidden">
-    <div class="card grid">
-      <h3>Log in or create account</h3>
-      <div class="row">
-        <form id="login-form" class="grid">
-          <h4>Log in</h4>
-          <label>Email <input name="email" type="email" required></label>
-          <label>Password <input name="password" type="password" required></label>
-          <button class="btn primary">Log in</button>
-        </form>
-        <form id="register-form" class="grid">
-          <h4>Create account</h4>
-          <label>Name <input name="name" required></label>
-          <label>Email <input name="email" type="email" required></label>
-          <label>Password <input name="password" type="password" minlength="6" required></label>
-          <label>Account type <select name="role"><option value="buyer">Customer</option><option value="farmer">Farmer</option></select></label>
-          <button class="btn primary">Create account</button>
-        </form>
+    <div id="you-guest" class="auth-stack">
+      <div class="seg" id="auth-seg">
+        <button type="button" class="on" data-auth-mode="login">Log in</button>
+        <button type="button" data-auth-mode="register">Create account</button>
       </div>
-      <p class="meta">Local test accounts:</p>
-      <div style="display:flex;flex-wrap:wrap;gap:.4rem">
-        <button class="btn ghost" type="button" data-demo-email="wade@kariniemi.farm" data-demo-password="farmgate">Admin — Wade</button>
-        <button class="btn ghost" type="button" data-demo-email="maija@naapuri.fi" data-demo-password="farmgate">Farmer — Maija</button>
-        <button class="btn ghost" type="button" data-demo-email="pekka@hyvinkaa.fi" data-demo-password="farmgate">Farmer — Pekka</button>
-        <button class="btn ghost" type="button" data-demo-email="anna@hyvinkaa.fi" data-demo-password="market">Customer — Anna</button>
-        <button class="btn ghost" type="button" data-demo-email="liisa@hyvinkaa.fi" data-demo-password="market">Customer — Liisa</button>
+      <form id="login-form" class="card grid">
+        <label>Email <input name="email" type="email" required></label>
+        <label>Password <input name="password" type="password" required></label>
+        <button class="btn primary" type="submit">Log in</button>
+      </form>
+      <form id="register-form" class="card grid hidden">
+        <label>Name <input name="name" required></label>
+        <label>Email <input name="email" type="email" required></label>
+        <label>Password <input name="password" type="password" minlength="6" required></label>
+        <label>I am a
+          <select name="role">
+            <option value="buyer">Customer — I pick up food</option>
+            <option value="farmer">Farmer — I list harvest</option>
+          </select>
+        </label>
+        <button class="btn primary" type="submit">Create account</button>
+      </form>
+      <p class="meta">Local test accounts</p>
+      <div class="btn-row" style="flex-wrap:wrap">
+        <button class="btn ghost" type="button" data-demo-email="wade@kariniemi.farm" data-demo-password="farmgate">Admin</button>
+        <button class="btn ghost" type="button" data-demo-email="maija@naapuri.fi" data-demo-password="farmgate">Maija</button>
+        <button class="btn ghost" type="button" data-demo-email="pekka@hyvinkaa.fi" data-demo-password="farmgate">Pekka</button>
+        <button class="btn ghost" type="button" data-demo-email="anna@hyvinkaa.fi" data-demo-password="market">Anna</button>
       </div>
     </div>
+    <div id="you-user" class="hidden grid"></div>
   </section>
   <section id="view-listings" class="hidden">
-    <form id="stall-form" class="card grid">
-      <h3>Add items</h3>
-      <p class="meta">List what you have this week: amount, unit, price, pickup window.</p>
+    <div id="farm-setup" class="card grid hidden">
+      <h3>Add your farm</h3>
+      <p class="meta">Pin the pickup spot. Then list this week’s harvest. No claim code.</p>
+      <label>Farm name <input id="farm-name" required placeholder="Rajamäki Beds"></label>
+      <label>Pickup point <input id="farm-pickup" required placeholder="Red shed / farm gate"></label>
+      <label>Kind
+        <select id="farm-type">
+          <option value="hobby_farm">Hobby farm</option>
+          <option value="farm">Farm</option>
+          <option value="backyard">Backyard</option>
+          <option value="garden_bed">Garden bed</option>
+        </select>
+      </label>
+      <label>Tap the map</label>
+      <div id="farm-map" class="leaflet-map"></div>
+      <div class="row">
+        <label>Lat <input id="farm-lat" value="60.5522" required></label>
+        <label>Lng <input id="farm-lng" value="24.7050" required></label>
+      </div>
+      <button class="btn primary" type="button" id="farm-save">Save farm</button>
+      <details>
+        <summary class="meta">I already have an admin claim code</summary>
+        <form id="claim-farm-form" class="row" style="margin-top:8px">
+          <input id="claim-farm-input" name="claim_id" placeholder="Claim code">
+          <button class="btn ghost" type="submit">Claim</button>
+        </form>
+      </details>
+    </div>
+    <div id="sell-guest" class="empty hidden">
+      <h3>List your harvest</h3>
+      <p>Create a farmer account, add your farm, then post what you have this week.</p>
+      <button class="btn primary" type="button" data-account-link style="margin-top:12px">Create farmer account</button>
+    </div>
+    <div id="my-listings-box" class="hidden">
+      <h3>Your listings</h3>
+      <div id="my-listings" class="grid" style="margin-top:8px"></div>
+    </div>
+    <form id="stall-form" class="card grid hidden">
+      <h3>List this week</h3>
+      <p class="meta">Amount, unit, price, pickup window.</p>
       <label>Farm <select id="stall-node" required></select></label>
       <div class="row">
         <label>From <input type="datetime-local" id="stall-from" required></label>
@@ -153,7 +120,7 @@
       <label>Pickup <input id="stall-where" required></label>
       <div id="lots"></div>
       <button type="button" class="btn ghost" id="add-lot">Another item</button>
-      <button class="btn primary" type="submit">List on the network</button>
+      <button class="btn primary" type="submit">Post listing</button>
     </form>
   </section>
   <section id="view-visit" class="hidden">
@@ -192,6 +159,10 @@
     <div id="ledger"></div>
   </section>
 </main>
+<nav id="tabbar"></nav>
+<div id="sheet" class="hidden" role="dialog" aria-modal="true">
+  <div class="sheet-card" id="sheet-body"></div>
+</div>
 <div id="toast" class="toast hidden"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -200,9 +171,22 @@ const UNITS = ["kg", "L", "kpl", "box", "bunch"];
 let token = localStorage.getItem("sk_token") || "";
 let me = JSON.parse(localStorage.getItem("sk_me") || "null");
 let basket = JSON.parse(localStorage.getItem("sk_basket") || "[]");
-let farmsMap, visitMap, visitMarker, farmMarkers = [];
+let farmsMap, visitMap, visitMarker, farmMap, farmMarker, farmMarkers = [];
 let catalogById = {};
+let catalogItems = [];
 let activeView = "browse";
+let filterQ = "";
+let filterCat = "all";
+let favs = JSON.parse(localStorage.getItem("sk_favs") || "[]");
+const CATS = ["all","greens","vegetable","root","berries","eggs","dairy","preserve","feed"];
+const HERO = { dairy:"--hero-dairy", greens:"--hero-greens", berries:"--hero-berries", eggs:"--hero-eggs", root:"--hero-root", vegetable:"--hero-vegetable", preserve:"--hero-preserve", feed:"--hero-feed", produce:"--hero-produce" };
+function heroVar(cat) { return HERO[(cat || "produce").toLowerCase()] || "--hero-produce"; }
+function saveFavs() { localStorage.setItem("sk_favs", JSON.stringify(favs)); }
+function isFav(id) { return favs.includes(id); }
+function toggleFav(id) {
+  favs = isFav(id) ? favs.filter(x => x !== id) : favs.concat(id);
+  saveFavs();
+}
 
 function role() { return me && me.role ? me.role : "guest"; }
 function esc(s) {
@@ -263,56 +247,91 @@ function fmtTimestamp(value) {
   if (!value) return "unknown time";
   return new Date(value).toLocaleString("fi", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
-function navItems() {
-  const r = role();
-  const items = [
-    ["browse", "What's available"],
-    ["farms", "Farms"],
-    ["basket", "Basket"],
-  ];
-  if (r === "farmer" || r === "organizer") items.push(["listings", "Add items"]);
-  if (r === "guest") items.push(["account", "Log in"]);
-  if (r === "organizer") {
-    items.push(["ledger", "Ledger"]);
-    items.push(["visit", "Add farm"]);
-  }
-  return items;
+function icn(name) {
+  const p = {
+    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+    map: '<path d="M12 21s7-7.2 7-12a7 7 0 10-14 0c0 4.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.2"/>',
+    sell: '<path d="M12 5v14M5 12h14"/>',
+    orders: '<path d="M6 7h15l-1.4 8.2a2 2 0 01-2 1.8H9.2a2 2 0 01-2-1.6L5 4H2"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/>',
+    you: '<circle cx="12" cy="8" r="3.2"/><path d="M5 19c1.2-3.2 3.4-5 7-5s5.8 1.8 7 5"/>',
+  };
+  return `<svg viewBox="0 0 24 24">${p[name] || ""}</svg>`;
 }
-function defaultView() {
-  const r = role();
-  if (r === "organizer") return "ledger";
-  return "browse";
+function navItems() {
+  return [
+    ["browse", "Search", "search"],
+    ["farms", "Map", "map"],
+    ["listings", "Sell", "sell"],
+    ["basket", "Orders", "orders"],
+    ["account", "You", "you"],
+  ];
+}
+function defaultView() { return "browse"; }
+function titles() {
+  return { browse: "Search", farms: "Farms", listings: "Sell", basket: "Orders", account: "You", visit: "Field visit", ledger: "Ledger" };
 }
 function renderNav(active) {
-  const nav = document.getElementById("nav");
-  nav.innerHTML = navItems().map(([id, label]) =>
-    `<button data-view="${id}" class="${id === active ? "active" : ""}">${label}${id === "basket" ? ' <span id="basket-n"></span>' : ""}</button>`
+  const nav = document.getElementById("tabbar");
+  nav.innerHTML = navItems().map(([id, label, icon]) =>
+    `<button data-view="${id}" class="${id === active ? "on" : ""}">${icn(icon)}<span>${label}</span>${id === "basket" ? '<span id="basket-n" class="badge hidden"></span>' : ""}</button>`
   ).join("");
   nav.querySelectorAll("button").forEach(b => b.onclick = () => show(b.dataset.view));
   saveBasket();
 }
 function applyChrome() {
-  const r = role();
-  document.body.dataset.role = r;
-  document.getElementById("tagline").textContent = r === "organizer"
-    ? "Admin — add farms, see the ledger, list Kariniemi items."
-    : r === "farmer"
-      ? "Your basket and listings — fulfill requests and pick up from other farms."
-      : "Who has what, when, and where.";
+  document.body.dataset.role = role();
+  const browsing = activeView === "browse";
+  document.getElementById("search-wrap").classList.toggle("hidden", !browsing);
+  document.getElementById("loc-btn").classList.toggle("hidden", !browsing);
+  document.getElementById("chips").classList.toggle("hidden", !browsing);
+  const title = document.getElementById("page-title");
+  title.classList.toggle("hidden", browsing);
+  title.textContent = titles()[activeView] || "Satokori";
 }
-function renderAuth() {
-  const box = document.getElementById("auth-box");
-  if (me) {
-    const pill = me.role === "organizer" ? "Admin" : me.role;
-    box.innerHTML = `<span class="role-pill">${pill}</span><small>${me.name}</small>
-      <button class="btn ghost" id="logout">Switch</button>`;
-    box.querySelector("#logout").onclick = logout;
-    document.querySelectorAll("[data-account-link]").forEach(b => b.classList.add("hidden"));
+function renderYou() {
+  const guest = document.getElementById("you-guest");
+  const user = document.getElementById("you-user");
+  if (!me) {
+    guest.classList.remove("hidden");
+    user.classList.add("hidden");
     return;
   }
-  box.innerHTML = `<button class="btn primary" data-account-link>Log in</button>`;
-  box.querySelector("[data-account-link]").onclick = () => show("account");
-  document.querySelectorAll("[data-account-link]").forEach(b => { b.classList.remove("hidden"); b.onclick = () => show("account"); });
+  guest.classList.add("hidden");
+  user.classList.remove("hidden");
+  const pill = me.role === "organizer" ? "Admin" : me.role === "farmer" ? "Farmer" : "Customer";
+  user.innerHTML = `
+    <div class="card">
+      <div class="role-pill">${pill}</div>
+      <h3 style="margin-top:8px">${esc(me.name)}</h3>
+      <p class="meta">${esc(me.email)}</p>
+      <button class="btn ghost" id="logout" type="button">Log out</button>
+    </div>
+    <div class="card grid" id="alert-setup"></div>
+    ${me.role === "organizer" ? `<div class="btn-row"><button class="btn" data-view="ledger">Ledger</button><button class="btn" data-view="visit">Field visit</button></div>` : ""}`;
+  user.querySelector("#logout").onclick = logout;
+  user.querySelectorAll("[data-view]").forEach(b => b.onclick = () => show(b.dataset.view));
+  renderAlertSetup();
+}
+function renderAuth() {
+  renderYou();
+  document.querySelectorAll("[data-account-link]").forEach(b => {
+    b.classList.toggle("hidden", !!me);
+    b.onclick = () => show("account");
+  });
+}
+function renderAlertSetup() {
+  const el = document.getElementById("alert-setup");
+  if (!el) return;
+  const perm = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
+  if (perm === "granted" && pushReady) {
+    el.innerHTML = `<p class="meta">Phone alerts on.</p>`;
+    return;
+  }
+  let hint = "Alerts reach the phone even when Satokori is closed.";
+  if (isIos() && !isStandalone()) hint = "Open Satokori from the home-screen icon, then turn on alerts.";
+  else if (perm === "denied") hint = "Alerts are blocked in iPhone Settings → Notifications → Satokori.";
+  el.innerHTML = `${perm === "denied" ? "" : `<button class="btn primary" data-enable-alerts type="button">Turn on phone alerts</button>`}<p class="meta">${hint}</p>`;
+  el.querySelectorAll("[data-enable-alerts]").forEach(b => b.onclick = () => enableNotifications(true));
 }
 async function logout() {
   try { await unsubscribePush(); } catch {}
@@ -340,10 +359,16 @@ async function login(email, password) {
   localStorage.setItem("sk_me", JSON.stringify(me));
   renderAuth();
   applyChrome();
-  show(defaultView());
-  toast(me.role === "organizer" ? "Admin view" : me.role === "farmer" ? "Farmer view" : "Customer view");
   enableNotifications();
   startNotifyLoop();
+  if (me.role === "farmer" || me.role === "organizer") {
+    try {
+      const nodes = await api("/nodes");
+      if (!nodes.length) { show("listings"); toast("Add your farm to start listing"); return; }
+    } catch {}
+  }
+  show("browse");
+  toast("Signed in");
 }
 async function registerAccount(payload) {
   const res = await fetch("/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -359,7 +384,8 @@ function updateBasketBadge(asks = []) {
     const readyOutgoing = asks.filter(a => a.buyer_id === me.id && (a.status === "confirmed" || a.status === "offered") && !a.buyer_verified_at).length;
     count += pendingIncoming + readyOutgoing;
   }
-  n.textContent = count ? `(${count})` : "";
+  n.textContent = count || "";
+  n.classList.toggle("hidden", !count);
 }
 function saveBasket() {
   localStorage.setItem("sk_basket", JSON.stringify(basket));
@@ -391,66 +417,105 @@ function renderBasket() {
     saveBasket(); renderBasket();
   });
 }
-async function loadCatalog() {
-  const data = await api(`/catalog?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=40`);
+function money(item) {
+  if (item.is_free || item.price_per_kg === 0) return "Ask";
+  return item.price_per_kg.toFixed(2) + " €";
+}
+function renderChips(items) {
+  const found = new Set(items.map(i => (i.category || "").toLowerCase()).filter(Boolean));
+  const list = ["all"].concat(CATS.filter(c => c !== "all" && found.has(c)));
+  const el = document.getElementById("chips");
+  el.innerHTML = list.map(c => `<button type="button" data-cat="${c}" class="${filterCat === c ? "on" : ""}">${c === "all" ? "All" : c}</button>`).join("");
+  el.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { filterCat = b.dataset.cat; paintCatalog(); renderChips(catalogItems); });
+}
+function paintCatalog() {
   const root = document.getElementById("catalog");
-  if (!data.items.length) { root.innerHTML = `<p class="meta">Nothing listed yet.</p>`; return; }
-  catalogById = {};
-  data.items.forEach(item => { catalogById[item.id] = item; });
-  const mine = me && me.id;
-  root.innerHTML = data.items.map(item => {
-    const own = mine && item.farmer_id === mine;
+  const q = filterQ.trim().toLowerCase();
+  const rows = catalogItems.filter(item => {
+    if (filterCat !== "all" && (item.category || "").toLowerCase() !== filterCat) return false;
+    if (!q) return true;
+    return [item.produce_name, item.farm_name, item.farmer_name, item.category].join(" ").toLowerCase().includes(q);
+  });
+  if (!rows.length) {
+    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>Nothing listed</h3><p>Try another search or category.</p></div>`;
+    return;
+  }
+  root.innerHTML = rows.map(item => {
     const soldOut = item.status === "sold_out";
-    const canAsk = role() !== "guest" && !own;
-    const label = soldOut ? "Request" : "Ask to pick up";
-    return `
-    <article class="card ${item.golden ? "golden" : ""} ${soldOut ? "sold-out" : ""}">
-      <div class="item">
-        <div>
-          <h3>${item.produce_name}${soldOut ? " · sold out" : ""}</h3>
-          <div class="meta">${item.farm_name} · listed ${fmtTimestamp(item.created_at)} · ${fmtWhen(item.available_from, item.available_until)}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}${own ? " · yours" : ""}</div>
-          <div class="price">${soldOut ? "Sold out" : qtyLabel(item) + " · " + priceLabel(item)}</div>
-        </div>
-        <div>
-          ${canAsk ? `<button class="btn primary" data-ask="${item.id}">${label}</button>` : ""}
-          ${role() === "guest" ? `<button class="btn ghost" data-needlogin="1">${label}</button>` : ""}
-        </div>
+    const km = item.distance_km != null ? item.distance_km + " km" : "";
+    return `<article class="tile ${soldOut ? "sold-out" : ""}" data-open="${item.id}">
+      <button type="button" class="fav ${isFav(item.id) ? "on" : ""}" data-fav="${item.id}" aria-label="Save">♥</button>
+      <div class="tile-hero" style="background:var(${heroVar(item.category)})"><span>${esc(item.produce_name)}</span></div>
+      <div class="tile-body">
+        <div class="tile-price">${soldOut ? "Sold out" : money(item)}</div>
+        <div class="tile-title">${esc(item.produce_name)}${soldOut ? "" : " · " + qtyLabel(item)}</div>
+        <div class="tile-meta">${esc(item.farm_name)}${km ? " · " + km : ""}</div>
       </div>
     </article>`;
   }).join("");
-  root.querySelectorAll("[data-ask]").forEach(b => b.onclick = () => openAsk(catalogById[b.dataset.ask]));
-  root.querySelectorAll("[data-needlogin]").forEach(b => b.onclick = () => show("account"));
+  root.querySelectorAll("[data-open]").forEach(el => el.onclick = (e) => {
+    if (e.target.closest("[data-fav]")) return;
+    openAsk(catalogById[el.dataset.open]);
+  });
+  root.querySelectorAll("[data-fav]").forEach(b => b.onclick = (e) => {
+    e.stopPropagation();
+    toggleFav(b.dataset.fav);
+    paintCatalog();
+  });
 }
+async function loadCatalog() {
+  const data = await api(`/catalog?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=40`);
+  catalogItems = data.items || [];
+  catalogById = {};
+  catalogItems.forEach(item => { catalogById[item.id] = item; });
+  renderChips(catalogItems);
+  paintCatalog();
+}
+function closeSheet() { document.getElementById("sheet").classList.add("hidden"); }
 function openAsk(item) {
   if (!item) return;
-  if (role() === "guest") { show("account"); toast("Create an account or log in to ask for pickup"); return; }
-  const box = document.getElementById("ask-box");
-  box.classList.remove("hidden");
-  box.innerHTML = `
-    <h3>${item.status === "sold_out" ? "Request" : "Ask"} ${item.farmer_name}</h3>
-    <p class="meta">${item.produce_name} · ${item.farm_name}. ${item.status === "sold_out" ? "It's sold out. They get a text and can tell you when it's back." : "They get a text and reply with a time."}</p>
-    <form id="ask-form" class="grid">
-      <div class="row">
-        <label>How much <input name="qty" type="number" min="0.1" step="0.1" value="1" required></label>
-        <label>Unit <input value="${unitOf(item)}" disabled></label>
-      </div>
-      <label>Note <input name="note" placeholder="This week?"></label>
-      <div>
-        <button class="btn primary" type="submit">Send the ask</button>
-        <button class="btn ghost" type="button" id="ask-cancel">Cancel</button>
-      </div>
-    </form>`;
-  box.querySelector("#ask-cancel").onclick = () => box.classList.add("hidden");
-  box.querySelector("#ask-form").onsubmit = async (e) => {
-    e.preventDefault();
+  const sheet = document.getElementById("sheet");
+  const body = document.getElementById("sheet-body");
+  const soldOut = item.status === "sold_out";
+  const own = me && item.farmer_id === me.id;
+  body.innerHTML = `
+    <div class="detail-hero" style="background:var(${heroVar(item.category)})">${esc(item.produce_name)}</div>
+    <div class="detail-body">
+      <button class="btn ghost" type="button" id="sheet-close">Close</button>
+      <div class="detail-price">${soldOut ? "Sold out" : money(item)}</div>
+      <div class="detail-title">${esc(item.produce_name)}</div>
+      <p class="meta">${esc(item.farm_name)} · ${esc(item.farmer_name || "")}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}<br>${fmtWhen(item.available_from, item.available_until)} · ${esc(item.pickup_point || "")}</p>
+      <p class="meta">${soldOut ? "Sold out. You can still ask when it is back." : qtyLabel(item) + " available."}</p>
+      ${own ? `<p class="meta">This is your listing.</p>` : `
+      <form id="ask-form" class="grid">
+        <div class="row">
+          <label>How much <input name="qty" type="number" min="0.1" step="0.1" value="1" required></label>
+          <label>Unit <input value="${unitOf(item)}" disabled></label>
+        </div>
+        <label>Note <input name="note" placeholder="This week?"></label>
+      </form>`}
+    </div>
+    ${own ? "" : `<div class="detail-bar">
+      <button class="btn ghost" type="button" data-fav-detail="${item.id}">${isFav(item.id) ? "Saved" : "Save"}</button>
+      <button class="btn primary" type="button" id="ask-send">${role() === "guest" ? "Log in to ask" : "Ask to pick up"}</button>
+    </div>`}`;
+  sheet.classList.remove("hidden");
+  body.querySelector("#sheet-close").onclick = closeSheet;
+  sheet.onclick = (e) => { if (e.target === sheet) closeSheet(); };
+  const favBtn = body.querySelector("[data-fav-detail]");
+  if (favBtn) favBtn.onclick = () => { toggleFav(item.id); openAsk(item); paintCatalog(); };
+  const send = body.querySelector("#ask-send");
+  if (send) send.onclick = async () => {
+    if (role() === "guest") { closeSheet(); show("account"); toast("Log in to ask for pickup"); return; }
+    const form = body.querySelector("#ask-form");
     try {
-      const created = await api("/asks", { method: "POST", body: JSON.stringify({
+      await api("/asks", { method: "POST", body: JSON.stringify({
         listing_id: item.id,
-        quantity: Number(e.target.qty.value),
-        note: e.target.note.value,
+        quantity: Number(form.qty.value),
+        note: form.note.value,
       })});
-      box.classList.add("hidden");
-      toast("Sent. The farmer can reply with a time.");
+      closeSheet();
+      toast("Ask sent. They reply with a time.");
       show("basket");
     } catch (err) { toast(err.message); }
   };
@@ -690,38 +755,25 @@ async function loadFarms() {
   document.getElementById("farms").innerHTML = square.stalls.map(s => {
     const unclaimed = s.is_unclaimed || !s.farmer_name || s.farmer_name === "Unclaimed";
     const place = s.pickup_point || s.description || "";
+    const km = s.distance_km != null ? s.distance_km + " km" : "";
     return `
-    <article class="card ${unclaimed ? "golden" : ""}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem;flex-wrap:wrap">
-        <div>
-          <h3>${s.farm_name}</h3>
-          <div class="meta">${unclaimed ? `<span class="role-pill" style="background:#b86132;color:#fff">Unclaimed Farm</span>` : s.farmer_name} · ${fmtWhen(s.available_from, s.available_until)}<br>${place}</div>
-        </div>
-        ${unclaimed ? `<button class="btn primary" data-claim-prompt="${s.claim_id || ''}" data-farm-name="${s.farm_name}">Claim this farm</button>` : ""}
-      </div>
-      ${unclaimed ? `<p class="meta" style="color:var(--copper)">This farm is open for claiming by a local grower. Tap 'Claim this farm' or enter the claim ID above.</p>` : ""}
-      ${s.description && s.description !== place ? `<p class="meta">${s.description}</p>` : ""}
-      ${s.goods && s.goods.length ? s.goods.map(g => `<div>${g.produce_name} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("") : (unclaimed ? `<p class="meta">No produce listed yet.</p>` : "")}
+    <article class="card">
+      <h3>${esc(s.farm_name)}</h3>
+      <div class="meta">${unclaimed ? "Open to claim" : esc(s.farmer_name)} · ${esc(place)}${km ? " · " + km : ""}</div>
+      ${s.goods && s.goods.length ? s.goods.map(g => `<div class="meta">${esc(g.produce_name)} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("") : `<p class="meta">No produce listed yet.</p>`}
+      ${unclaimed ? `<button class="btn primary" data-claim="${esc(s.claim_id || "")}">This is my farm</button>` : ""}
     </article>`;
-  }).join("") || `<p class="meta">No farms listed yet.</p>`;
+  }).join("") || `<div class="empty"><h3>No farms yet</h3><p>Farmers add themselves from Sell.</p></div>`;
 
-  document.querySelectorAll("[data-claim-prompt]").forEach(b => b.onclick = async () => {
-    if (role() === "guest") { show("account"); toast("Log in or create a farmer account to claim this farm"); return; }
-    if (role() !== "farmer" && role() !== "organizer") { toast("Only farmer accounts can claim farms"); return; }
-    const claimId = b.dataset.claimPrompt;
-    const farmName = b.dataset.farmName;
-    const input = document.getElementById("claim-farm-input");
-    if (input && claimId) input.value = claimId;
-    const entered = prompt(`Admin shared unique claim ID for ${farmName}:\n\n${claimId ? `ID: ${claimId}\n\nConfirm ID to claim:` : "Enter farm claim ID:"}`, claimId || "");
-    if (!entered) return;
+  document.querySelectorAll("[data-claim]").forEach(b => b.onclick = async () => {
+    if (role() === "guest") { show("account"); toast("Create a farmer account first"); return; }
+    if (role() !== "farmer" && role() !== "organizer") { toast("Farmer accounts only"); return; }
+    if (!b.dataset.claim) { show("listings"); return; }
     try {
-      const res = await api("/nodes/claim", { method: "POST", body: JSON.stringify({ claim_id: entered.trim() }) });
-      toast(`${res.farm_name} claimed!`);
+      const res = await api("/nodes/claim", { method: "POST", body: JSON.stringify({ claim_id: b.dataset.claim }) });
+      toast(res.farm_name + " is yours");
       loadFarms();
-      if (role() === "farmer" || role() === "organizer") {
-        loadMyListings();
-        loadStallNodes();
-      }
+      show("listings");
     } catch (err) { toast(err.message); }
   });
 }
@@ -786,7 +838,7 @@ async function loadMyListings() {
   }
   const nodes = await api("/nodes");
   if (!nodes.length) {
-    list.innerHTML = `<p class="meta">${role() === "organizer" ? "Use Add farm on a field visit, or claim an existing farm." : "Claim a farm in the Farms tab or ask admin to add your farm."}</p>`;
+    list.innerHTML = `<p class="meta">Add your farm above, then list this week’s harvest.</p>`;
     return;
   }
   const square = await api("/square");
@@ -908,6 +960,29 @@ document.getElementById("register-form").onsubmit = async (e) => {
   catch (err) { toast(err.message); }
 };
 document.querySelectorAll("[data-demo-email]").forEach(b => b.onclick = () => login(b.dataset.demoEmail, b.dataset.demoPassword));
+document.getElementById("auth-seg").querySelectorAll("[data-auth-mode]").forEach(b => b.onclick = () => {
+  document.getElementById("auth-seg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  document.getElementById("login-form").classList.toggle("hidden", b.dataset.authMode !== "login");
+  document.getElementById("register-form").classList.toggle("hidden", b.dataset.authMode !== "register");
+});
+document.getElementById("q").addEventListener("input", () => { filterQ = document.getElementById("q").value; paintCatalog(); });
+document.getElementById("loc-btn").onclick = () => show("farms");
+document.getElementById("farm-save").onclick = async () => {
+  const name = document.getElementById("farm-name").value.trim();
+  const pickup = document.getElementById("farm-pickup").value.trim();
+  if (!name || !pickup) { toast("Farm name and pickup point are required"); return; }
+  try {
+    await api("/nodes", { method: "POST", body: JSON.stringify({
+      name,
+      type: document.getElementById("farm-type").value,
+      lat: Number(document.getElementById("farm-lat").value),
+      lng: Number(document.getElementById("farm-lng").value),
+      description: pickup,
+    })});
+    toast("Farm saved");
+    await loadSellView();
+  } catch (err) { toast(err.message); }
+};
 document.getElementById("stall-form").onsubmit = async (e) => {
   e.preventDefault();
   const nodeId = document.getElementById("stall-node").value;
@@ -920,9 +995,10 @@ document.getElementById("stall-form").onsubmit = async (e) => {
       pickup_point: document.getElementById("stall-where").value,
       lots: lotsFrom(document.getElementById("lots")),
     })});
-    toast("Listed on the network");
+    toast("Listed");
     document.getElementById("lots").innerHTML = "";
     lotRow(document.getElementById("lots"));
+    await loadSellView();
     show("browse");
   } catch (err) { toast(err.message); }
 };
@@ -957,22 +1033,58 @@ function show(name) {
   if (!view) return;
   view.classList.remove("hidden");
   renderNav(name);
-  if (name === "browse") {
-    loadCatalog();
-    const myBox = document.getElementById("my-listings-box");
-    if (role() === "farmer" || role() === "organizer") {
-      if (myBox) myBox.classList.remove("hidden");
-      loadMyListings();
-    } else {
-      if (myBox) myBox.classList.add("hidden");
-    }
-  }
+  applyChrome();
+  if (name === "browse") loadCatalog();
   if (name === "farms") loadFarms();
   if (name === "basket") loadBasketView();
-  if (name === "listings") loadStallNodes();
+  if (name === "listings") loadSellView();
+  if (name === "account") renderYou();
   if (name === "visit") { ensureVisitMap(); setTimeout(() => visitMap && visitMap.invalidateSize(), 80); }
   if (name === "ledger") loadLedger();
   if (role() !== "guest") loadOrderAlerts();
+}
+async function loadSellView() {
+  const setup = document.getElementById("farm-setup");
+  const stall = document.getElementById("stall-form");
+  const guest = document.getElementById("sell-guest");
+  const mine = document.getElementById("my-listings-box");
+  if (role() === "guest" || role() === "buyer") {
+    setup.classList.add("hidden");
+    stall.classList.add("hidden");
+    mine.classList.add("hidden");
+    guest.classList.remove("hidden");
+    return;
+  }
+  guest.classList.add("hidden");
+  const nodes = await api("/nodes");
+  if (!nodes.length) {
+    setup.classList.remove("hidden");
+    stall.classList.add("hidden");
+    mine.classList.add("hidden");
+    ensureFarmMap();
+    return;
+  }
+  setup.classList.add("hidden");
+  stall.classList.remove("hidden");
+  mine.classList.remove("hidden");
+  await loadStallNodes();
+  await loadMyListings();
+}
+function ensureFarmMap() {
+  if (farmMap) { setTimeout(() => farmMap.invalidateSize(), 80); return; }
+  const el = document.getElementById("farm-map");
+  if (!el) return;
+  farmMap = L.map("farm-map").setView([HERE.lat, HERE.lng], 11);
+  tileLayer().addTo(farmMap);
+  const setPin = (latlng) => {
+    document.getElementById("farm-lat").value = latlng.lat.toFixed(5);
+    document.getElementById("farm-lng").value = latlng.lng.toFixed(5);
+    if (farmMarker) farmMarker.setLatLng(latlng);
+    else farmMarker = L.marker(latlng).addTo(farmMap);
+  };
+  farmMap.on("click", e => setPin(e.latlng));
+  setPin(L.latLng(HERE.lat, HERE.lng));
+  setTimeout(() => farmMap.invalidateSize(), 80);
 }
 let swReg = null;
 let notifyTimer = null;
@@ -1054,6 +1166,7 @@ async function enableNotifications(prompt) {
   }
   if (Notification.permission === "granted") await subscribePush();
   loadOrderAlerts();
+  if (activeView === "account") renderAlertSetup();
 }
 function stopNotifyLoop() {
   if (notifyTimer) { clearInterval(notifyTimer); notifyTimer = null; }
@@ -1100,42 +1213,13 @@ function clearOrderAlerts() {
 }
 async function loadOrderAlerts() {
   const el = document.getElementById("order-alerts");
-  const customerId = me && me.id;
+  if (el) { el.innerHTML = ""; el.classList.add("hidden"); }
+  if (!me || role() === "guest") return;
   try {
-    const [rows, alerts] = await Promise.all([api("/asks"), api("/alerts")]);
-    if (!me || me.id !== customerId || role() === "guest") return;
-    const unackedIncoming = rows.filter(a => a.farmer_id === me.id && a.status === "asked" && !a.acknowledged_at);
-    const confirmed = rows.filter(a => a.buyer_id === me.id && (a.status === "confirmed" || a.status === "offered") && !a.buyer_verified_at);
-    const unread = alerts.filter(a => !a.read);
-    const showIncomingBanner = unackedIncoming.length && activeView !== "basket";
-    const perm = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
-    const needPermit = perm === "default";
-    const blocked = perm === "denied";
-    const iosHint = isIos() && !isStandalone();
-    const showPushSetup = needPermit || blocked || (iosHint && !pushReady) || (perm === "granted" && !pushReady && !iosHint);
-    if (!showIncomingBanner && !confirmed.length && !unread.length && !showPushSetup) { el.classList.add("hidden"); el.innerHTML = ""; return; }
-    el.classList.remove("hidden");
-    let pushCard = "";
-    if (showPushSetup) {
-      let hint = "Alerts reach the phone even when Satokori is closed.";
-      if (iosHint) hint = "On iPhone, open Satokori from the home-screen icon, then turn on alerts.";
-      else if (blocked) hint = "Alerts are blocked. Enable them in iPhone Settings → Notifications → Satokori.";
-      else if (perm === "granted" && !pushReady) hint = "Almost there — tap to finish connecting phone alerts.";
-      const btn = blocked ? "" : `<button class="btn copper" data-enable-alerts type="button">${pushReady ? "Phone alerts on" : "Turn on phone alerts"}</button>`;
-      pushCard = `<div class="order-alert">${btn}<p class="meta">${hint}</p></div>`;
-    }
-    el.innerHTML = `${showIncomingBanner ? `<div class="order-alert"><h2>Incoming pickup request${unackedIncoming.length > 1 ? "s" : ""} to fulfill</h2>
-      <p class="meta">${unackedIncoming.map(a => `${esc(a.buyer_name)} asked for ${a.quantity} ${esc(a.unit)} ${esc(a.produce)}`).join(" · ")}</p>
-      <button class="btn primary" data-goto-basket>Go to basket to acknowledge</button>
-    </div>` : ""}${confirmed.length ? `<div class="order-alert"><h2>Farmer replied</h2>
-      ${confirmed.map(a => `<div class="order"><b>${esc(a.produce)}</b> · ${a.quantity} ${esc(a.unit)}
-        ${farmerReplyHtml(a, a.farmer_id === me.id)}
-      </div>`).join("")}
-    </div>` : ""}${unread.map(a => `<div class="order-alert"><b>Alert</b><div>${esc(a.body)}</div><button class="btn ghost" data-read-alert="${a.id}">Clear</button></div>`).join("")}${pushCard}`;
-    el.querySelectorAll("[data-enable-alerts]").forEach(b => b.onclick = () => enableNotifications(true));
-    el.querySelectorAll("[data-read-alert]").forEach(b => b.onclick = async () => { await api(`/alerts/${b.dataset.readAlert}/read`, { method: "POST" }); loadOrderAlerts(); });
-    el.querySelectorAll("[data-goto-basket]").forEach(b => b.onclick = () => show("basket"));
-  } catch (err) { el.classList.add("hidden"); }
+    const rows = await api("/asks");
+    updateBasketBadge(rows);
+  } catch {}
+  if (activeView === "account") renderAlertSetup();
 }
 function nextSaturday(hour) {
   const d = new Date();
