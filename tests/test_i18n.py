@@ -36,3 +36,7 @@ def test_i18n_bootstrap_uses_i18next():
     assert "paintOpenFarms" not in html
     assert 'id="claim-open"' not in html
     assert 'id="guest-settings"' in html
+    assert 'id="settings-btn"' in html
+    assert 'id="theme-btn"' in html
+    assert "function produceSrc" in html
+    assert "openSettings" in html

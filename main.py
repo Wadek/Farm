@@ -129,7 +129,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 def index():
-    return FileResponse("static/square.html")
+    return FileResponse("static/square.html", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/r/{token}")

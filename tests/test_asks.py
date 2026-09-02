@@ -123,6 +123,13 @@ def test_service_worker_and_manifest(client):
     assert "viewport-fit=cover" in page.text
     assert "/static/css/app.css" in page.text
     assert 'id="lang-switch"' in page.text
+    assert 'id="settings-btn"' in page.text
+    assert 'id="theme-btn"' in page.text
+    assert "function produceSrc" in page.text
+    assert "/static/produce/" in page.text
+    dairy = client.get("/static/produce/dairy.jpg")
+    assert dairy.status_code == 200
+    assert dairy.headers["content-type"].startswith("image/")
     assert "/static/i18n.js" in page.text
     i18n = client.get("/static/i18n.js")
     assert i18n.status_code == 200

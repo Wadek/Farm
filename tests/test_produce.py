@@ -103,6 +103,11 @@ def test_browse_listings_public(client):
     resp = client.get("/listings")
     assert resp.status_code == 200
     assert len(resp.json()) == 1
+    item = resp.json()[0]
+    assert item["image_url"] == "/static/produce/vegetable.jpg"
+    pic = client.get(item["image_url"])
+    assert pic.status_code == 200
+    assert pic.headers["content-type"].startswith("image/")
 
 
 def test_browse_listings_with_radius(client):

@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css">
+<link rel="stylesheet" href="/static/css/app.css?v=15">
 </head>
 <body>
 <header id="topbar">
@@ -25,6 +25,8 @@
     <button type="button" data-lang="en">EN</button>
     <button type="button" data-lang="fi">FI</button>
   </div>
+  <button type="button" id="theme-btn" class="icon-btn" aria-label="Theme"></button>
+  <button type="button" id="settings-btn" class="icon-btn" aria-label="Settings"></button>
 </header>
 <div class="chips" id="chips"></div>
 <main>
@@ -206,8 +208,22 @@ let filterQ = "";
 let filterCat = "all";
 let favs = JSON.parse(localStorage.getItem("sk_favs") || "[]");
 const CATS = ["all","greens","vegetable","root","berries","eggs","dairy","preserve","feed"];
-const HERO = { dairy:"--hero-dairy", greens:"--hero-greens", berries:"--hero-berries", eggs:"--hero-eggs", root:"--hero-root", vegetable:"--hero-vegetable", preserve:"--hero-preserve", feed:"--hero-feed", produce:"--hero-produce" };
+const HERO = { dairy:"--hero-dairy", greens:"--hero-greens", berries:"--hero-berries", eggs:"--hero-eggs", root:"--hero-root", vegetable:"--hero-vegetable", preserve:"--hero-preserve", feed:"--hero-feed", produce:"--hero-produce", meat:"--hero-root" };
+const PRODUCE_ICONS = { dairy:1, eggs:1, greens:1, berries:1, vegetable:1, root:1, preserve:1, feed:1, produce:1, meat:1 };
 function heroVar(cat) { return HERO[(cat || "produce").toLowerCase()] || "--hero-produce"; }
+function produceSrc(item) {
+  if (item && item.image_url) return item.image_url;
+  const name = String((item && item.produce_name) || "").toLowerCase();
+  let cat = String((item && item.category) || "produce").toLowerCase();
+  if (/(beef|lamb|meat|liha|karitsa|nauta|poro)/.test(name)) cat = "meat";
+  if (!PRODUCE_ICONS[cat]) cat = "produce";
+  return "/static/produce/" + cat + ".jpg";
+}
+function produceImg(item, name) {
+  const src = esc(produceSrc(item));
+  const label = esc(name || (item && item.produce_name) || "");
+  return `<img class="produce-icon" src="${src}" alt="${label}" onerror="this.onerror=null;this.src='/static/produce/produce.jpg'">`;
+}
 function saveFavs() { localStorage.setItem("sk_favs", JSON.stringify(favs)); }
 function isFav(id) { return favs.includes(id); }
 function toggleFav(id) {
@@ -280,9 +296,19 @@ function paintStatic() {
   document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
   document.querySelectorAll("#lang-switch [data-lang]").forEach(b => b.classList.toggle("on", b.dataset.lang === getLang()));
 }
+function paintHeaderIcons() {
+  paintThemeBtn();
+  const gear = document.getElementById("settings-btn");
+  if (gear) {
+    gear.innerHTML = settingsGlyph();
+    gear.setAttribute("aria-label", t("Settings"));
+    gear.title = t("Settings");
+  }
+}
 function applyLang() {
   setLang(getLang());
   paintStatic();
+  paintHeaderIcons();
   applyChrome();
   renderNav(activeView);
   renderAuth();
@@ -343,7 +369,7 @@ function applyChrome() {
 }
 function settingsHtml() {
   const theme = (typeof getTheme === "function" && getTheme()) || "light";
-  return `<div class="card grid" id="settings-card">
+  return `<div class="card grid settings-card">
       <h3>${t("Settings")}</h3>
       <p class="meta">${t("Language")}</p>
       <div class="lang">
@@ -355,14 +381,43 @@ function settingsHtml() {
         <button type="button" data-theme="light" class="${theme === "light" ? "on" : ""}">${t("Light")}</button>
         <button type="button" data-theme="dark" class="${theme === "dark" ? "on" : ""}">${t("Dark")}</button>
       </div>
-      <div id="alert-setup" class="grid"></div>
+      <div class="alert-setup grid"></div>
     </div>`;
 }
 function bindSettings(root) {
   if (!root) return;
   root.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { setLang(b.dataset.lang); applyLang(); });
-  root.querySelectorAll("[data-theme]").forEach(b => b.onclick = () => { setTheme(b.dataset.theme); applyLang(); });
+  root.querySelectorAll("[data-theme]").forEach(b => b.onclick = () => { setTheme(b.dataset.theme); paintThemeBtn(); applyLang(); });
   renderAlertSetup();
+}
+function themeGlyph() {
+  if (getTheme() === "dark") {
+    return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M3 12h2M19 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`;
+  }
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.2 13.2A6.2 6.2 0 019 6.4 7 7 0 1016.2 13.2z"/></svg>`;
+}
+function settingsGlyph() {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.5v2.2M12 18.3v2.2M4.8 6.2l1.6 1.6M17.6 16.2l1.6 1.6M3.5 12h2.2M18.3 12h2.2M4.8 17.8l1.6-1.6M17.6 7.8l1.6-1.6"/></svg>`;
+}
+function paintThemeBtn() {
+  const b = document.getElementById("theme-btn");
+  if (!b) return;
+  b.innerHTML = themeGlyph();
+  b.setAttribute("aria-label", t("Theme"));
+  b.title = t("Theme");
+}
+function openSettings() {
+  const sheet = document.getElementById("sheet");
+  const body = document.getElementById("sheet-body");
+  body.innerHTML = `
+    <div class="detail-body">
+      <button class="btn ghost" type="button" id="sheet-close">${t("Close")}</button>
+      ${settingsHtml()}
+    </div>`;
+  sheet.classList.remove("hidden");
+  body.querySelector("#sheet-close").onclick = closeSheet;
+  sheet.onclick = (e) => { if (e.target === sheet) closeSheet(); };
+  bindSettings(body);
 }
 function renderYou() {
   const guest = document.getElementById("you-guest");
@@ -403,18 +458,20 @@ function renderAuth() {
   });
 }
 function renderAlertSetup() {
-  const el = document.getElementById("alert-setup");
-  if (!el) return;
   const perm = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
+  let html;
   if (perm === "granted" && pushReady) {
-    el.innerHTML = `<p class="meta">${t("Phone alerts on.")}</p>`;
-    return;
+    html = `<p class="meta">${t("Phone alerts on.")}</p>`;
+  } else {
+    let hint = t("Alerts reach the phone even when Satokori is closed.");
+    if (isIos() && !isStandalone()) hint = t("Open Satokori from the home-screen icon, then turn on alerts.");
+    else if (perm === "denied") hint = t("Alerts are blocked in iPhone Settings → Notifications → Satokori.");
+    html = `${perm === "denied" ? "" : `<button class="btn primary" data-enable-alerts type="button">${t("Turn on phone alerts")}</button>`}<p class="meta">${hint}</p>`;
   }
-  let hint = t("Alerts reach the phone even when Satokori is closed.");
-  if (isIos() && !isStandalone()) hint = t("Open Satokori from the home-screen icon, then turn on alerts.");
-  else if (perm === "denied") hint = t("Alerts are blocked in iPhone Settings → Notifications → Satokori.");
-  el.innerHTML = `${perm === "denied" ? "" : `<button class="btn primary" data-enable-alerts type="button">${t("Turn on phone alerts")}</button>`}<p class="meta">${hint}</p>`;
-  el.querySelectorAll("[data-enable-alerts]").forEach(b => b.onclick = () => enableNotifications(true));
+  document.querySelectorAll(".alert-setup").forEach(el => {
+    el.innerHTML = html;
+    el.querySelectorAll("[data-enable-alerts]").forEach(b => b.onclick = () => enableNotifications(true));
+  });
 }
 async function logout() {
   try { await unsubscribePush(); } catch {}
@@ -542,7 +599,7 @@ function tileHtml(item) {
   return `<article class="tile ${soldOut ? "sold-out" : ""} ${item.featured ? "featured" : ""}" data-open="${item.id}">
     ${flag}
     <button type="button" class="fav ${isFav(item.id) ? "on" : ""}" data-fav="${item.id}" aria-label="${t("Save")}">♥</button>
-    <div class="tile-hero" style="background:var(${heroVar(item.category)})"><img src="${esc(item.image_url || "/static/produce/produce.jpg")}" alt=""><span>${esc(item.produce_name)}</span></div>
+    <div class="tile-hero">${produceImg(item)}<span>${esc(item.produce_name)}</span></div>
     <div class="tile-body">
       <div class="tile-price">${soldOut ? t("Sold out") : money(item)}</div>
       <div class="tile-title">${esc(item.produce_name)}${soldOut ? "" : " · " + qtyLabel(item)}</div>
@@ -624,7 +681,7 @@ function openAsk(item) {
     ? t("Log in to ask")
     : drop ? t("Order for this week's REKO") : t("Ask to pick up");
   body.innerHTML = `
-    <div class="detail-hero" style="background:var(${heroVar(item.category)})"><img src="${esc(item.image_url || "/static/produce/produce.jpg")}" alt=""><span>${esc(item.produce_name)}</span></div>
+    <div class="detail-hero">${produceImg(item)}<span>${esc(item.produce_name)}</span></div>
     <div class="detail-body">
       <button class="btn ghost" type="button" id="sheet-close">${t("Close")}</button>
       <div class="detail-price">${soldOut ? t("Sold out") : money(item)}</div>
@@ -1116,7 +1173,8 @@ async function loadMyListings() {
       .map(n => `<button class="btn copper" type="button" data-gate="${g.id}" data-qty="${n}">${n} ${u}</button>`)
       .join(" ");
     return `
-    <article class="card">
+    <article class="card listing-row">
+      ${produceImg(g)}
       <h3>${g.produce_name}${soldOut ? t(" · sold out") : ""}</h3>
       <div class="meta">${soldOut ? t("Sold out") : qtyLabel(g) + t(" left")} · ${priceLabel(g)} · ${g.farm_name}</div>
       ${soldOut ? `<p class="meta">${t("Customers can still request this. Reply in Basket.")}</p><button class="btn primary" type="button" data-relist="${g.id}">${t("Relist same amount")}</button>` : `
@@ -1572,8 +1630,15 @@ const sat10 = nextSaturday(10), sat14 = nextSaturday(14);
 document.getElementById("lang-switch").querySelectorAll("[data-lang]").forEach(b => {
   b.onclick = () => { setLang(b.dataset.lang); applyLang(); };
 });
+document.getElementById("theme-btn").onclick = () => {
+  setTheme(getTheme() === "dark" ? "light" : "dark");
+  paintThemeBtn();
+  applyLang();
+};
+document.getElementById("settings-btn").onclick = () => openSettings();
 function boot() {
   paintStatic();
+  paintHeaderIcons();
   lotRow(document.getElementById("lots"));
   lotRow(document.getElementById("v-lots"));
   renderAuth();
