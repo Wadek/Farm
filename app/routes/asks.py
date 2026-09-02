@@ -167,9 +167,13 @@ def create_ask(
         .filter(Listing.id == payload.listing_id)
         .first()
     )
-    if not listing or not listing.node or not listing.node.owner:
+    if not listing or not listing.node:
         raise HTTPException(status_code=404, detail="Listing not found")
-    farmer = listing.node.owner
+    farmer = listing.node.owner if listing.node.claimed_at and listing.node.owner else None
+    if farmer is None:
+        farmer = db.query(User).filter(User.role == UserRole.organizer).first()
+    if not farmer:
+        raise HTTPException(status_code=404, detail="Listing not found")
     if farmer.role not in (UserRole.farmer, UserRole.organizer):
         raise HTTPException(status_code=409, detail="Listing owner cannot receive pickup requests")
     if current_user.role not in (UserRole.buyer, UserRole.farmer, UserRole.organizer):

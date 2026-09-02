@@ -6,7 +6,7 @@ from app.models import *  # noqa: ensure all models registered before create_all
 from app.models.ruuvi_reading import RuuviReading  # noqa
 from app.models.flare import DemandFlare  # noqa
 from app.db import Base
-from app.routes import tips, transactions, auth, nodes, produce, agent, square, onboard, asks, push
+from app.routes import tips, transactions, auth, nodes, produce, agent, square, onboard, asks, push, admin
 
 Base.metadata.create_all(bind=engine)
 
@@ -23,6 +23,12 @@ def _ensure_listing_unit():
     if "perpetual" not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE listings ADD COLUMN perpetual BOOLEAN DEFAULT 0"))
+    if "demo" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE listings ADD COLUMN demo BOOLEAN DEFAULT 0"))
+    if "featured" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE listings ADD COLUMN featured BOOLEAN DEFAULT 0"))
 
 
 def _ensure_ask_pickup_columns():
@@ -88,6 +94,7 @@ app.include_router(square.router)
 app.include_router(onboard.router)
 app.include_router(asks.router)
 app.include_router(push.router)
+app.include_router(admin.router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 

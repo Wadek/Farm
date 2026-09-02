@@ -97,6 +97,25 @@ main { max-width: 720px; margin: 0 auto; padding: 8px 8px 16px; }
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tile-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
 .tile.sold-out .tile-hero { filter: grayscale(.4); opacity: .8; }
+.tile.featured { box-shadow: 0 0 0 2px var(--gold); }
+.tile-flag {
+  position: absolute; top: 6px; left: 6px; z-index: 2;
+  padding: 3px 7px; border-radius: 99px;
+  background: rgba(255,255,255,.92); font-size: 10px; font-weight: 800;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--ink);
+}
+.tile-flag.gold { background: var(--gold); color: #fff; }
+.tile-flag.demo { color: var(--copper); }
+.admin-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.admin-tile { background: var(--surface); border-radius: 10px; padding: 12px; }
+.admin-tile .l { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.admin-tile .v { font-size: 22px; font-weight: 800; margin-top: 4px; }
+.farm-row { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.farm-row:last-child { border-bottom: 0; }
+.tag { display: inline-block; padding: 2px 7px; border-radius: 99px; background: var(--bg); font-size: 11px; font-weight: 700; margin-right: 4px; }
+.tag.acc { background: var(--acc); color: #fff; }
+.tag.gold { background: var(--gold); color: #fff; }
+.tag.copper { background: var(--copper); color: #fff; }
 .fav {
   position: absolute; top: 6px; right: 6px; width: 32px; height: 32px;
   border-radius: 99px; background: rgba(255,255,255,.88);
@@ -192,6 +211,10 @@ input, select, textarea {
   touch-action: manipulation;
 }
 #tabbar button svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#tabbar button .mark {
+  width: 26px; height: 26px; border-radius: 7px; object-fit: cover;
+}
+#tabbar button:not(.on) .mark { opacity: .55; }
 #tabbar button.on { color: var(--acc); }
 #tabbar .badge {
   position: absolute; top: -1px; right: calc(50% - 16px);

@@ -26,6 +26,7 @@ class LotIn(BaseModel):
     kcal_per_kg: float = 0.0
     co2_kg_per_kg: float = 0.4
     perpetual: bool = False
+    demo: bool = False
 
 
 class StallOpen(BaseModel):
@@ -99,6 +100,7 @@ def _stall_view(node: Node, km: float | None = None, listing: Listing | None = N
         "claim_id": node.claim_id,
         "claimed_at": _iso(node.claimed_at),
         "is_unclaimed": not claimed,
+        "created_at": _iso(node.created_at),
         "matched_flares": [],
         "goods": [],
     }
@@ -172,10 +174,9 @@ def market_square(
 
     stall_list = list(stalls.values())
     stall_list.sort(key=lambda s: (
-        not s["is_unclaimed"],
-        s["distance_km"] is None,
-        s["distance_km"] or 0,
-    ))
+        s["created_at"] or "",
+        s["farm_name"] or "",
+    ), reverse=True)
 
     flare_views = []
     for flare in flares:
@@ -259,6 +260,8 @@ def open_stall(
             available_from=None if perpetual else payload.available_from,
             available_until=None if perpetual else payload.available_until,
             perpetual=perpetual,
+            demo=bool(lot.demo),
+            featured=False,
             status=ListingStatus.active,
         )
         db.add(listing)
@@ -298,14 +301,14 @@ def catalog(
                 "available_until": stall["available_until"],
                 "distance_km": stall["distance_km"],
                 "farmer_id": stall.get("farmer_id") or "",
+                "farm_created_at": stall.get("created_at"),
                 "golden": bool(stall["matched_flares"]),
             })
-    items.sort(key=lambda g: (
-        g.get("status") != "active",
-        g["distance_km"] is None,
-        g["distance_km"] or 0,
-        g["produce_name"] or "",
-    ))
+    items.sort(
+        key=lambda g: (g.get("farm_created_at") or "", g.get("created_at") or "", g.get("produce_name") or ""),
+        reverse=True,
+    )
+    items.sort(key=lambda g: 0 if g.get("featured") else 1)
     return {"items": items, "count": len(items), "flares": square["flares"]}
 
 

@@ -36,7 +36,8 @@ class RuuviPost(BaseModel):
 
 
 class ClaimFarm(BaseModel):
-    claim_id: str
+    claim_id: str | None = None
+    node_id: str | None = None
 
 
 @router.post("", status_code=201)
@@ -65,9 +66,17 @@ def list_nodes(current_user: User = Depends(get_current_user), db: Session = Dep
 def claim_node(payload: ClaimFarm, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role not in (UserRole.farmer, UserRole.organizer):
         raise HTTPException(status_code=403, detail="Only farmer accounts can claim farms")
-    node = db.query(Node).filter(Node.claim_id == payload.claim_id.strip()).first()
-    if not node:
-        raise HTTPException(status_code=404, detail="Farm claim ID not found")
+    node = None
+    if payload.claim_id and payload.claim_id.strip():
+        node = db.query(Node).filter(Node.claim_id == payload.claim_id.strip()).first()
+        if not node:
+            raise HTTPException(status_code=404, detail="Farm claim ID not found")
+    elif payload.node_id and payload.node_id.strip():
+        node = db.query(Node).filter(Node.id == payload.node_id.strip()).first()
+        if not node:
+            raise HTTPException(status_code=404, detail="Farm not found")
+    else:
+        raise HTTPException(status_code=400, detail="Send a farm or a claim code")
     if node.claimed_at:
         raise HTTPException(status_code=409, detail="Farm has already been claimed")
     node.owner_id = current_user.id
