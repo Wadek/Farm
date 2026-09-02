@@ -26,6 +26,7 @@ class PickupAsk(Base):
     quantity = Column(Float, nullable=False)
     unit = Column(String, default="kg")
     note = Column(String, default="")
+    channel = Column(String, default="")  # reko | farm | ""
     status = Column(Enum(AskStatus), default=AskStatus.asked)
     offer_text = Column(String, default="")
     picked_up_by = Column(String, nullable=True)

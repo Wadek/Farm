@@ -55,5 +55,9 @@ def produce_image_file(name: str | None, category: str | None = None) -> str:
     return _CAT_FILES.get(cat, "produce.jpg")
 
 
+# Bump when the pack is recompressed so browsers drop the old 1024px files.
+PRODUCE_IMAGE_V = "2"
+
+
 def produce_image_url(name: str | None, category: str | None = None) -> str:
-    return "/static/produce/" + produce_image_file(name, category)
+    return f"/static/produce/{produce_image_file(name, category)}?v={PRODUCE_IMAGE_V}"

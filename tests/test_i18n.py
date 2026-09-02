@@ -22,6 +22,9 @@ def test_finnish_catalog_is_not_english_echo():
     assert FI["All"] == "Kaikki"
     assert FI["Meat"] == "Liha"
     assert FI["Greens"] == "Vihreät"
+    assert FI["Order"] == "Tilaa"
+    assert FI["Confirm this week's REKO"] == "Vahvista tämän viikon REKO-jako"
+    assert FI["When will you pick up?"] == "Milloin haet?"
 
 
 def test_i18n_bootstrap_uses_i18next():

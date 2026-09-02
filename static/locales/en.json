@@ -327,5 +327,14 @@
   "Account disabled": "Account disabled",
   "Enable account": "Enable account",
   "Disable account": "Disable account",
-  "Active 7d": "Active 7d"
+  "Active 7d": "Active 7d",
+  "Order": "Order",
+  "Back": "Back",
+  "REKO drop, or pick up at the farm.": "REKO drop, or pick up at the farm.",
+  "Not at REKO this week": "Not at REKO this week",
+  "Name a pickup time": "Name a pickup time",
+  "When will you pick up?": "When will you pick up?",
+  "e.g. Sat 10:00": "e.g. Sat 10:00",
+  "Confirm this week's REKO": "Confirm this week's REKO",
+  "Farm pickup needs a time": "Farm pickup needs a time"
 }

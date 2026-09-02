@@ -42,6 +42,7 @@ def test_saved_chip_filters_and_pins_favorites():
     assert "sk_favs" in html
     css = (ROOT / "static" / "css" / "app.css").read_text(encoding="utf-8")
     assert ".fav.on" in css
+    assert ".ask-channels" in css
 
 
 def test_siuntio_ring_and_farms_are_in_seed():
