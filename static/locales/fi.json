@@ -424,5 +424,16 @@
   "Not this week": "En tällä viikolla",
   "Marked for this week's REKO": "Merkitty tämän viikon REKO-jakoon",
   "Not going to this REKO": "Ei menossa tähän REKO-jakoon",
-  "List something at the farm first": "Listaa ensin jotain tilalle"
+  "List something at the farm first": "Listaa ensin jotain tilalle",
+  "Nearest to me": "Lähimpänä minua",
+  "Your address": "Osoitteesi",
+  "Street, number, town": "Katu, numero, kunta",
+  "Use this address": "Käytä tätä osoitetta",
+  "Listings sort by distance from this address.": "Listaukset järjestetään etäisyyden mukaan tästä osoitteesta.",
+  "Address saved": "Osoite tallennettu",
+  "Address not found": "Osoitetta ei löydy",
+  "Enter an address": "Syötä osoite",
+  "Address lookup failed": "Osoitteen haku epäonnistui",
+  "Nothing nearby": "Ei mitään lähellä",
+  "Try a different address.": "Kokeile toista osoitetta."
 }

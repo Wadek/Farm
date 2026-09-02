@@ -32,6 +32,24 @@ def test_featured_stays_on_reko_filter_in_the_page():
     assert "tile-flag live" in html
 
 
+def test_nearest_chip_uses_user_address():
+    html = (ROOT / "static" / "square.html").read_text(encoding="utf-8")
+    assert 'data-ring="near"' in html
+    assert 'filterRing === "near"' in html
+    assert 't("Nearest to me")' in html
+    assert 't("Your address")' in html
+    assert "function catalogOrigin" in html
+    assert "function openAddressSheet" in html
+    assert "sk_near" in html
+    assert "/geocode?q=" in html
+    assert 'filterRing === "near" ? "distance"' in html
+    assert 't("Nothing nearby")' in html
+    assert 't("Try a different address.")' in html
+    assert 'data-near-save' in html
+    assert "Street, number, town" in html
+    assert "function loadNear" in html
+
+
 def test_saved_chip_filters_and_pins_favorites():
     html = (ROOT / "static" / "square.html").read_text(encoding="utf-8")
     assert 'data-ring="all"' in html
@@ -200,3 +218,37 @@ def test_featured_farm_gate_is_first_in_catalog(client, db):
     assert catalog[0]["drop"] is None
     html = client.get("/").text
     assert "a.featured ? 0 : 1" in html
+
+
+def test_catalog_distance_sort_puts_nearer_farm_first(client):
+    admin, _ = _register(client, "near-admin@test.com", "Admin", "organizer")
+    far_farmer, _ = _register(client, "far-farm@test.com", "Far", "farmer")
+    near_farmer, _ = _register(client, "near-farm@test.com", "Near", "farmer")
+    far_node = client.post("/nodes", json={
+        "name": "Hyvinkää Farm", "type": "farm", "lat": 60.5522, "lng": 24.7050,
+    }, headers=_auth(far_farmer)).json()
+    near_node = client.post("/nodes", json={
+        "name": "Helsinki Farm", "type": "farm", "lat": 60.20, "lng": 24.94,
+    }, headers=_auth(near_farmer)).json()
+    far_lot = client.post("/stalls", json={
+        "node_id": far_node["id"], "pickup_point": "gate",
+        "lots": [{"produce_name": "Hay", "category": "feed", "quantity_kg": 10,
+                  "price_per_kg": 0.2, "perpetual": True}],
+    }, headers=_auth(far_farmer)).json()["lots"][0]
+    client.post("/stalls", json={
+        "node_id": near_node["id"], "pickup_point": "gate",
+        "lots": [{"produce_name": "Milk", "category": "dairy", "quantity_kg": 4,
+                  "price_per_kg": 1.4, "unit": "L", "perpetual": True}],
+    }, headers=_auth(near_farmer))
+    client.post("/admin/featured", json={"listing_id": far_lot["id"]}, headers=_auth(admin))
+    featured = client.get("/catalog?lat=60.1699&lng=24.9384&radius_km=80").json()["items"]
+    assert featured[0]["produce_name"] == "Hay"
+    assert featured[0]["featured"] is True
+    nearest = client.get(
+        "/catalog?lat=60.1699&lng=24.9384&radius_km=80&sort=distance"
+    ).json()["items"]
+    names = [i["produce_name"] for i in nearest]
+    assert names[0] == "Milk"
+    milk = next(i for i in nearest if i["produce_name"] == "Milk")
+    hay = next(i for i in nearest if i["produce_name"] == "Hay")
+    assert milk["distance_km"] < hay["distance_km"]

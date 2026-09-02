@@ -424,5 +424,16 @@
   "Not this week": "Not this week",
   "Marked for this week's REKO": "Marked for this week's REKO",
   "Not going to this REKO": "Not going to this REKO",
-  "List something at the farm first": "List something at the farm first"
+  "List something at the farm first": "List something at the farm first",
+  "Nearest to me": "Nearest to me",
+  "Your address": "Your address",
+  "Street, number, town": "Street, number, town",
+  "Use this address": "Use this address",
+  "Listings sort by distance from this address.": "Listings sort by distance from this address.",
+  "Address saved": "Address saved",
+  "Address not found": "Address not found",
+  "Enter an address": "Enter an address",
+  "Address lookup failed": "Address lookup failed",
+  "Nothing nearby": "Nothing nearby",
+  "Try a different address.": "Try a different address."
 }

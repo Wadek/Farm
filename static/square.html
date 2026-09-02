@@ -225,6 +225,21 @@ let filterQ = "";
 let filterRing = "all";
 let favs = JSON.parse(localStorage.getItem("sk_favs") || "[]");
 const CLAIM_FARM_KEY = "sk_claim_farm";
+const NEAR_KEY = "sk_near";
+function loadNear() {
+  try {
+    const n = JSON.parse(localStorage.getItem(NEAR_KEY) || "null");
+    if (n && typeof n.lat === "number" && typeof n.lng === "number") return n;
+  } catch {}
+  return null;
+}
+function catalogOrigin() {
+  if (filterRing === "near") {
+    const n = loadNear();
+    if (n) return { lat: n.lat, lng: n.lng };
+  }
+  return HERE;
+}
 const CATS = ["greens","root","berries","eggs","dairy","meat","preserve","feed"];
 const PRODUCE_EXTRA_KEY = "sk_produce_extra";
 const PRODUCE_CATALOG = [
@@ -498,6 +513,11 @@ function settingsHtml() {
         <button type="button" data-theme="light" class="${theme === "light" ? "on" : ""}">${t("Light")}</button>
         <button type="button" data-theme="dark" class="${theme === "dark" ? "on" : ""}">${t("Dark")}</button>
       </div>
+      <p class="meta">${t("Your address")}</p>
+      <label><span class="meta">${t("Listings sort by distance from this address.")}</span>
+        <input id="near-address" value="${esc((loadNear() || {}).address || "")}" placeholder="${t("Street, number, town")}" autocomplete="street-address">
+      </label>
+      <button class="btn ghost" type="button" data-near-save>${t("Use this address")}</button>
       <div class="alert-setup grid"></div>
       ${privacyBlock}
     </div>`;
@@ -511,6 +531,9 @@ function bindSettings(root) {
     if (sheet && !sheet.classList.contains("hidden")) openSettings();
   });
   root.querySelectorAll("[data-theme]").forEach(b => b.onclick = () => applyPickedTheme(b.dataset.theme, root));
+  root.querySelectorAll("[data-near-save]").forEach(b => b.onclick = () => saveNearFrom(root));
+  const nearInput = root.querySelector("#near-address");
+  if (nearInput) nearInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveNearFrom(root); } });
   root.querySelectorAll("[data-privacy]").forEach(box => box.onchange = () => togglePrivacy(box.checked));
   root.querySelectorAll("[data-copy-recovery]").forEach(b => b.onclick = () => {
     const k = me && loadRecoveryLocal(me.id);
@@ -573,6 +596,62 @@ function applyPickedTheme(name, root) {
   setTheme(name);
   const scope = root || document;
   scope.querySelectorAll("[data-theme]").forEach(b => b.classList.toggle("on", b.dataset.theme === getTheme()));
+}
+async function saveNearAddress(raw) {
+  const q = String(raw || "").trim();
+  if (q.length < 3) { toast(t("Enter an address")); return false; }
+  try {
+    const hit = await api("/geocode?q=" + encodeURIComponent(q));
+    localStorage.setItem(NEAR_KEY, JSON.stringify({
+      address: q,
+      lat: Number(hit.lat),
+      lng: Number(hit.lng),
+      label: hit.label || q,
+    }));
+    toast(t("Address saved"));
+    return true;
+  } catch (e) {
+    toast(e.message);
+    return false;
+  }
+}
+async function saveNearFrom(root, thenNear) {
+  const input = root && root.querySelector("#near-address");
+  const ok = await saveNearAddress(input && input.value);
+  if (!ok) return;
+  if (thenNear || filterRing === "near") {
+    filterRing = "near";
+    if (activeView === "browse") loadCatalog();
+  }
+}
+function openAddressSheet() {
+  const near = loadNear() || {};
+  const body = document.getElementById("sheet-body");
+  body.innerHTML = `
+    <div class="detail-body">
+      <div class="card grid">
+        <h3>${t("Nearest to me")}</h3>
+        <p class="meta">${t("Listings sort by distance from this address.")}</p>
+        <label><span>${t("Your address")}</span>
+          <input id="near-address" value="${esc(near.address || "")}" placeholder="${t("Street, number, town")}" autocomplete="street-address">
+        </label>
+        <button class="btn primary" type="button" data-near-save>${t("Use this address")}</button>
+      </div>
+    </div>`;
+  showSheet();
+  const input = body.querySelector("#near-address");
+  const go = async () => {
+    const ok = await saveNearAddress(input && input.value);
+    if (!ok) return;
+    filterRing = "near";
+    closeSheet();
+    loadCatalog();
+  };
+  body.querySelector("[data-near-save]").onclick = go;
+  if (input) {
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+    input.focus();
+  }
 }
 function openSettings() {
   const body = document.getElementById("sheet-body");
@@ -760,8 +839,9 @@ function catalogRings(items) {
 function renderChips(items) {
   const el = document.getElementById("chips");
   const rings = catalogRings(items);
-  if (filterRing !== "all" && filterRing !== "saved" && !rings.some(r => r.id === filterRing)) filterRing = "all";
+  if (filterRing !== "all" && filterRing !== "saved" && filterRing !== "near" && !rings.some(r => r.id === filterRing)) filterRing = "all";
   let html = `<button type="button" data-ring="all" class="${filterRing === "all" ? "on" : ""}">${t("All")}</button>`;
+  html += `<button type="button" data-ring="near" class="${filterRing === "near" ? "on" : ""}">${t("Nearest to me")}</button>`;
   html += rings.map(r =>
     `<button type="button" data-ring="${esc(r.id)}" class="${filterRing === r.id ? "on" : ""}">${esc(r.label)}</button>`
   ).join("");
@@ -770,9 +850,17 @@ function renderChips(items) {
   html += `<button type="button" data-ring="saved" class="${filterRing === "saved" ? "on" : ""}">${savedLabel}</button>`;
   el.innerHTML = html;
   el.querySelectorAll("[data-ring]").forEach(b => b.onclick = () => {
-    filterRing = b.dataset.ring;
-    paintCatalog();
-    renderChips(catalogItems);
+    const ring = b.dataset.ring;
+    if (ring === "near") {
+      if (!loadNear() || filterRing === "near") { openAddressSheet(); return; }
+      filterRing = "near";
+      loadCatalog();
+      return;
+    }
+    const prev = filterRing;
+    filterRing = ring;
+    if (prev === "near") loadCatalog();
+    else { paintCatalog(); renderChips(catalogItems); }
   });
 }
 function isLiveFarm(item) {
@@ -831,24 +919,29 @@ function paintCatalog() {
   const root = document.getElementById("catalog");
   const rows = catalogItems.filter(item => {
     if (!matchesQuery(item)) return false;
-    if (filterRing === "all") return true;
+    if (filterRing === "all" || filterRing === "near") return true;
     if (filterRing === "saved") return isFav(item.id);
     const id = item.drop && (item.drop.ring_id || item.drop.id);
     return id === filterRing;
   });
-  rows.sort((a, b) => {
-    const fa = a.featured ? 0 : 1;
-    const fb = b.featured ? 0 : 1;
-    if (fa !== fb) return fa - fb;
-    const sa = isFav(a.id) ? 0 : 1;
-    const sb = isFav(b.id) ? 0 : 1;
-    return sa - sb;
-  });
+  if (filterRing === "near") {
+    rows.sort((a, b) => (a.distance_km == null ? 1e9 : a.distance_km) - (b.distance_km == null ? 1e9 : b.distance_km));
+  } else {
+    rows.sort((a, b) => {
+      const fa = a.featured ? 0 : 1;
+      const fb = b.featured ? 0 : 1;
+      if (fa !== fb) return fa - fb;
+      const sa = isFav(a.id) ? 0 : 1;
+      const sb = isFav(b.id) ? 0 : 1;
+      return sa - sb;
+    });
+  }
   if (!rows.length) {
     const hint = filterRing === "saved"
       ? t("Tap the heart on a listing to keep it here.")
+      : filterRing === "near" ? t("Try a different address.")
       : filterRing === "all" ? t("Try another search or category.") : t("Try another REKO location.");
-    const title = filterRing === "saved" ? t("Nothing saved") : t("Nothing listed");
+    const title = filterRing === "saved" ? t("Nothing saved") : filterRing === "near" ? t("Nothing nearby") : t("Nothing listed");
     root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${title}</h3><p>${hint}</p></div>`;
     return;
   }
@@ -856,7 +949,9 @@ function paintCatalog() {
   bindTiles(root);
 }
 async function loadCatalog() {
-  const data = await api(`/catalog?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=80`);
+  const origin = catalogOrigin();
+  const sort = filterRing === "near" ? "distance" : "featured";
+  const data = await api(`/catalog?lat=${origin.lat}&lng=${origin.lng}&radius_km=80&sort=${sort}`);
   catalogItems = data.items || [];
   catalogById = {};
   catalogItems.forEach(item => { catalogById[item.id] = item; });
