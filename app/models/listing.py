@@ -24,6 +24,7 @@ class Listing(Base):
     is_free = Column(Boolean, default=False)
     available_from = Column(DateTime, nullable=True)
     available_until = Column(DateTime, nullable=True)
+    perpetual = Column(Boolean, default=False)
     status = Column(Enum(ListingStatus), default=ListingStatus.active)
     created_at = Column(DateTime, server_default=func.now())
 

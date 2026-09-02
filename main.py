@@ -20,6 +20,9 @@ def _ensure_listing_unit():
     if "unit" not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE listings ADD COLUMN unit VARCHAR DEFAULT 'kg'"))
+    if "perpetual" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE listings ADD COLUMN perpetual BOOLEAN DEFAULT 0"))
 
 
 def _ensure_ask_pickup_columns():

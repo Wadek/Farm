@@ -55,6 +55,7 @@ def _ask_view(ask: PickupAsk) -> dict:
         "farm_name": farm,
         "pickup_point": pickup,
         "sold_out": listing_status == "sold_out",
+        "perpetual": bool(listing and getattr(listing, "perpetual", False)),
         "buyer_name": ask.buyer.name if ask.buyer else "",
         "farmer_name": ask.farmer.name if ask.farmer else "",
         "buyer_id": ask.buyer_id,
@@ -131,9 +132,10 @@ def _apply_reply(ask: PickupAsk, when_text: str, decline: bool, db: Session) -> 
         if not text:
             raise HTTPException(status_code=400, detail="Send a time, e.g. la 10")
         listing = ask.listing
-        if listing and listing.quantity_kg < ask.quantity:
+        perpetual = bool(listing and getattr(listing, "perpetual", False))
+        if listing and not perpetual and listing.quantity_kg < ask.quantity:
             listing.quantity_kg += ask.quantity - max(listing.quantity_kg, 0)
-        if listing:
+        if listing and not perpetual:
             listing.status = ListingStatus.active
         ask.status = AskStatus.confirmed
         ask.offer_text = text
@@ -142,6 +144,8 @@ def _apply_reply(ask: PickupAsk, when_text: str, decline: bool, db: Session) -> 
         _alert(db, ask.farmer_id, ask.buyer_id, ask.listing_id, alert_body)
         push_title = "Farmer replied"
         push_tag = f"reply-{ask.id}"
+    if not ask.acknowledged_at:
+        ask.acknowledged_at = datetime.now(timezone.utc)
     ask.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ask)
@@ -287,9 +291,11 @@ def mark_available(
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Quantity must be positive")
     listing = ask.listing
-    if listing.quantity_kg < quantity:
+    perpetual = bool(listing and getattr(listing, "perpetual", False))
+    if listing and not perpetual and listing.quantity_kg < quantity:
         listing.quantity_kg += quantity - max(listing.quantity_kg, 0)
-    listing.status = ListingStatus.active
+    if listing and not perpetual:
+        listing.status = ListingStatus.active
     ask.status = AskStatus.confirmed
     ask.offer_text = payload.when_text.strip() or "Ready for pickup"
     ask.updated_at = datetime.now(timezone.utc)
