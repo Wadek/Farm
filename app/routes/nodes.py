@@ -13,6 +13,7 @@ from app.models.user import User
 from app.dependencies import get_current_user
 from app.models.user import UserRole
 from app.services import ruuvi_cloud, ajax_cloud
+from app.services import webpush as push_svc
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
 
@@ -98,17 +99,30 @@ def claim_node(payload: ClaimFarm, current_user: User = Depends(get_current_user
     node.claim_pending_user_id = current_user.id
     node.claim_pending_at = now
     from app.models.message import Message
-    organizer = db.query(User).filter(User.role == UserRole.organizer).first()
-    if organizer:
+    body = f"{current_user.name} asked to claim {node.name}."
+    organizers = db.query(User).filter(User.role == UserRole.organizer).all()
+    for organizer in organizers:
         db.add(Message(
             id=str(uuid.uuid4()),
             sender_id=current_user.id,
             recipient_id=organizer.id,
             listing_id=None,
-            body=f"{current_user.name} asked to claim {node.name}.",
+            body=body,
         ))
     db.commit()
     db.refresh(node)
+    for organizer in organizers:
+        try:
+            push_svc.send_to_user(
+                db,
+                organizer.id,
+                title="Farm claim",
+                body=body,
+                tag=f"farm-claim-{node.id}",
+                url="/?view=ledger",
+            )
+        except Exception:
+            pass
     return {
         "node_id": node.id,
         "farm_name": node.name,
