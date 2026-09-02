@@ -123,9 +123,11 @@ def test_service_worker_and_manifest(client):
     assert '["reko", t("REKO")' not in page.text
     assert "viewport-fit=cover" in page.text
     assert "/static/css/app.css" in page.text
-    assert 'id="lang-switch"' in page.text
+    assert 'id="lang-switch"' not in page.text
+    assert 'id="theme-btn"' not in page.text
     assert 'id="settings-btn"' in page.text
-    assert 'id="theme-btn"' in page.text
+    assert 'data-theme="light"' in page.text
+    assert 'data-lang="fi"' in page.text
     assert "function applyPickedTheme" in page.text
     assert "function produceSrc" in page.text
     assert "/static/produce/" in page.text

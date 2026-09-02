@@ -43,8 +43,10 @@ def test_i18n_bootstrap_uses_i18next():
     assert 'id="claim-open"' not in html
     assert 'id="guest-settings"' in html
     assert 'id="settings-btn"' in html
-    assert 'id="theme-btn"' in html
+    assert 'id="theme-btn"' not in html
+    assert 'id="lang-switch"' not in html
     assert "function applyPickedTheme" in html
+    assert 'html lang="fi"' in html
     assert 'list.push("saved")' in html
     assert "function produceSrc" in html
     assert "openSettings" in html

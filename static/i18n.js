@@ -3,14 +3,13 @@
 (function (global) {
   const KEY = "sk_lang";
   const THEME_KEY = "sk_theme";
-  let lang = "en";
+  let lang = "fi";
   let packs = { en: {}, fi: {} };
 
   function detect() {
     const saved = localStorage.getItem(KEY);
-    if (saved === "fi" || saved === "en") return saved;
-    const nav = String(navigator.language || navigator.userLanguage || "").toLowerCase();
-    return nav.startsWith("fi") ? "fi" : "en";
+    if (saved === "en") return "en";
+    return "fi";
   }
 
   function detectTheme() {
