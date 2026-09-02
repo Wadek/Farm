@@ -25,12 +25,13 @@ class LotIn(BaseModel):
     is_free: bool = False
     kcal_per_kg: float = 0.0
     co2_kg_per_kg: float = 0.4
+    perpetual: bool = False
 
 
 class StallOpen(BaseModel):
     node_id: str
-    available_from: datetime
-    available_until: datetime
+    available_from: datetime | None = None
+    available_until: datetime | None = None
     pickup_point: str
     lots: list[LotIn]
 
@@ -216,8 +217,12 @@ def open_stall(
         raise HTTPException(status_code=403, detail="Not your node")
     if not payload.lots:
         raise HTTPException(status_code=400, detail="A stall needs at least one lot")
-    if payload.available_until <= payload.available_from:
-        raise HTTPException(status_code=400, detail="until must be after from")
+    needs_window = any(not lot.perpetual for lot in payload.lots)
+    if needs_window:
+        if not payload.available_from or not payload.available_until:
+            raise HTTPException(status_code=400, detail="Weekly lots need a pickup window")
+        if payload.available_until <= payload.available_from:
+            raise HTTPException(status_code=400, detail="until must be after from")
 
     created = []
     for lot in payload.lots:
@@ -241,6 +246,7 @@ def open_stall(
         else:
             produce.quantity_kg = (produce.quantity_kg or 0) + lot.quantity_kg
 
+        perpetual = bool(lot.perpetual)
         listing = Listing(
             id=str(uuid.uuid4()),
             node_id=node.id,
@@ -250,8 +256,9 @@ def open_stall(
             pickup_point=payload.pickup_point,
             is_free=lot.is_free or lot.price_per_kg == 0,
             unit=lot.unit or "kg",
-            available_from=payload.available_from,
-            available_until=payload.available_until,
+            available_from=None if perpetual else payload.available_from,
+            available_until=None if perpetual else payload.available_until,
+            perpetual=perpetual,
             status=ListingStatus.active,
         )
         db.add(listing)

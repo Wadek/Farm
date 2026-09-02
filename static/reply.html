@@ -2,58 +2,62 @@
 <html lang="fi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Satokori — vastaa</title>
 <style>
-  body { font-family: system-ui, sans-serif; background: #f7f1e4; color: #241c12; margin: 0; padding: 1.2rem; }
+  body { font-family: system-ui, sans-serif; background: #f7f1e4; color: #241c12; margin: 0; padding: 1.2rem; padding-bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px)); }
   h1 { font-size: 1.4rem; }
   .meta { color: #5c5140; margin: .4rem 0 1rem; }
   input, button { font: inherit; width: 100%; min-height: 48px; padding: .8rem; border-radius: 12px; margin: .4rem 0; box-sizing: border-box; }
   input { border: 1px solid #d9ccb3; }
   button { border: 0; background: #2f5d3a; color: #f7f1e4; font-weight: 600; }
   button.ghost { background: transparent; color: #b86132; border: 1px solid #b86132; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: .6rem 0; }
+  .chips button { width: auto; flex: 1; min-width: 40%; }
   .ok { background: #fffdf7; border: 1px solid #d9ccb3; border-radius: 14px; padding: 1rem; }
 </style>
 </head>
 <body>
-<div id="app">Loading…</div>
+<div id="app">Ladataan…</div>
 <script>
 const token = location.pathname.split("/").pop();
 const app = document.getElementById("app");
+const chips = ["tänään 18", "huomenna 10", "la 10", "su 12"];
+async function send(when, decline) {
+  await fetch("/asks/public/" + token + "/reply", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(decline ? { decline: true, when_text: "ei" } : { when_text: when }),
+  });
+  load();
+}
 async function load() {
   const r = await fetch("/asks/public/" + token);
-  if (!r.ok) { app.textContent = "This request is gone."; return; }
+  if (!r.ok) { app.textContent = "Pyyntö ei ole enää voimassa."; return; }
   const a = await r.json();
   if (a.status !== "asked") {
-    app.innerHTML = `<div class="ok"><h1>Sent</h1><p>${a.status === "declined" ? "Declined." : a.offer_text}</p></div>`;
+    app.innerHTML = `<div class="ok"><h1>Lähetetty</h1><p>${a.status === "declined" ? "Ei onnistu." : a.offer_text}</p></div>`;
     return;
   }
   app.innerHTML = `
-    <h1>${a.buyer_name} asks</h1>
-    <p class="meta">Can I pick up ${a.quantity} ${a.unit} ${a.produce}?${a.note ? "<br>" + a.note : ""}<br>${a.farm_name}</p>
+    <h1>${a.buyer_name} kysyy</h1>
+    <p class="meta">Voinko hakea ${a.quantity} ${a.unit} ${a.produce}?${a.note ? "<br>" + a.note : ""}<br>${a.farm_name}</p>
+    <p class="meta">Napauta aika:</p>
+    <div class="chips">${chips.map(w => `<button type="button" data-when="${w}">${w}</button>`).join("")}</div>
     <form id="f">
-      <label>When can they come?
-        <input name="when" placeholder="la 10" required>
+      <label>Tai kirjoita aika
+        <input name="when" placeholder="la 10">
       </label>
-      <button type="submit">Send time</button>
-      <button type="button" class="ghost" id="no">Can't do it</button>
+      <button type="submit">Lähetä aika</button>
+      <button type="button" class="ghost" id="no">Ei onnistu</button>
     </form>`;
-  document.getElementById("f").onsubmit = async (e) => {
+  document.querySelectorAll("[data-when]").forEach(b => b.onclick = () => send(b.dataset.when));
+  document.getElementById("f").onsubmit = (e) => {
     e.preventDefault();
-    const when = e.target.when.value;
-    await fetch("/asks/public/" + token + "/reply", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ when_text: when }),
-    });
-    load();
+    const when = e.target.when.value.trim();
+    if (!when) return;
+    send(when);
   };
-  document.getElementById("no").onclick = async () => {
-    await fetch("/asks/public/" + token + "/reply", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ decline: true, when_text: "ei" }),
-    });
-    load();
-  };
+  document.getElementById("no").onclick = () => send("ei", true);
 }
 load();
 </script>

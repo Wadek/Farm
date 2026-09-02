@@ -224,6 +224,14 @@
     "Farmers only": "Vain viljelijöille",
     "Pickup request": "Noutopyyntö",
     Reminder: "Muistutus",
+    Always: "Aina",
+    "Always available": "Aina saatavilla",
+    "Ask anytime — they name a pickup time": "Kysy milloin vain — he kertovat noutajan.",
+    "Send time": "Lähetä aika",
+    "Or type a time": "Tai kirjoita aika",
+    "Time sent": "Aika lähetetty",
+    "Amount, unit, price. Tick always-on for milk and other regular items.": "Määrä, yksikkö, hinta. Rastita aina saatavilla maidolle ja muulle vakiotavaralle.",
+    "Weekly lots need a pickup window": "Viikon erät tarvitsevat noutoikkunan",
   };
 
   const KEY = "sk_lang";

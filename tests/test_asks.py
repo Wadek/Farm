@@ -101,6 +101,10 @@ def test_service_worker_and_manifest(client):
     assert sw.status_code == 200
     assert "showNotification" in sw.text
     assert 'addEventListener("push"' in sw.text
+    reply = client.get("/r/demo")
+    assert reply.status_code == 200
+    assert "tänään 18" in reply.text
+    assert "data-when" in reply.text
     page = client.get("/")
     assert page.status_code == 200
     assert 'id="tabbar"' in page.text
@@ -319,3 +323,62 @@ def test_farmer_acknowledges_incoming_request_without_changing_status(client):
     again = client.post(f"/asks/{ask['id']}/acknowledge", headers=_auth(farmer))
     assert again.status_code == 200
     assert again.json()["status"] == "asked"
+
+
+def test_perpetual_milk_phone_call_replacement(client):
+    """Always-on milk: ask, farmer names a time, listing stays on the table."""
+    farmer = _token(client, "milk-farmer@t.fi", "Maija", "farmer", phone="+358401111111")
+    buyer = _token(client, "milk-buyer@t.fi", "Anna", "buyer", phone="+358402222222")
+    node = client.post("/nodes", json={
+        "name": "Rajamäki Beds", "type": "hobby_farm", "lat": 60.52, "lng": 24.75,
+        "description": "red shed",
+    }, headers=_auth(farmer)).json()
+    stall = client.post("/stalls", json={
+        "node_id": node["id"],
+        "pickup_point": "red shed",
+        "lots": [{"produce_name": "Raw milk", "category": "dairy", "quantity_kg": 20,
+                  "price_per_kg": 1.4, "unit": "L", "perpetual": True}],
+    }, headers=_auth(farmer))
+    assert stall.status_code == 201, stall.text
+    lot = stall.json()["lots"][0]
+    assert lot["perpetual"] is True
+    assert lot["available_from"] is None
+    assert lot["available_until"] is None
+    assert lot["quantity_kg"] == 20
+
+    catalog = client.get("/catalog").json()
+    milk = next(i for i in catalog["items"] if i["id"] == lot["id"])
+    assert milk["perpetual"] is True
+    assert milk["status"] == "active"
+
+    asked = client.post("/asks", json={"listing_id": lot["id"], "quantity": 3, "note": "this evening?"},
+                        headers=_auth(buyer))
+    assert asked.status_code == 201, asked.text
+    assert asked.json()["status"] == "asked"
+    assert asked.json()["perpetual"] is True
+    still = next(i for i in client.get("/catalog").json()["items"] if i["id"] == lot["id"])
+    assert still["status"] == "active"
+    assert still["quantity_kg"] == 20
+
+    replied = client.post(
+        f"/asks/{asked.json()['id']}/reply",
+        json={"when_text": "tänään 18"},
+        headers=_auth(farmer),
+    )
+    assert replied.status_code == 200, replied.text
+    assert replied.json()["status"] == "confirmed"
+    assert replied.json()["offer_text"] == "tänään 18"
+    assert replied.json()["acknowledged_at"]
+
+    inbox = client.get("/asks", headers=_auth(buyer)).json()
+    assert inbox[0]["offer_text"] == "tänään 18"
+    after = next(i for i in client.get("/catalog").json()["items"] if i["id"] == lot["id"])
+    assert after["status"] == "active"
+    assert after["quantity_kg"] == 20
+
+    weekly = client.post("/stalls", json={
+        "node_id": node["id"],
+        "pickup_point": "red shed",
+        "lots": [{"produce_name": "Kale", "quantity_kg": 5}],
+    }, headers=_auth(farmer))
+    assert weekly.status_code == 400

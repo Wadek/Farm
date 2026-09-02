@@ -115,11 +115,11 @@
     </div>
     <form id="stall-form" class="card grid hidden">
       <h3 data-i18n="List this week">List this week</h3>
-      <p class="meta" data-i18n="Amount, unit, price, pickup window.">Amount, unit, price, pickup window.</p>
+      <p class="meta" data-i18n="Amount, unit, price. Tick always-on for milk and other regular items.">Amount, unit, price. Tick always-on for milk and other regular items.</p>
       <label><span data-i18n="Farm">Farm</span> <select id="stall-node" required></select></label>
       <div class="row">
-        <label><span data-i18n="From">From</span> <input type="datetime-local" id="stall-from" required></label>
-        <label><span data-i18n="Until">Until</span> <input type="datetime-local" id="stall-until" required></label>
+        <label><span data-i18n="From">From</span> <input type="datetime-local" id="stall-from"></label>
+        <label><span data-i18n="Until">Until</span> <input type="datetime-local" id="stall-until"></label>
       </div>
       <label><span data-i18n="Pickup">Pickup</span> <input id="stall-where" required></label>
       <div id="lots"></div>
@@ -240,8 +240,8 @@ function priceLabel(item) {
   return `${item.price_per_kg.toFixed(2)} €/${unitOf(item)}`;
 }
 function loc() { return dateLocale(); }
-function fmtWhen(from, until) {
-  if (!from && !until) return t("Hours not posted");
+function fmtWhen(from, until, perpetual) {
+  if (perpetual || (!from && !until)) return t("Always");
   const a = from ? new Date(from) : null;
   const b = until ? new Date(until) : null;
   const day = a ? a.toLocaleDateString(loc(), { weekday: "short", day: "numeric", month: "short" }) : "";
@@ -481,7 +481,7 @@ function paintCatalog() {
       <div class="tile-body">
         <div class="tile-price">${soldOut ? t("Sold out") : money(item)}</div>
         <div class="tile-title">${esc(item.produce_name)}${soldOut ? "" : " · " + qtyLabel(item)}</div>
-        <div class="tile-meta">${esc(item.farm_name)}${km ? " · " + km : ""}</div>
+        <div class="tile-meta">${esc(item.farm_name)}${km ? " · " + km : ""} · ${fmtWhen(item.available_from, item.available_until, item.perpetual)}</div>
       </div>
     </article>`;
   }).join("");
@@ -516,8 +516,8 @@ function openAsk(item) {
       <button class="btn ghost" type="button" id="sheet-close">${t("Close")}</button>
       <div class="detail-price">${soldOut ? t("Sold out") : money(item)}</div>
       <div class="detail-title">${esc(item.produce_name)}</div>
-      <p class="meta">${esc(item.farm_name)} · ${esc(item.farmer_name || "")}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}<br>${fmtWhen(item.available_from, item.available_until)} · ${esc(item.pickup_point || "")}</p>
-      <p class="meta">${soldOut ? t("Sold out. You can still ask when it is back.") : qtyLabel(item) + " " + t("available") + "."}</p>
+      <p class="meta">${esc(item.farm_name)} · ${esc(item.farmer_name || "")}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}<br>${fmtWhen(item.available_from, item.available_until, item.perpetual)} · ${esc(item.pickup_point || "")}</p>
+      <p class="meta">${soldOut ? t("Sold out. You can still ask when it is back.") : item.perpetual ? t("Ask anytime — they name a pickup time") : qtyLabel(item) + " " + t("available") + "."}</p>
       ${own ? `<p class="meta">${t("This is your listing.")}</p>` : `
       <form id="ask-form" class="grid">
         <div class="row">
@@ -580,12 +580,11 @@ function incomingAskCardHtml(a) {
         <div class="meta">${t("Status")}: <b>${statusLabel}</b></div>
         ${farmerReplyHtml(a, true)}
         ${isAsked ? `
-          <form class="row" data-reply="${a.id}" style="margin-top:.6rem">
-            <label>${t("Pickup time")} <input name="when" placeholder="${a.sold_out ? "next sat 10" : "la 10"}" required></label>
-            <input name="partial_qty" type="number" min="0.1" max="${a.quantity}" step="0.1" placeholder="${t("Partial amount")}" hidden>
-            <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:flex-end">
-              <button class="btn primary" type="submit" data-mode="full">${t("Fulfill in full")}</button>
-              <button class="btn ghost" type="button" data-partial>${t("Fulfill partial")}</button>
+          <div class="btn-row" style="margin-top:.6rem;flex-wrap:wrap">${timeChips().map(w => `<button type="button" class="btn primary" data-send-when="${esc(w)}" data-ask="${a.id}">${esc(w)}</button>`).join("")}</div>
+          <form data-reply="${a.id}" style="margin-top:.5rem">
+            <label>${t("Or type a time")} <input name="when" placeholder="la 10"></label>
+            <div class="btn-row" style="margin-top:.4rem">
+              <button class="btn primary" type="submit">${t("Send time")}</button>
               <button class="btn ghost" type="button" data-no="${a.id}">${t("Can't do it")}</button>
             </div>
           </form>` : ""}
@@ -606,26 +605,27 @@ async function acknowledgeAsks(ids) {
   loadBasketView();
   loadOrderAlerts();
 }
+function timeChips() {
+  const fi = getLang() === "fi";
+  return fi ? ["tänään 18", "huomenna 10", "la 10", "su 12"] : ["today 18", "tomorrow 10", "Sat 10", "Sun 12"];
+}
+async function sendWhen(askId, when) {
+  const text = (when || "").trim();
+  if (!text) { toast(t("Or type a time")); return; }
+  await api(`/asks/${askId}/reply`, { method: "POST", body: JSON.stringify({ when_text: text }) });
+  toast(t("Time sent"));
+  loadBasketView();
+  loadOrderAlerts();
+}
 function bindAskActions(el, asks) {
+  el.querySelectorAll("[data-send-when]").forEach(b => b.onclick = async () => {
+    try { await sendWhen(b.dataset.ask, b.dataset.sendWhen); }
+    catch (err) { toast(err.message); }
+  });
   el.querySelectorAll("[data-reply]").forEach(f => f.onsubmit = async (e) => {
     e.preventDefault();
-    try {
-      const askId = f.dataset.reply;
-      const targetAsk = asks.find(a => a.id === askId);
-      const quantity = f.dataset.mode === "partial" ? Number(f.partial_qty.value) : Number(targetAsk ? targetAsk.quantity : 1);
-      if (!quantity) { toast(t("Enter a partial amount")); return; }
-      await api(`/asks/${askId}/available`, { method: "POST", body: JSON.stringify({ quantity, when_text: f.when.value }) });
-      toast(t("Pickup made ready"));
-      loadBasketView();
-      loadOrderAlerts();
-    } catch (err) { toast(err.message); }
-  });
-  el.querySelectorAll("[data-partial]").forEach(b => b.onclick = () => {
-    const form = b.closest("form");
-    form.partial_qty.hidden = false;
-    form.dataset.mode = "partial";
-    b.textContent = t("Fulfill partial");
-    form.querySelector("[data-mode]").textContent = t("Confirm partial fulfillment");
+    try { await sendWhen(f.dataset.reply, f.when.value); }
+    catch (err) { toast(err.message); }
   });
   el.querySelectorAll("[data-no]").forEach(b => b.onclick = async () => {
     try {
@@ -674,24 +674,9 @@ async function loadBasketLedger() {
   updateBasketBadge(asks);
 
   const incoming = asks.filter(a => a.farmer_id === myId);
-  const unackedIncoming = incoming.filter(a => a.status === "asked" && !a.acknowledged_at);
   const outgoing = asks.filter(a => a.buyer_id === myId);
   const myTrades = ledgerRows.filter(r => r.type === "trade" && (role() !== "organizer" || r.buyer === me.name || r.direction === "outgoing"));
   const myInventory = ledgerRows.filter(r => r.type === "inventory" && role() === "farmer");
-
-  if (unackedIncoming.length) {
-    if (cartEl) cartEl.classList.add("hidden");
-    const ids = unackedIncoming.map(a => a.id).join(",");
-    el.innerHTML = `
-      <div class="order-alert">
-        <h2>${t("Incoming pickup requests to fulfill")}</h2>
-        <p class="meta">${t("Acknowledge to return to your basket. The request stays here; handoff and fulfill state do not change.")}</p>
-        <div style="margin:.7rem 0"><button class="btn primary" data-ack-all="${ids}">${t("Acknowledge")}</button></div>
-      </div>
-      ${unackedIncoming.map(incomingAskCardHtml).join("")}`;
-    bindAskActions(el, asks);
-    return;
-  }
   if (cartEl) cartEl.classList.remove("hidden");
 
   if (!basket.length && !incoming.length && !outgoing.length && !myTrades.length && !myInventory.length) {
@@ -829,7 +814,10 @@ function lotRow(target) {
           <option>feed</option><option>vegetable</option>
         </select>
       </label>
-    </div>`;
+    </div>
+    <label style="margin-top:.4rem;display:flex;align-items:center;gap:8px;min-height:44px">
+      <input name="perpetual" type="checkbox" style="width:auto;min-height:22px"> ${t("Always available")}
+    </label>`;
   target.appendChild(wrap);
 }
 function lotsFrom(root) {
@@ -840,6 +828,7 @@ function lotsFrom(root) {
     unit: row.querySelector("[name=unit]").value,
     price_per_kg: Number(row.querySelector("[name=price]").value),
     is_free: Number(row.querySelector("[name=price]").value) === 0,
+    perpetual: row.querySelector("[name=perpetual]").checked,
   }));
 }
 async function loadStallNodes() {
@@ -1019,14 +1008,20 @@ document.getElementById("stall-form").onsubmit = async (e) => {
   e.preventDefault();
   const nodeId = document.getElementById("stall-node").value;
   if (!nodeId) { toast(t("No farm on this account")); return; }
+  const lots = lotsFrom(document.getElementById("lots"));
+  const needsWindow = lots.some(l => !l.perpetual);
+  const fromVal = document.getElementById("stall-from").value;
+  const untilVal = document.getElementById("stall-until").value;
+  if (needsWindow && (!fromVal || !untilVal)) { toast(t("Weekly lots need a pickup window")); return; }
   try {
-    await api("/stalls", { method: "POST", body: JSON.stringify({
+    const body = {
       node_id: nodeId,
-      available_from: new Date(document.getElementById("stall-from").value).toISOString(),
-      available_until: new Date(document.getElementById("stall-until").value).toISOString(),
       pickup_point: document.getElementById("stall-where").value,
-      lots: lotsFrom(document.getElementById("lots")),
-    })});
+      lots,
+    };
+    if (fromVal) body.available_from = new Date(fromVal).toISOString();
+    if (untilVal) body.available_until = new Date(untilVal).toISOString();
+    await api("/stalls", { method: "POST", body: JSON.stringify(body) });
     toast(t("Listed"));
     document.getElementById("lots").innerHTML = "";
     lotRow(document.getElementById("lots"));

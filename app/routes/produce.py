@@ -27,6 +27,7 @@ class ListingCreate(BaseModel):
     is_free: bool = False
     available_from: datetime | None = None
     available_until: datetime | None = None
+    perpetual: bool = False
 
 
 def _assert_node_owner(node_id: str, user: User, db: Session) -> Node:
@@ -97,8 +98,9 @@ def create_listing(node_id: str, produce_id: str, payload: ListingCreate,
         price_per_kg=payload.price_per_kg,
         pickup_point=pickup,
         is_free=payload.is_free,
-        available_from=payload.available_from,
-        available_until=payload.available_until,
+        available_from=None if payload.perpetual else payload.available_from,
+        available_until=None if payload.perpetual else payload.available_until,
+        perpetual=payload.perpetual,
         status=ListingStatus.active,
     )
     db.add(listing)
@@ -167,6 +169,9 @@ def _listing_view(l: Listing) -> dict:
         "pickup_point": l.pickup_point,
         "available_from": l.available_from.isoformat() if l.available_from else None,
         "available_until": l.available_until.isoformat() if l.available_until else None,
+        "perpetual": bool(getattr(l, "perpetual", False)) or (
+            l.available_from is None and l.available_until is None
+        ),
         "status": l.status,
         "created_at": created_at,
         "node_name": l.node.name if l.node else None,

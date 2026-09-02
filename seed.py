@@ -69,8 +69,8 @@ def _node(db: Session, node_id: str, owner_id: str, name: str, ntype: NodeType,
 
 def _lot(db: Session, listing_id: str, node_id: str, produce_id: str, name: str,
          category: str, qty: float, price: float, kcal: float, co2: float,
-         pickup: str, available_from: datetime, available_until: datetime,
-         is_free: bool = False, unit: str = "kg"):
+         pickup: str, available_from: datetime | None, available_until: datetime | None,
+         is_free: bool = False, unit: str = "kg", perpetual: bool = False):
     produce = Produce(
         id=produce_id,
         node_id=node_id,
@@ -90,8 +90,9 @@ def _lot(db: Session, listing_id: str, node_id: str, produce_id: str, name: str,
         price_per_kg=price,
         pickup_point=pickup,
         is_free=is_free or price == 0,
-        available_from=available_from,
-        available_until=available_until,
+        available_from=None if perpetual else available_from,
+        available_until=None if perpetual else available_until,
+        perpetual=perpetual,
         status=ListingStatus.active,
     )
     db.add(listing)
@@ -168,7 +169,7 @@ def seed():
         _lot(db, "lot-carrot", rajamaki.id, "prod-carrot", "Porkkana", "root",
              12.0, 1.8, 410, 0.3, rajamaki.description, opens, closes, unit="kg")
         _lot(db, "lot-milk", rajamaki.id, "prod-milk", "Raw milk", "dairy",
-             20.0, 1.4, 640, 1.2, rajamaki.description, opens, closes, unit="L")
+             20.0, 1.4, 640, 1.2, rajamaki.description, None, None, unit="L", perpetual=True)
         _lot(db, "lot-berries", rajamaki.id, "prod-berries", "Mustikka", "berries",
              8.0, 12.0, 570, 0.2, rajamaki.description, opens, closes, unit="L")
 
