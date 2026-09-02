@@ -25,6 +25,8 @@ class AskCreate(BaseModel):
     listing_id: str
     quantity: float = 1.0
     note: str = ""
+    channel: str = ""
+    when_text: str = ""
 
 
 class AskReply(BaseModel):
@@ -89,6 +91,7 @@ def _ask_view(ask: PickupAsk) -> dict:
         "quantity": ask.quantity,
         "unit": ask.unit,
         "note": ask.note,
+        "channel": ask.channel or "",
         "status": ask.status.value if ask.status else "asked",
         "offer_text": ask.offer_text,
         "picked_up_by": ask.picked_up_by,
@@ -129,7 +132,7 @@ def _farmer_sms(ask: PickupAsk) -> str:
             f"{v['buyer_name']} pyytää {qty} {v['produce']} (loppu). "
             f"Vastaa milloin on taas, esim. la 10 — tai avaa {v['reply_url']}"
         )
-    if v.get("drop"):
+    if v.get("drop") and v.get("channel") != "farm":
         place = v["drop"].get("place") or v.get("pickup_point") or ""
         return (
             f"{v['buyer_name']} tilaa {qty} {v['produce']} REKO-jakoon {place}. "
@@ -162,8 +165,9 @@ def _apply_reply(ask: PickupAsk, when_text: str, decline: bool, db: Session) -> 
         push_tag = f"decline-{ask.id}"
     else:
         listing = ask.listing
+        farm_pickup = (getattr(ask, "channel", "") or "") == "farm"
         if not text:
-            if listing and getattr(listing, "drop_id", None):
+            if listing and getattr(listing, "drop_id", None) and not farm_pickup:
                 text = _drop_when(listing)
             else:
                 raise HTTPException(status_code=400, detail="Send a time, e.g. la 10")
@@ -219,6 +223,19 @@ def create_ask(
         raise HTTPException(status_code=403, detail="Only customers, farmers, and admins can send pickup requests")
     if farmer.id == current_user.id:
         raise HTTPException(status_code=400, detail="That's your own listing")
+    channel = (payload.channel or "").strip().lower()
+    if channel not in ("", "reko", "farm"):
+        raise HTTPException(status_code=400, detail="Choose REKO or farm")
+    if channel == "reko" and not listing.drop_id:
+        raise HTTPException(status_code=400, detail="This listing is not at REKO this week")
+    when = (payload.when_text or "").strip()
+    note = (payload.note or "").strip()
+    if channel == "farm":
+        if not when:
+            raise HTTPException(status_code=400, detail="Farm pickup needs a time")
+        note = f"{when} — {note}" if note else when
+    elif when and not note:
+        note = when
     ask = PickupAsk(
         id=str(uuid.uuid4()),
         token=secrets.token_urlsafe(8),
@@ -227,12 +244,13 @@ def create_ask(
         farmer_id=farmer.id,
         quantity=payload.quantity,
         unit=listing.unit or "kg",
-        note=payload.note.strip(),
+        note=note,
+        channel=channel,
         status=AskStatus.asked,
     )
     db.add(ask)
     produce = listing.produce.name if listing.produce else "produce"
-    if listing.drop_id:
+    if listing.drop_id and channel != "farm":
         alert_body = f"{current_user.name} ordered {payload.quantity:g} {listing.unit or 'kg'} {produce} for the drop."
     else:
         alert_body = f"{current_user.name} asked for {payload.quantity:g} {listing.unit or 'kg'} {produce}."

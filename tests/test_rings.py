@@ -283,3 +283,61 @@ def test_buyer_cannot_create_a_ring(client):
         "starts_at": start, "ends_at": end,
     }, headers=_auth(buyer))
     assert resp.status_code == 403
+
+
+def test_farm_channel_on_drop_listing_needs_a_time(client):
+    admin, _ = _register(client, "ch-admin@test.com", "Admin", "organizer")
+    farmer, _ = _register(client, "ch-farmer@test.com", "Niina", "farmer", phone="+358442104990")
+    buyer, _ = _register(client, "ch-buyer@test.com", "Anna", "buyer")
+    start, end = _window()
+    drop = client.post("/rings", json={
+        "name": "REKO Test", "place": "Lot A", "lat": 60.55, "lng": 24.70,
+        "starts_at": start, "ends_at": end,
+    }, headers=_auth(admin)).json()
+    node = client.post("/nodes", json={
+        "name": "Toikantila", "type": "farm", "lat": 60.50, "lng": 24.76,
+    }, headers=_auth(farmer)).json()
+    listing_id = client.post("/stalls", json={
+        "node_id": node["id"], "drop_id": drop["id"], "pickup_point": "Lot A",
+        "lots": [{"produce_name": "Raw milk", "category": "dairy", "quantity_kg": 8,
+                  "price_per_kg": 1.4, "unit": "L"}],
+    }, headers=_auth(farmer)).json()["lots"][0]["id"]
+    missing = client.post("/asks", json={
+        "listing_id": listing_id, "quantity": 2, "channel": "farm",
+    }, headers=_auth(buyer))
+    assert missing.status_code == 400
+    asked = client.post("/asks", json={
+        "listing_id": listing_id, "quantity": 2, "channel": "farm", "when_text": "la 10",
+    }, headers=_auth(buyer))
+    assert asked.status_code == 201, asked.text
+    body = asked.json()
+    assert body["channel"] == "farm"
+    assert body["note"].startswith("la 10")
+    logs = client.get("/sms", headers=_auth(admin)).json()
+    farm_sms = [row for row in logs if "voinko hakea" in row["body"]]
+    assert farm_sms
+    assert all("REKO-jakoon" not in row["body"] for row in farm_sms)
+    blocked = client.post(
+        f"/asks/{body['id']}/reply", json={"when_text": ""}, headers=_auth(farmer)
+    )
+    assert blocked.status_code == 400
+    ok = client.post(
+        f"/asks/{body['id']}/reply", json={"when_text": "la 10"}, headers=_auth(farmer)
+    )
+    assert ok.status_code == 200
+
+
+def test_reko_channel_on_gate_listing_is_rejected(client):
+    farmer, _ = _register(client, "gate-ch-farmer@test.com", "Maija", "farmer")
+    buyer, _ = _register(client, "gate-ch-buyer@test.com", "Anna", "buyer")
+    node = client.post("/nodes", json={
+        "name": "Beds", "type": "hobby_farm", "lat": 60.52, "lng": 24.75,
+    }, headers=_auth(farmer)).json()
+    listing_id = client.post("/stalls", json={
+        "node_id": node["id"], "pickup_point": "gate",
+        "lots": [{"produce_name": "Kale", "quantity_kg": 4, "price_per_kg": 3, "perpetual": True}],
+    }, headers=_auth(farmer)).json()["lots"][0]["id"]
+    denied = client.post("/asks", json={
+        "listing_id": listing_id, "quantity": 1, "channel": "reko",
+    }, headers=_auth(buyer))
+    assert denied.status_code == 400

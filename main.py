@@ -66,6 +66,8 @@ def _ensure_ask_pickup_columns():
             conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN farmer_verified_at DATETIME"))
         if "acknowledged_at" not in cols:
             conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN acknowledged_at DATETIME"))
+        if "channel" not in cols:
+            conn.execute(text("ALTER TABLE pickup_asks ADD COLUMN channel VARCHAR DEFAULT ''"))
 
 
 def _ensure_node_claim_columns():

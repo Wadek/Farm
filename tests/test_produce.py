@@ -1,4 +1,33 @@
+from pathlib import Path
+
 import pytest
+
+
+def _jpeg_dimensions(path: Path) -> tuple[int, int]:
+    data = path.read_bytes()
+    assert data[:2] == b"\xff\xd8", path.name
+    i = 2
+    n = len(data)
+    while i + 8 < n:
+        if data[i] != 0xFF:
+            i += 1
+            continue
+        marker = data[i + 1]
+        if marker == 0xFF:
+            i += 1
+            continue
+        if marker in (0xD8, 0xD9) or (0xD0 <= marker <= 0xD7) or marker == 0x01:
+            i += 2
+            continue
+        if marker in (0xC0, 0xC1, 0xC2):
+            height = int.from_bytes(data[i + 5 : i + 7], "big")
+            width = int.from_bytes(data[i + 7 : i + 9], "big")
+            return width, height
+        seglen = int.from_bytes(data[i + 2 : i + 4], "big")
+        if seglen < 2:
+            break
+        i += 2 + seglen
+    raise AssertionError(f"no SOF in {path.name}")
 
 
 def _register_and_token(client, email="farmer@test.com"):
@@ -104,14 +133,13 @@ def test_browse_listings_public(client):
     assert resp.status_code == 200
     assert len(resp.json()) == 1
     item = resp.json()[0]
-    assert item["image_url"] == "/static/produce/greens.jpg"
+    assert item["image_url"] == "/static/produce/greens.jpg?v=2"
     pic = client.get(item["image_url"])
     assert pic.status_code == 200
     assert pic.headers["content-type"].startswith("image/")
 
 
 def test_listing_name_picks_a_satokori_woodcut():
-    from pathlib import Path
     from app.services.produce_image import produce_image_url
     cases = [
         ("Farm honey", "preserve", "honey.jpg"),
@@ -136,8 +164,23 @@ def test_listing_name_picks_a_satokori_woodcut():
     ]
     pack = Path("static/produce")
     for name, cat, filename in cases:
-        assert produce_image_url(name, cat) == f"/static/produce/{filename}", name
+        assert produce_image_url(name, cat) == f"/static/produce/{filename}?v=2", name
         assert (pack / filename).is_file(), filename
+
+
+def test_produce_pack_is_web_sized():
+    pack = Path("static/produce")
+    files = sorted(pack.glob("*.jpg"))
+    assert len(files) >= 20
+    total = 0
+    for src in files:
+        size = src.stat().st_size
+        total += size
+        assert size < 100 * 1024, f"{src.name} is {size} bytes"
+        width, height = _jpeg_dimensions(src)
+        assert width <= 512 and height <= 512, f"{src.name} {width}x{height}"
+        assert width >= 256 and height >= 256, f"{src.name} {width}x{height}"
+    assert total < 1.5 * 1024 * 1024, total
 
 
 def test_stall_upload_gets_named_woodcut(client):
@@ -157,13 +200,13 @@ def test_stall_upload_gets_named_woodcut(client):
     }, headers=_auth(token))
     assert resp.status_code == 201, resp.text
     want = {
-        "Farm honey": "/static/produce/honey.jpg",
-        "Berry juice": "/static/produce/juice.jpg",
-        "Oat flakes": "/static/produce/oats.jpg",
-        "Alpaca yarn": "/static/produce/yarn.jpg",
-        "Ostrich eggs": "/static/produce/ostrich-egg.jpg",
-        "Raspberries": "/static/produce/raspberry.jpg",
-        "Cabbage": "/static/produce/cabbage.jpg",
+        "Farm honey": "/static/produce/honey.jpg?v=2",
+        "Berry juice": "/static/produce/juice.jpg?v=2",
+        "Oat flakes": "/static/produce/oats.jpg?v=2",
+        "Alpaca yarn": "/static/produce/yarn.jpg?v=2",
+        "Ostrich eggs": "/static/produce/ostrich-egg.jpg?v=2",
+        "Raspberries": "/static/produce/raspberry.jpg?v=2",
+        "Cabbage": "/static/produce/cabbage.jpg?v=2",
     }
     for lot in resp.json()["lots"]:
         assert lot["image_url"] == want[lot["produce_name"]], lot
@@ -189,11 +232,11 @@ def test_organic_lamb_is_meat_not_feed(client):
     assert resp.status_code == 201, resp.text
     lot = resp.json()["lots"][0]
     assert lot["category"] == "meat"
-    assert lot["image_url"] == "/static/produce/meat.jpg"
+    assert lot["image_url"] == "/static/produce/meat.jpg?v=2"
     catalog = client.get("/catalog").json()["items"]
     lamb = next(i for i in catalog if i["produce_name"] == "Organic lamb")
     assert lamb["category"] == "meat"
-    assert lamb["image_url"] == "/static/produce/meat.jpg"
+    assert lamb["image_url"] == "/static/produce/meat.jpg?v=2"
 
 
 def test_browse_listings_with_radius(client):

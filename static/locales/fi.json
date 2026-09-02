@@ -327,5 +327,14 @@
   "Account disabled": "Tili poissa käytöstä",
   "Enable account": "Ota tili käyttöön",
   "Disable account": "Poista tili käytöstä",
-  "Active 7d": "Aktiivinen 7 pv"
+  "Active 7d": "Aktiivinen 7 pv",
+  "Order": "Tilaa",
+  "Back": "Takaisin",
+  "REKO drop, or pick up at the farm.": "REKO-jako vai nouto tilalta?",
+  "Not at REKO this week": "Ei REKO-jakoa tällä viikolla",
+  "Name a pickup time": "Ehdota noutokoaikaa",
+  "When will you pick up?": "Milloin haet?",
+  "e.g. Sat 10:00": "esim. la 10",
+  "Confirm this week's REKO": "Vahvista tämän viikon REKO-jako",
+  "Farm pickup needs a time": "Nouto tilalta tarvitsee ajan"
 }

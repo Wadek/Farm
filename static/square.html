@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css?v=21">
+<link rel="stylesheet" href="/static/css/app.css?v=22">
 </head>
 <body>
 <header id="topbar">
@@ -241,23 +241,28 @@ const PRODUCE_NAME_ICONS = [
   [["oat", "kaura", "flake", "hiutale"], "oats.jpg"],
   [["flour", "jauho"], "oats.jpg"],
 ];
+const PRODUCE_IMG_V = "2";
+function produceFileUrl(file) {
+  return "/static/produce/" + file + "?v=" + PRODUCE_IMG_V;
+}
 function produceSrc(item) {
   const name = String((item && item.produce_name) || "").toLowerCase();
   let cat = normCat(item && item.category);
   if (/(beef|lamb|meat|liha|karitsa|nauta|poro)/.test(name)) cat = "meat";
   const api = item && item.image_url;
-  if (api && !/\/(vegetable|produce|dairy|eggs|greens|berries|root|preserve|feed|meat)\.jpg$/.test(api)) return api;
+  if (api && !/\/(vegetable|produce|dairy|eggs|greens|berries|root|preserve|feed|meat)\.jpg(\?|$)/.test(api)) return api;
   for (let i = 0; i < PRODUCE_NAME_ICONS.length; i++) {
     const keys = PRODUCE_NAME_ICONS[i][0];
-    for (let k = 0; k < keys.length; k++) if (name.indexOf(keys[k]) !== -1) return "/static/produce/" + PRODUCE_NAME_ICONS[i][1];
+    for (let k = 0; k < keys.length; k++) if (name.indexOf(keys[k]) !== -1) return produceFileUrl(PRODUCE_NAME_ICONS[i][1]);
   }
   if (!PRODUCE_ICONS[cat]) cat = "produce";
-  return "/static/produce/" + cat + ".jpg";
+  return produceFileUrl(cat + ".jpg");
 }
 function produceImg(item, name) {
   const src = esc(produceSrc(item));
   const label = esc(name || (item && item.produce_name) || "");
-  return `<img class="produce-icon" src="${src}" alt="${label}" width="400" height="400" onerror="this.onerror=null;this.src='/static/produce/produce.jpg'">`;
+  const fallback = esc(produceFileUrl("produce.jpg"));
+  return `<img class="produce-icon" src="${src}" alt="${label}" width="512" height="512" onerror="this.onerror=null;this.src='${fallback}'">`;
 }
 function saveFavs() { localStorage.setItem("sk_favs", JSON.stringify(favs)); }
 function isFav(id) { return favs.includes(id); }
@@ -891,24 +896,87 @@ function bindSheetDismiss() {
     window.addEventListener("pointercancel", endSwipe);
   });
 }
-function openAsk(item) {
+function sameProduceListings(item) {
+  return (catalogItems || []).filter(x => x && item &&
+    String(x.produce_name || "") === String(item.produce_name || "") &&
+    ((item.farmer_id && x.farmer_id === item.farmer_id) || String(x.farm_name || "") === String(item.farm_name || "")));
+}
+function listingForChannel(item, channel) {
+  const same = sameProduceListings(item);
+  if (channel === "reko") return (item && item.drop ? item : null) || same.find(x => x.drop) || null;
+  if (item && !item.drop) return item;
+  return same.find(x => !x.drop) || item;
+}
+function openAsk(item, step) {
   if (!item) return;
+  step = step || "detail";
   const sheet = document.getElementById("sheet");
   const body = document.getElementById("sheet-body");
   const soldOut = item.status === "sold_out";
   const own = me && item.farmer_id === me.id;
   const drop = item.drop;
+  const rekoItem = listingForChannel(item, "reko");
+  const farmItem = listingForChannel(item, "farm") || item;
   const whenLine = drop ? fmtDrop(drop) : fmtWhen(item.available_from, item.available_until, item.perpetual);
+  const guest = role() === "guest";
+  if (step === "reko" && !rekoItem) step = "channel";
   const hint = soldOut
     ? t("Sold out. You can still ask when it is back.")
-    : drop
-      ? t("Comment a quantity. Pay cash or MobilePay at the lot.")
-      : item.perpetual
-        ? t("Ask anytime — they name a pickup time")
-        : qtyLabel(item) + " " + t("available") + ".";
-  const sendLabel = role() === "guest"
-    ? t("Log in to ask")
-    : drop ? t("Order for this week's REKO") : t("Ask to pick up");
+    : t("Order for a REKO drop, or ask at the farm gate.");
+  let extra = "";
+  let bar = "";
+  if (own) {
+    extra = `<p class="meta">${t("This is your listing.")}</p>`;
+  } else if (step === "channel") {
+    extra = `
+      <p class="meta">${t("REKO drop, or pick up at the farm.")}</p>
+      <div class="ask-channels">
+        <button class="btn ${rekoItem ? "primary" : "ghost"}" type="button" id="ask-reko" ${rekoItem ? "" : "disabled"}>${t("REKO")}</button>
+        <button class="btn primary" type="button" id="ask-farm">${t("Farm")}</button>
+      </div>
+      ${rekoItem
+        ? `<p class="meta">${t("This week's REKO")}: ${esc(fmtDrop(rekoItem.drop))}</p>`
+        : `<p class="meta">${t("Not at REKO this week")}</p>`}`;
+    bar = `<div class="detail-bar"><button class="btn ghost" type="button" id="ask-back">${t("Back")}</button></div>`;
+  } else if (step === "farm") {
+    extra = `
+      <p class="meta">${t("Name a pickup time")}</p>
+      <form id="ask-form" class="grid">
+        <div class="row">
+          <label>${t("How much")} <input name="qty" type="number" min="0.1" step="0.1" value="1" required></label>
+          <label>${t("Unit")} <input value="${esc(unitOf(farmItem))}" disabled></label>
+        </div>
+        <label>${t("When will you pick up?")} <input name="when" required placeholder="${esc(t("e.g. Sat 10:00"))}"></label>
+        <label>${t("Note")} <input name="note" placeholder="${esc(t("This week?"))}"></label>
+      </form>`;
+    bar = `<div class="detail-bar">
+      <button class="btn ghost" type="button" id="ask-back">${t("Back")}</button>
+      <button class="btn primary" type="button" id="ask-send">${t("Ask to pick up")}</button>
+    </div>`;
+  } else if (step === "reko") {
+    extra = `
+      <p class="meta">${t("This week's REKO")}</p>
+      <p class="detail-title">${esc((rekoItem.drop && rekoItem.drop.ring_name) || t("REKO"))}</p>
+      <p class="meta">${esc(fmtDrop(rekoItem.drop))}</p>
+      <p class="meta">${t("Comment a quantity. Pay cash or MobilePay at the lot.")}</p>
+      <form id="ask-form" class="grid">
+        <div class="row">
+          <label>${t("How much")} <input name="qty" type="number" min="0.1" step="0.1" value="1" required></label>
+          <label>${t("Unit")} <input value="${esc(unitOf(rekoItem))}" disabled></label>
+        </div>
+        <label>${t("Note")} <input name="note" placeholder="${esc(t("2 L"))}"></label>
+      </form>`;
+    bar = `<div class="detail-bar">
+      <button class="btn ghost" type="button" id="ask-back">${t("Back")}</button>
+      <button class="btn primary" type="button" id="ask-send">${t("Confirm this week's REKO")}</button>
+    </div>`;
+  } else {
+    extra = `<p class="meta">${hint}</p>`;
+    bar = `<div class="detail-bar">
+      <button class="btn ghost" type="button" data-fav-detail="${item.id}">${isFav(item.id) ? t("Saved") : t("Save")}</button>
+      <button class="btn primary" type="button" id="ask-send">${guest ? t("Log in to ask") : t("Order")}</button>
+    </div>`;
+  }
   body.innerHTML = `
     <div class="detail-hero">${produceImg(item)}<span>${esc(item.produce_name)}</span></div>
     <div class="detail-body">
@@ -917,37 +985,51 @@ function openAsk(item) {
       <p class="meta">${esc(item.farm_name)} · ${esc(item.farmer_name || "")}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}<br>${esc(whenLine)} · ${esc(item.pickup_point || "")}</p>
       ${item.featured ? `<p class="meta">${t("Featured listing")}</p>` : ""}
       ${isLiveFarm(item) ? `<p class="meta">${t("Live listing")}</p>` : item.demo ? `<p class="meta">${t("Demo listing — sample stock until the farmer posts the real harvest.")}</p>` : ""}
-      <p class="meta">${hint}</p>
-      ${own ? `<p class="meta">${t("This is your listing.")}</p>` : `
-      <form id="ask-form" class="grid">
-        <div class="row">
-          <label>${t("How much")} <input name="qty" type="number" min="0.1" step="0.1" value="1" required></label>
-          <label>${t("Unit")} <input value="${unitOf(item)}" disabled></label>
-        </div>
-        <label>${t("Note")} <input name="note" placeholder="${drop ? t("2 L") : t("This week?")}"></label>
-      </form>`}
+      ${extra}
     </div>
-    ${own ? "" : `<div class="detail-bar">
-      <button class="btn ghost" type="button" data-fav-detail="${item.id}">${isFav(item.id) ? t("Saved") : t("Save")}</button>
-      <button class="btn primary" type="button" id="ask-send">${sendLabel}</button>
-    </div>`}`;
+    ${own ? "" : bar}`;
   sheet.classList.remove("hidden");
   resetSheetCard();
   sheet.onclick = (e) => { if (e.target === sheet) closeSheet(); };
   const favBtn = body.querySelector("[data-fav-detail]");
-  if (favBtn) favBtn.onclick = () => { toggleFav(item.id); openAsk(catalogById[item.id] || item); renderChips(catalogItems); paintCatalog(); };
+  if (favBtn) favBtn.onclick = () => { toggleFav(item.id); openAsk(catalogById[item.id] || item, "detail"); renderChips(catalogItems); paintCatalog(); };
+  const back = body.querySelector("#ask-back");
+  if (back) back.onclick = () => openAsk(item, step === "channel" ? "detail" : "channel");
+  const rekoBtn = body.querySelector("#ask-reko");
+  if (rekoBtn) rekoBtn.onclick = () => {
+    if (!rekoItem) { toast(t("Not at REKO this week")); return; }
+    openAsk(item, "reko");
+  };
+  const farmBtn = body.querySelector("#ask-farm");
+  if (farmBtn) farmBtn.onclick = () => openAsk(item, "farm");
   const send = body.querySelector("#ask-send");
-  if (send) send.onclick = async () => {
-    if (role() === "guest") { closeSheet(); show("account"); toast(t("Log in to ask for pickup")); return; }
+  if (!send) return;
+  if (step === "detail") {
+    send.onclick = () => {
+      if (guest) { closeSheet(); show("account"); toast(t("Log in to ask for pickup")); return; }
+      openAsk(item, "channel");
+    };
+    return;
+  }
+  send.onclick = async () => {
     const form = body.querySelector("#ask-form");
+    const channel = step === "reko" ? "reko" : "farm";
+    const target = channel === "reko" ? rekoItem : farmItem;
+    if (!target) { toast(t("Not at REKO this week")); return; }
+    if (channel === "farm" && !String(form.when.value || "").trim()) {
+      toast(t("Farm pickup needs a time"));
+      return;
+    }
     try {
       await api("/asks", { method: "POST", body: JSON.stringify({
-        listing_id: item.id,
+        listing_id: target.id,
         quantity: Number(form.qty.value),
         note: form.note.value,
+        channel,
+        when_text: channel === "farm" ? form.when.value : "",
       })});
       closeSheet();
-      toast(drop ? t("Order sent. The farmer confirms.") : t("Ask sent. They reply with a time."));
+      toast(channel === "reko" ? t("Order sent. The farmer confirms.") : t("Ask sent. They reply with a time."));
       show("basket");
     } catch (err) { toast(err.message); }
   };

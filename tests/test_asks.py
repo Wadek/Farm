@@ -139,10 +139,19 @@ def test_service_worker_and_manifest(client):
     assert 'data-lang="fi"' in page.text
     assert "function applyPickedTheme" in page.text
     assert "function produceSrc" in page.text
+    assert "function listingForChannel" in page.text
+    assert 'id="ask-reko"' in page.text
+    assert 'id="ask-farm"' in page.text
+    assert 't("Order")' in page.text
+    assert 't("Confirm this week\'s REKO")' in page.text
+    assert 't("When will you pick up?")' in page.text
+    assert "PRODUCE_IMG_V" in page.text
+    assert 'width="512"' in page.text
     assert "/static/produce/" in page.text
-    dairy = client.get("/static/produce/dairy.jpg")
+    dairy = client.get("/static/produce/dairy.jpg?v=2")
     assert dairy.status_code == 200
     assert dairy.headers["content-type"].startswith("image/")
+    assert len(dairy.content) < 100 * 1024
     assert "/static/i18n.js" in page.text
     i18n = client.get("/static/i18n.js")
     assert i18n.status_code == 200
