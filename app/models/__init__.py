@@ -11,3 +11,4 @@ from app.models.api_key import ApiKey
 from app.models.flare import DemandFlare, FlareStatus
 from app.models.ask import PickupAsk, AskStatus, SmsLog
 from app.models.push_subscription import PushSubscription
+from app.models.ring import Ring, RingDrop

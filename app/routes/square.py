@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from app.db import get_db
-from app.models import Node, Produce, Listing, ListingStatus, Transaction
+from app.models import Node, Produce, Listing, ListingStatus, Transaction, RingDrop
 from app.models.ask import PickupAsk, AskStatus
 from app.models.flare import DemandFlare, FlareStatus
 from app.models.user import User, UserRole
@@ -34,6 +34,7 @@ class StallOpen(BaseModel):
     available_from: datetime | None = None
     available_until: datetime | None = None
     pickup_point: str
+    drop_id: str | None = None
     lots: list[LotIn]
 
 
@@ -119,6 +120,7 @@ def market_square(
         .options(
             joinedload(Listing.node).joinedload(Node.owner),
             joinedload(Listing.produce),
+            joinedload(Listing.drop).joinedload(RingDrop.ring),
         )
         .filter(Listing.status.in_((ListingStatus.active, ListingStatus.sold_out)))
         .all()
@@ -218,6 +220,20 @@ def open_stall(
         raise HTTPException(status_code=403, detail="Not your node")
     if not payload.lots:
         raise HTTPException(status_code=400, detail="A stall needs at least one lot")
+    drop = None
+    if payload.drop_id:
+        drop = (
+            db.query(RingDrop)
+            .options(joinedload(RingDrop.ring))
+            .filter(RingDrop.id == payload.drop_id)
+            .first()
+        )
+        if not drop:
+            raise HTTPException(status_code=404, detail="Drop not found")
+        payload.available_from = drop.starts_at
+        payload.available_until = drop.ends_at
+        if drop.ring and drop.ring.place:
+            payload.pickup_point = drop.ring.place
     needs_window = any(not lot.perpetual for lot in payload.lots)
     if needs_window:
         if not payload.available_from or not payload.available_until:
@@ -257,11 +273,12 @@ def open_stall(
             pickup_point=payload.pickup_point,
             is_free=lot.is_free or lot.price_per_kg == 0,
             unit=lot.unit or "kg",
-            available_from=None if perpetual else payload.available_from,
-            available_until=None if perpetual else payload.available_until,
-            perpetual=perpetual,
+            perpetual=False if drop else perpetual,
             demo=bool(lot.demo),
             featured=False,
+            drop_id=drop.id if drop else None,
+            available_from=drop.starts_at if drop else (None if perpetual else payload.available_from),
+            available_until=drop.ends_at if drop else (None if perpetual else payload.available_until),
             status=ListingStatus.active,
         )
         db.add(listing)
@@ -296,9 +313,9 @@ def catalog(
                 **good,
                 "farm_name": stall["farm_name"],
                 "farmer_name": stall["farmer_name"],
-                "pickup_point": stall["pickup_point"],
-                "available_from": stall["available_from"],
-                "available_until": stall["available_until"],
+                "pickup_point": good.get("pickup_point") or stall["pickup_point"],
+                "available_from": good.get("available_from") or stall["available_from"],
+                "available_until": good.get("available_until") or stall["available_until"],
                 "distance_km": stall["distance_km"],
                 "farmer_id": stall.get("farmer_id") or "",
                 "farm_created_at": stall.get("created_at"),
@@ -308,6 +325,8 @@ def catalog(
         key=lambda g: (g.get("farm_created_at") or "", g.get("created_at") or "", g.get("produce_name") or ""),
         reverse=True,
     )
+    items.sort(key=lambda g: ((g.get("drop") or {}).get("starts_at") or ""), reverse=True)
+    items.sort(key=lambda g: 0 if g.get("drop") else 1)
     items.sort(key=lambda g: 0 if g.get("featured") else 1)
     return {"items": items, "count": len(items), "flares": square["flares"]}
 
