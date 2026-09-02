@@ -46,6 +46,8 @@ def test_i18n_bootstrap_uses_i18next():
     assert 'id="theme-btn"' not in html
     assert 'id="lang-switch"' not in html
     assert "function applyPickedTheme" in html
+    assert 'id="sheet-x"' in html
+    assert "function bindSheetDismiss" in html
     assert 'html lang="fi"' in html
     assert 'list.push("saved")' in html
     assert "function produceSrc" in html
