@@ -126,6 +126,9 @@ def test_service_worker_and_manifest(client):
     assert 'id="lang-switch"' not in page.text
     assert 'id="theme-btn"' not in page.text
     assert 'id="settings-btn"' in page.text
+    assert 'id="sheet-x"' in page.text
+    assert "function bindSheetDismiss" in page.text
+    assert "translateX(-110%)" in page.text
     assert 'data-theme="light"' in page.text
     assert 'data-lang="fi"' in page.text
     assert "function applyPickedTheme" in page.text

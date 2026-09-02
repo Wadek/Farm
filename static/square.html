@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css?v=19">
+<link rel="stylesheet" href="/static/css/app.css?v=20">
 </head>
 <body>
 <header id="topbar">
@@ -180,7 +180,12 @@
 </main>
 <nav id="tabbar"></nav>
 <div id="sheet" class="hidden" role="dialog" aria-modal="true">
-  <div class="sheet-card" id="sheet-body"></div>
+  <div class="sheet-card" id="sheet-card">
+    <button type="button" class="sheet-x" id="sheet-x" aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <div id="sheet-body"></div>
+  </div>
 </div>
 <div id="toast" class="toast hidden"></div>
 <script src="/static/vendor/i18next.min.js"></script>
@@ -316,6 +321,8 @@ function fmtTimestamp(value) {
 function paintStatic() {
   document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  const x = document.getElementById("sheet-x");
+  if (x) x.setAttribute("aria-label", t("Close"));
 }
 function paintHeaderIcons() {
   const gear = document.getElementById("settings-btn");
@@ -498,11 +505,10 @@ function openSettings() {
   const body = document.getElementById("sheet-body");
   body.innerHTML = `
     <div class="detail-body">
-      <button class="btn ghost" type="button" id="sheet-close">${t("Close")}</button>
       ${settingsHtml()}
     </div>`;
   sheet.classList.remove("hidden");
-  body.querySelector("#sheet-close").onclick = closeSheet;
+  resetSheetCard();
   sheet.onclick = (e) => { if (e.target === sheet) closeSheet(); };
   bindSettings(body);
 }
@@ -808,7 +814,68 @@ async function loadCatalog() {
   renderChips(catalogItems);
   paintCatalog();
 }
-function closeSheet() { document.getElementById("sheet").classList.add("hidden"); }
+function resetSheetCard() {
+  const card = document.getElementById("sheet-card");
+  if (!card) return;
+  card.style.transform = "";
+  card.style.transition = "";
+}
+function closeSheet() {
+  document.getElementById("sheet").classList.add("hidden");
+  resetSheetCard();
+}
+let sheetDismissBound = false;
+function bindSheetDismiss() {
+  const sheet = document.getElementById("sheet");
+  const card = document.getElementById("sheet-card");
+  const xBtn = document.getElementById("sheet-x");
+  if (!sheet || !card || !xBtn || sheetDismissBound) return;
+  sheetDismissBound = true;
+  xBtn.onclick = (e) => { e.stopPropagation(); closeSheet(); };
+  let pid = null, x0 = 0, y0 = 0, dx = 0, armed = false, dragging = false;
+  function skip(el) {
+    return el && el.closest && el.closest("input, textarea, select, button, a, .sheet-x");
+  }
+  function onMove(e) {
+    if (!armed || e.pointerId !== pid) return;
+    const mx = e.clientX - x0, my = e.clientY - y0;
+    if (!dragging && Math.abs(my) > 20 && Math.abs(my) >= Math.abs(mx)) {
+      armed = false;
+      card.style.transform = "";
+      return;
+    }
+    if (mx >= 0) return;
+    dragging = true;
+    dx = mx;
+    card.style.transform = "translateX(" + dx + "px)";
+  }
+  function endSwipe(e) {
+    if (pid != null && e && e.pointerId !== pid) return;
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", endSwipe);
+    window.removeEventListener("pointercancel", endSwipe);
+    if (!armed && !dragging) { pid = null; dx = 0; return; }
+    const go = dx < -80;
+    card.style.transition = "transform .18s ease";
+    if (go) {
+      card.style.transform = "translateX(-110%)";
+      setTimeout(closeSheet, 180);
+    } else {
+      card.style.transform = "";
+    }
+    armed = false; dragging = false; dx = 0; pid = null;
+  }
+  card.addEventListener("pointerdown", (e) => {
+    if (sheet.classList.contains("hidden")) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (skip(e.target)) return;
+    pid = e.pointerId; x0 = e.clientX; y0 = e.clientY; dx = 0; armed = true; dragging = false;
+    card.style.transition = "none";
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", endSwipe);
+    window.addEventListener("pointercancel", endSwipe);
+  });
+}
 function openAsk(item) {
   if (!item) return;
   const sheet = document.getElementById("sheet");
@@ -830,7 +897,6 @@ function openAsk(item) {
   body.innerHTML = `
     <div class="detail-hero">${produceImg(item)}<span>${esc(item.produce_name)}</span></div>
     <div class="detail-body">
-      <button class="btn ghost" type="button" id="sheet-close">${t("Close")}</button>
       <div class="detail-price">${soldOut ? t("Sold out") : money(item)}</div>
       <div class="detail-title">${esc(item.produce_name)}</div>
       <p class="meta">${esc(item.farm_name)} · ${esc(item.farmer_name || "")}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}<br>${esc(whenLine)} · ${esc(item.pickup_point || "")}</p>
@@ -851,7 +917,7 @@ function openAsk(item) {
       <button class="btn primary" type="button" id="ask-send">${sendLabel}</button>
     </div>`}`;
   sheet.classList.remove("hidden");
-  body.querySelector("#sheet-close").onclick = closeSheet;
+  resetSheetCard();
   sheet.onclick = (e) => { if (e.target === sheet) closeSheet(); };
   const favBtn = body.querySelector("[data-fav-detail]");
   if (favBtn) favBtn.onclick = () => { toggleFav(item.id); openAsk(catalogById[item.id] || item); renderChips(catalogItems); paintCatalog(); };
@@ -1825,6 +1891,7 @@ document.getElementById("settings-btn").onclick = () => openSettings();
 function boot() {
   paintStatic();
   paintHeaderIcons();
+  bindSheetDismiss();
   lotRow(document.getElementById("lots"));
   lotRow(document.getElementById("v-lots"));
   renderAuth();
