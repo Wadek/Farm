@@ -29,15 +29,23 @@
     return theme;
   }
 
-  function t(key, ...args) {
+  function tIn(which, key, ...args) {
     if (key == null || key === "") return "";
     const k = String(key);
-    const pack = packs[lang] || {};
+    const pack = packs[which] || {};
     let v = pack[k];
     if (v == null || v === "") v = (packs.en || {})[k];
     if (v == null || v === "") v = k;
     for (let i = 0; i < args.length; i++) v = String(v).split("{" + i + "}").join(args[i]);
     return v;
+  }
+  function t(key, ...args) {
+    return tIn(lang, key, ...args);
+  }
+  function produceLabel(name) {
+    const raw = String(name == null ? "" : name).trim();
+    if (!raw) return "";
+    return t(raw);
   }
 
   function setLang(next) {
@@ -57,6 +65,8 @@
   applyTheme(detectTheme());
 
   global.t = t;
+  global.tIn = tIn;
+  global.produceLabel = produceLabel;
   global.setLang = setLang;
   global.getLang = getLang;
   global.dateLocale = dateLocale;
