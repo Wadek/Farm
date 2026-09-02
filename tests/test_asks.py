@@ -123,7 +123,7 @@ def test_service_worker_and_manifest(client):
     assert 'id="view-home"' in page.text
     assert "Satokori" in page.text
     assert 'id="loc-btn" class="hidden"' in page.text
-    assert 'return me ? "account" : "home"' in page.text
+    assert 'return me ? "browse" : "home"' in page.text
     assert 'show("home")' in page.text
     assert 'show("account")' in page.text
     assert '["reko", t("REKO")' not in page.text

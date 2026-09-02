@@ -260,7 +260,7 @@ function produceSrc(item) {
 }
 function produceImg(item, name) {
   const src = esc(produceSrc(item));
-  const label = esc(name || (item && item.produce_name) || "");
+  const label = esc(name || produceLabel(item && item.produce_name) || "");
   const fallback = esc(produceFileUrl("produce.jpg"));
   return `<img class="produce-icon" src="${src}" alt="${label}" width="512" height="512" onerror="this.onerror=null;this.src='${fallback}'">`;
 }
@@ -386,7 +386,7 @@ function navItems() {
     ["account", t("You"), "you"],
   ];
 }
-function defaultView() { return me ? "account" : "home"; }
+function defaultView() { return me ? "browse" : "home"; }
 function titles() {
   return { home: t("Satokori"), browse: t("Satokori"), reko: t("REKO"), farms: t("Farms"), listings: t("Sell"), basket: t("Orders"), account: t("You"), visit: t("Field visit"), ledger: t("Ledger"), admin: t("Admin") };
 }
@@ -615,7 +615,7 @@ async function login(email, password) {
   applyChrome();
   enableNotifications();
   startNotifyLoop();
-  show("account");
+  show("browse");
   toast(t("Signed in"));
   if (me.role === "farmer" || me.role === "organizer") {
     try {
@@ -663,7 +663,7 @@ function renderBasket() {
     <h4 style="margin:.4rem 0">${t("Items in basket")}</h4>
     ${Object.entries(byFarm).map(([farm, items]) => `
       <div class="basket-line"><b>${farm}</b><span>${fmtWhen(items[0].available_from, items[0].available_until)}</span></div>
-      ${items.map(b => `<div class="basket-line">${b.produce_name}<button class="btn ghost" data-id="${b.listing_id}">${t("Remove")}</button></div>`).join("")}
+      ${items.map(b => `<div class="basket-line">${esc(produceLabel(b.produce_name))}<button class="btn ghost" data-id="${b.listing_id}">${t("Remove")}</button></div>`).join("")}
       <p class="meta">${items[0].pickup_point}</p>
     `).join("")}`;
   el.querySelectorAll("[data-id]").forEach(btn => btn.onclick = () => {
@@ -759,10 +759,10 @@ function tileHtml(item) {
   return `<article class="tile ${soldOut ? "sold-out" : ""} ${item.featured ? "featured" : ""}" data-open="${item.id}">
     ${flag}
     <button type="button" class="fav ${isFav(item.id) ? "on" : ""}" data-fav="${item.id}" aria-label="${t("Save")}" aria-pressed="${isFav(item.id) ? "true" : "false"}">♥</button>
-    <div class="tile-hero">${produceImg(item)}<span>${esc(item.produce_name)}</span></div>
+    <div class="tile-hero">${produceImg(item)}<span>${esc(produceLabel(item.produce_name))}</span></div>
     <div class="tile-body">
       <div class="tile-price">${soldOut ? t("Sold out") : money(item)}</div>
-      <div class="tile-title">${esc(item.produce_name)}${soldOut ? "" : " · " + qtyLabel(item)}</div>
+      <div class="tile-title">${esc(produceLabel(item.produce_name))}${soldOut ? "" : " · " + qtyLabel(item)}</div>
       <div class="tile-meta">${esc(item.farm_name)}${km ? " · " + km : ""} · ${esc(when)}</div>
     </div>
   </article>`;
@@ -783,7 +783,10 @@ function bindTiles(root) {
 function matchesQuery(item) {
   const q = filterQ.trim().toLowerCase();
   if (!q) return true;
-  return [item.produce_name, item.farm_name, item.farmer_name, item.category,
+  return [item.produce_name, produceLabel(item.produce_name),
+    typeof tIn === "function" ? tIn("en", item.produce_name) : "",
+    typeof tIn === "function" ? tIn("fi", item.produce_name) : "",
+    item.farm_name, item.farmer_name, item.category,
     item.drop && item.drop.ring_name, item.drop && item.drop.place]
     .join(" ").toLowerCase().includes(q);
 }
@@ -1006,10 +1009,10 @@ function openAsk(item, step) {
     </div>`;
   }
   body.innerHTML = `
-    <div class="detail-hero">${produceImg(item)}<span>${esc(item.produce_name)}</span></div>
+    <div class="detail-hero">${produceImg(item)}<span>${esc(produceLabel(item.produce_name))}</span></div>
     <div class="detail-body">
       <div class="detail-price">${soldOut ? t("Sold out") : money(item)}</div>
-      <div class="detail-title">${esc(item.produce_name)}</div>
+      <div class="detail-title">${esc(produceLabel(item.produce_name))}</div>
       <p class="meta">${esc(item.farm_name)} · ${esc(item.farmer_name || "")}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}<br>${esc(whenLine)} · ${esc(item.pickup_point || "")}</p>
       ${item.featured ? `<p class="meta">${t("Featured listing")}</p>` : ""}
       ${isLiveFarm(item) ? `<p class="meta">${t("Live listing")}</p>` : item.demo ? `<p class="meta">${t("Demo listing — sample stock until the farmer posts the real harvest.")}</p>` : ""}
@@ -1099,7 +1102,7 @@ function incomingAskCardHtml(a) {
     : "";
   return `
       <article class="card ${isConfirmed && a.offer_text ? "has-reply" : ""}">
-        <h3>${esc(a.produce)}</h3>
+        <h3>${esc(produceLabel(a.produce))}</h3>
         <div class="meta"><b>${esc(a.buyer_name)}</b> ${t("requested")} ${a.quantity} ${esc(a.unit)}${a.note ? " · “" + esc(a.note) + "”" : ""} · ${fmtTimestamp(a.created_at)}</div>
         ${drop ? `<div class="meta">${t("Next drop")} · ${esc(fmtDrop(drop))}</div>` : ""}
         <div class="meta">${t("Status")}: <b>${statusLabel}</b></div>
@@ -1233,7 +1236,7 @@ async function loadBasketLedger() {
         : (drop ? t("Confirmed for the drop") : t("Farmer named a time"));
       return `
       <article class="card ${isConfirmed && a.offer_text ? "has-reply" : ""}">
-        <h3>${esc(a.produce)}</h3>
+        <h3>${esc(produceLabel(a.produce))}</h3>
         <div class="meta">${t("From farm")} <b>${esc(a.farm_name)}</b> (${esc(a.farmer_name)}) · ${a.quantity} ${esc(a.unit)}${a.note ? " · “" + esc(a.note) + "”" : ""} · ${fmtTimestamp(a.created_at)}</div>
         ${drop ? `<div class="meta">${t("Next drop")} · ${esc(fmtDrop(drop))}</div>` : ""}
         <div class="meta">${t("Status")}: <b>${statusLabel}</b></div>
@@ -1253,7 +1256,7 @@ async function loadBasketLedger() {
       <div class="basket-line card">
         <div>
           <b>${t("COMPLETED TRADE")}</b> · ${tr.from_farm}${tr.buyer ? ` → ${tr.buyer}` : ""}
-          <div class="meta">${tr.produce} · ${tr.quantity_kg} kg · event ${fmtTimestamp(tr.created_at)}</div>
+          <div class="meta">${esc(produceLabel(tr.produce))} · ${tr.quantity_kg} kg · event ${fmtTimestamp(tr.created_at)}</div>
         </div>
         <div style="text-align:right">
           <b>${tr.myc_tokens_minted} MYC</b>
@@ -1294,7 +1297,7 @@ async function loadFarms() {
   ringMarkers.forEach(m => farmsMap.removeLayer(m));
   farmMarkers = square.stalls.map(s => {
     const unclaimed = s.is_unclaimed || s.farmer_name === "Unclaimed";
-    const popup = `<b>${s.farm_name}</b>${unclaimed ? " (" + t("Unclaimed") + ")" : ""}<br>${s.description || s.pickup_point || ""}<br>${fmtWhen(s.available_from, s.available_until)}${s.goods && s.goods.length ? "<br>" + s.goods.map(g => g.produce_name).join(", ") : ""}`;
+    const popup = `<b>${s.farm_name}</b>${unclaimed ? " (" + t("Unclaimed") + ")" : ""}<br>${s.description || s.pickup_point || ""}<br>${fmtWhen(s.available_from, s.available_until)}${s.goods && s.goods.length ? "<br>" + s.goods.map(g => produceLabel(g.produce_name)).join(", ") : ""}`;
     const marker = unclaimed
       ? L.circleMarker([s.lat, s.lng], { radius: 11, color: "#b86132", fillColor: "#d4a017", fillOpacity: 0.9, weight: 2 })
       : L.marker([s.lat, s.lng]);
@@ -1323,7 +1326,7 @@ async function loadFarms() {
     <article class="card">
       <h3>${esc(s.farm_name)}</h3>
       <div class="meta">${unclaimed ? t("Open to claim") : esc(s.farmer_name)} · ${esc(place)}${km ? " · " + km : ""}</div>
-      ${s.goods && s.goods.length ? s.goods.map(g => `<div class="meta">${esc(g.produce_name)} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("") : `<p class="meta">${t("No produce listed yet.")}</p>`}
+      ${s.goods && s.goods.length ? s.goods.map(g => `<div class="meta">${esc(produceLabel(g.produce_name))} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("") : `<p class="meta">${t("No produce listed yet.")}</p>`}
       ${unclaimed && !s.claim_pending ? `<button class="btn primary" type="button" data-claim-node="${esc(s.node_id)}">${t("This is my farm")}</button>` : ""}
       ${s.claim_pending && me && s.claim_pending_user_id === me.id ? `<p class="meta">${t("Waiting for admin to approve your claim.")}</p>` : ""}
       ${s.claim_pending && !(me && s.claim_pending_user_id === me.id) ? `<p class="meta">${t("Claim pending admin approval.")}</p>` : ""}
@@ -1516,7 +1519,7 @@ async function loadMyListings() {
     return `
     <article class="card listing-row">
       ${produceImg(g)}
-      <h3>${g.produce_name}${soldOut ? t(" · sold out") : ""}</h3>
+      <h3>${esc(produceLabel(g.produce_name))}${soldOut ? t(" · sold out") : ""}</h3>
       <div class="meta">${soldOut ? t("Sold out") : qtyLabel(g) + t(" left")} · ${priceLabel(g)} · ${g.farm_name}</div>
       ${soldOut ? `<p class="meta">${t("Customers can still request this. Reply in Basket.")}</p><button class="btn primary" type="button" data-relist="${g.id}">${t("Relist same amount")}</button>` : `
       <div class="meta">${t("Quick mark sold")}</div>
@@ -1764,12 +1767,12 @@ async function loadAdmin() {
   const feat = data.featured;
   document.getElementById("admin-featured").innerHTML = `
     <h3>${t("Featured listing")}</h3>
-    <p class="meta">${feat ? `${feat.private ? t("Private listing") : esc(feat.produce_name)} · ${esc(feat.node_name || "")}` : t("Nothing featured. Pick one below.")}</p>
+    <p class="meta">${feat ? `${feat.private ? t("Private listing") : esc(produceLabel(feat.produce_name))} · ${esc(feat.node_name || "")}` : t("Nothing featured. Pick one below.")}</p>
     ${feat ? `<button class="btn ghost" type="button" id="clear-featured">${t("Clear featured")}</button>` : ""}
     <div class="grid" style="margin-top:8px">${(data.listings || []).map(l => `
       <div class="farm-row">
         <div>
-          <div><b>${l.private ? t("Private listing") : esc(l.produce_name)}</b> ${l.private ? `<span class="tag">${lockGlyph()} ${t("Private")}</span>` : ""} ${l.featured ? `<span class="tag gold">${t("Featured")}</span>` : ""} ${l.demo ? `<span class="tag copper">${t("Demo")}</span>` : ""}</div>
+          <div><b>${l.private ? t("Private listing") : esc(produceLabel(l.produce_name))}</b> ${l.private ? `<span class="tag">${lockGlyph()} ${t("Private")}</span>` : ""} ${l.featured ? `<span class="tag gold">${t("Featured")}</span>` : ""} ${l.demo ? `<span class="tag copper">${t("Demo")}</span>` : ""}</div>
           <div class="meta">${esc(l.node_name || "")}${l.private ? "" : " · " + qtyLabel(l) + " · " + money(l)}</div>
         </div>
         ${l.private ? "" : `<button class="btn ${l.featured ? "ghost" : "primary"}" type="button" data-feature="${esc(l.id)}">${l.featured ? t("Featured") : t("Feature")}</button>`}
@@ -1811,7 +1814,7 @@ function paintAdminFarm(f) {
     <div class="meta">${f.is_unclaimed ? t("Open to claim") : t("Claimed")} · ${f.listing_count} ${t("listings")}</div>
     ${f.private ? "" : `<div class="meta">${esc(f.owner_name || "")}${f.owner_email ? " · " + esc(f.owner_email) : ""}${f.owner_phone ? " · " + esc(f.owner_phone) : ""}</div>
     <div class="meta">${esc(f.description || "")}</div>`}
-    ${(f.listings || []).map(l => `<div class="meta">${l.private ? t("Private listing") : esc(l.produce_name || "")}</div>`).join("")}
+    ${(f.listings || []).map(l => `<div class="meta">${l.private ? t("Private listing") : esc(produceLabel(l.produce_name || ""))}</div>`).join("")}
     ${f.owner_id && !f.is_unclaimed ? `<button class="btn ghost" type="button" data-disable-user="${esc(f.owner_id)}" style="margin-top:8px">${f.owner_disabled ? t("Enable account") : t("Disable account")}</button>` : ""}`;
   const btn = el.querySelector("[data-disable-user]");
   if (btn) btn.onclick = async () => {
@@ -1975,7 +1978,7 @@ async function pollNotify(seedOnly) {
       seen[a.id] = stamp;
       if (first || seedOnly) return;
       if (!prev && a.farmer_id === me.id && a.status === "asked") {
-        trayNotify(t("Pickup request"), `${a.buyer_name} ${t("requested")} ${a.quantity} ${a.unit} ${a.produce}`, "ask-" + a.id);
+        trayNotify(t("Pickup request"), `${a.buyer_name} ${t("requested")} ${a.quantity} ${a.unit} ${produceLabel(a.produce)}`, "ask-" + a.id);
       } else if (prev && a.buyer_id === me.id && (a.status === "confirmed" || a.status === "offered") && a.offer_text) {
         trayNotify(t("Farmer replied"), `${a.farmer_name}: ${a.offer_text}`, "reply-" + a.id);
       } else if (prev && a.buyer_id === me.id && a.status === "declined") {

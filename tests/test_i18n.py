@@ -25,6 +25,13 @@ def test_finnish_catalog_is_not_english_echo():
     assert FI["Order"] == "Tilaa"
     assert FI["Confirm this week's REKO"] == "Vahvista tämän viikon REKO-jako"
     assert FI["When will you pick up?"] == "Milloin haet?"
+    assert FI["Raw milk"] == "Raakamaito"
+    assert FI["Raspberries"] == "Vadelmat"
+    assert FI["Lehtikaali (kale)"] == "Lehtikaali"
+    assert FI["Haskap (hunajamarja)"] == "Hunajamarja"
+    assert EN["Tinkimaito"] == "Farm milk"
+    assert EN["Tyrni"] == "Sea buckthorn"
+    assert EN["Lehtikaali (kale)"] == "Kale"
 
 
 def test_i18n_bootstrap_uses_i18next():
@@ -34,7 +41,7 @@ def test_i18n_bootstrap_uses_i18next():
     assert "/static/vendor/i18next.min.js" in html
     assert 'id="view-browse"' in html
     assert 'id="view-home"' in html
-    assert 'return me ? "account" : "home"' in html
+    assert 'return me ? "browse" : "home"' in html
     assert 't("Satokori")' in html
     assert '["reko", t("REKO")' not in html
     assert 'filterCat === "reko"' in html
@@ -56,4 +63,6 @@ def test_i18n_bootstrap_uses_i18next():
     assert 'html lang="fi"' in html
     assert 'list.push("saved")' in html
     assert "function produceSrc" in html
+    assert "function produceLabel" in boot
+    assert "produceLabel(item.produce_name)" in html
     assert "openSettings" in html
