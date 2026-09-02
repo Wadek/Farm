@@ -1,5 +1,6 @@
 {
   "Search": "Haku",
+  "Satokori": "Satokori",
   "REKO": "REKO",
   "Map": "Kartta",
   "Sell": "Myy",
@@ -288,6 +289,9 @@
   "Claim declined": "Lunastus hylätty",
   "Waiting for admin to approve your claim.": "Odottaa ylläpitäjän hyväksyntää.",
   "Claim sent. An admin will approve it.": "Lunastuspyyntö lähetetty. Ylläpitäjä hyväksyy sen.",
+  "Already listed? Claim it on the Map. An admin has to approve.": "Tila on jo listalla? Lunasta se Kartalta. Ylläpitäjän on hyväksyttävä.",
+  "Claim your farm on the map, or add a new one from Sell.": "Lunasta tilasi kartalta, tai lisää uusi Myy-välilehdellä.",
+  "Claim pending admin approval.": "Lunastus odottaa ylläpitäjän hyväksyntää.",
   "Someone already asked to claim this farm.": "Joku on jo pyytänyt tämän tilan lunastusta.",
   "event": "tapahtuma",
   "marked by": "merkitsi",

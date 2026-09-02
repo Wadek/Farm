@@ -304,7 +304,7 @@ def seed():
         print("Organizer (password: farmgate)")
         print("  wkariniemi@proton.me   Kariniemi Farms (claimed)")
         print()
-        print("Unclaimed farms — farmer logs in, then taps This is my farm:")
+        print("Unclaimed farms — farmer taps This is my farm on Map; admin approves:")
         for node_id, name, *_rest in farms:
             print(f"  {name}")
         print()

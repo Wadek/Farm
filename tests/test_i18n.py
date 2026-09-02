@@ -16,6 +16,8 @@ def test_finnish_catalog_is_not_english_echo():
     assert len(translated) > 150
     assert FI["This week's REKO"] == "Tämän viikon REKO-jako"
     assert FI["Search"] == "Haku"
+    assert FI["Satokori"] == "Satokori"
+    assert FI["REKO"] == "REKO"
 
 
 def test_i18n_bootstrap_uses_i18next():
@@ -24,5 +26,13 @@ def test_i18n_bootstrap_uses_i18next():
     assert "/static/locales/fi.json" in boot
     assert "/static/vendor/i18next.min.js" in html
     assert 'id="view-reko"' in html
+    assert 't("Satokori")' in html
+    assert "function paintReko" in html
+    assert "if (item.drop) return false" in html
+    assert "drop-banner" not in html
     assert "farmgate" not in html
+    assert "data-demo-email" not in html
+    assert "data-demo-password" not in html
+    assert "paintOpenFarms" not in html
+    assert 'id="claim-open"' not in html
     assert 'id="guest-settings"' in html

@@ -113,7 +113,10 @@ def test_service_worker_and_manifest(client):
     assert "cat.greens" not in page.text
     assert 'data-i18n-placeholder="Milk, eggs, kale…"' in page.text
     assert 'id="view-admin"' in page.text
-    assert 'id="claim-open"' in page.text
+    assert 'id="claim-open"' not in page.text
+    assert "data-demo-email" not in page.text
+    assert "data-demo-password" not in page.text
+    assert "farmgate" not in page.text
     assert "maija@naapuri.fi" not in page.text
     assert "anna@hyvinkaa.fi" not in page.text
     assert 'id="view-reko"' in page.text
@@ -137,6 +140,11 @@ def test_service_worker_and_manifest(client):
     assert css.status_code == 200
     assert "#tabbar" in css.text
     assert "safe-area-inset-bottom" in css.text
+    assert "bottom: var(--tabh)" in css.text
+    assert "drop-banner" not in css.text
+    assert "drop-banner" not in page.text
+    assert 't("Satokori")' in page.text
+    assert "function paintReko" in page.text
     assert "min-height: 44px" in css.text
     assert "tile-flag" in css.text
     assert "admin-tiles" in css.text

@@ -111,7 +111,7 @@ _ensure_ask_pickup_columns()
 _ensure_node_claim_columns()
 _ensure_ring_columns()
 
-app = FastAPI(title="Satokori", version="0.3.0")
+app = FastAPI(title="Satokori", version="0.3.0", docs_url=None, redoc_url=None)
 app.include_router(auth.router)
 app.include_router(nodes.router)
 app.include_router(tips.router)

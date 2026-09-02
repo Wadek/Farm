@@ -1,5 +1,6 @@
 {
   "Search": "Search",
+  "Satokori": "Satokori",
   "REKO": "REKO",
   "Map": "Map",
   "Sell": "Sell",
@@ -288,6 +289,9 @@
   "Claim declined": "Claim declined",
   "Waiting for admin to approve your claim.": "Waiting for admin to approve your claim.",
   "Claim sent. An admin will approve it.": "Claim sent. An admin will approve it.",
+  "Already listed? Claim it on the Map. An admin has to approve.": "Already listed? Claim it on the Map. An admin has to approve.",
+  "Claim your farm on the map, or add a new one from Sell.": "Claim your farm on the map, or add a new one from Sell.",
+  "Claim pending admin approval.": "Claim pending admin approval.",
   "Someone already asked to claim this farm.": "Someone already asked to claim this farm.",
   "event": "event",
   "marked by": "marked by",

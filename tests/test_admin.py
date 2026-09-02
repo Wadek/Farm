@@ -107,6 +107,8 @@ def test_farmer_claims_unclaimed_farm_by_node_id(client):
     claimed = client.post("/nodes/claim", json={"node_id": farm["node_id"]}, headers=_auth(farmer))
     assert claimed.status_code == 200, claimed.text
     assert claimed.json()["status"] == "pending"
+    assert claimed.json()["claimed_at"] is None
+    assert client.get("/nodes", headers=_auth(farmer)).json() == []
     square = client.get("/square").json()
     stall = next(s for s in square["stalls"] if s["farm_name"] == "Toikantila")
     assert stall["is_unclaimed"] is True
@@ -188,3 +190,14 @@ def test_ask_on_unclaimed_demo_goes_to_organizer(client):
     assert asked.json()["farmer_id"] == admin_id
     inbox = client.get("/asks", headers=_auth(admin)).json()
     assert any(a["id"] == asked.json()["id"] for a in inbox)
+
+
+def test_admin_routes_reject_anonymous_and_farmers(client):
+    farmer, _ = _register(client, "sec-farmer@test.com", "Niina", "farmer")
+    assert client.get("/docs").status_code == 404
+    assert client.get("/redoc").status_code == 404
+    assert client.get("/admin/overview").status_code in (401, 403)
+    assert client.post("/admin/claims", json={"node_id": "n1", "approve": True}).status_code in (401, 403)
+    assert client.post("/admin/featured", json={"listing_id": None}).status_code in (401, 403)
+    assert client.get("/admin/overview", headers=_auth(farmer)).status_code == 403
+    assert client.post("/admin/claims", json={"node_id": "n1", "approve": True}, headers=_auth(farmer)).status_code == 403

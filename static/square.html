@@ -82,8 +82,8 @@
   <section id="view-listings" class="hidden">
     <div id="farm-setup" class="card grid hidden">
       <h3 data-i18n="Add your farm">Add your farm</h3>
-      <div id="claim-open" class="grid" style="margin-bottom:12px"></div>
       <p class="meta" data-i18n="Pin the pickup spot. Then list this week’s harvest. No claim code.">Pin the pickup spot. Then list this week’s harvest. No claim code.</p>
+      <p class="meta" data-i18n="Already listed? Claim it on the Map. An admin has to approve.">Already listed? Claim it on the Map. An admin has to approve.</p>
       <label><span data-i18n="Farm name">Farm name</span> <input id="farm-name" required placeholder="Rajamäki Beds"></label>
       <label><span data-i18n="Pickup point">Pickup point</span> <input id="farm-pickup" required placeholder="Red shed / farm gate"></label>
       <label><span data-i18n="Kind">Kind</span>
@@ -311,7 +311,7 @@ function icn(name) {
 }
 function navItems() {
   return [
-    ["browse", t("Search"), "logo"],
+    ["browse", t("Satokori"), "logo"],
     ["reko", t("REKO"), "reko"],
     ["farms", t("Map"), "map"],
     ["listings", t("Sell"), "sell"],
@@ -321,7 +321,7 @@ function navItems() {
 }
 function defaultView() { return "browse"; }
 function titles() {
-  return { browse: t("Search"), reko: t("REKO"), farms: t("Farms"), listings: t("Sell"), basket: t("Orders"), account: t("You"), visit: t("Field visit"), ledger: t("Ledger"), admin: t("Admin") };
+  return { browse: t("Satokori"), reko: t("REKO"), farms: t("Farms"), listings: t("Sell"), basket: t("Orders"), account: t("You"), visit: t("Field visit"), ledger: t("Ledger"), admin: t("Admin") };
 }
 function renderNav(active) {
   const nav = document.getElementById("tabbar");
@@ -447,7 +447,11 @@ async function login(email, password) {
   if (me.role === "farmer" || me.role === "organizer") {
     try {
       const nodes = await api("/nodes");
-      if (!nodes.length) { show("listings"); toast(t("Add your farm to start listing")); return; }
+      if (!nodes.length) {
+        show("farms");
+        toast(t("Claim your farm on the map, or add a new one from Sell."));
+        return;
+      }
     } catch {}
   }
   show("browse");
@@ -927,8 +931,9 @@ async function loadFarms() {
       <h3>${esc(s.farm_name)}</h3>
       <div class="meta">${unclaimed ? t("Open to claim") : esc(s.farmer_name)} · ${esc(place)}${km ? " · " + km : ""}</div>
       ${s.goods && s.goods.length ? s.goods.map(g => `<div class="meta">${esc(g.produce_name)} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("") : `<p class="meta">${t("No produce listed yet.")}</p>`}
-      ${unclaimed && !s.claim_pending ? `<button class="btn primary" data-claim-node="${esc(s.node_id)}" data-claim="${esc(s.claim_id || "")}">${t("This is my farm")}</button>` : ""}
+      ${unclaimed && !s.claim_pending ? `<button class="btn primary" type="button" data-claim-node="${esc(s.node_id)}">${t("This is my farm")}</button>` : ""}
       ${s.claim_pending && me && s.claim_pending_user_id === me.id ? `<p class="meta">${t("Waiting for admin to approve your claim.")}</p>` : ""}
+      ${s.claim_pending && !(me && s.claim_pending_user_id === me.id) ? `<p class="meta">${t("Claim pending admin approval.")}</p>` : ""}
     </article>`;
   }).join("") || `<div class="empty"><h3>${t("No farms yet")}</h3><p>${t("Farmers add themselves from Sell.")}</p></div>`;
 
@@ -941,16 +946,17 @@ async function claimFarm(nodeId, claimId) {
   const body = {};
   if (nodeId) body.node_id = nodeId;
   else if (claimId) body.claim_id = claimId;
-  else { show("listings"); return; }
+  else return;
   const res = await api("/nodes/claim", { method: "POST", body: JSON.stringify(body) });
   toast(res.status === "pending" ? t("Claim sent. An admin will approve it.") : res.farm_name + t(" is yours"));
-  show("listings");
+  if (activeView === "farms") loadFarms();
+  else show("farms");
 }
 function bindClaimButtons(root) {
   if (!root) return;
-  root.querySelectorAll("[data-claim-node], [data-claim]").forEach(b => {
+  root.querySelectorAll("[data-claim-node]").forEach(b => {
     b.onclick = async () => {
-      try { await claimFarm(b.dataset.claimNode, b.dataset.claim); }
+      try { await claimFarm(b.dataset.claimNode); }
       catch (err) { toast(err.message); }
     };
   });
@@ -1193,13 +1199,9 @@ document.getElementById("claim-farm-form").onsubmit = async (e) => {
   if (role() !== "farmer" && role() !== "organizer") { toast(t("Only farmer accounts can claim farms")); return; }
   try {
     const res = await api("/nodes/claim", { method: "POST", body: JSON.stringify({ claim_id: e.target.claim_id.value.trim() }) });
-    toast(`${res.farm_name}${t(" claimed!")}`);
+    toast(res.status === "pending" ? t("Claim sent. An admin will approve it.") : `${res.farm_name}${t(" claimed!")}`);
     e.target.reset();
-    loadFarms();
-    if (role() === "farmer" || role() === "organizer") {
-      loadMyListings();
-      loadStallNodes();
-    }
+    show("farms");
   } catch (err) { toast(err.message); }
 };
 document.getElementById("login-form").onsubmit = async (e) => {
@@ -1293,6 +1295,7 @@ document.getElementById("visit-form").onsubmit = async (e) => {
   } catch (err) { toast(err.message); }
 };
 function show(name) {
+  closeSheet();
   activeView = name;
   document.querySelectorAll("main > section").forEach(s => s.classList.add("hidden"));
   const view = document.getElementById("view-" + name);
@@ -1309,24 +1312,6 @@ function show(name) {
   if (name === "ledger") loadLedger();
   if (name === "admin") loadAdmin();
   if (role() !== "guest") loadOrderAlerts();
-}
-async function paintOpenFarms() {
-  const el = document.getElementById("claim-open");
-  if (!el) return;
-  try {
-    const square = await api(`/square?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=40`);
-    const open = (square.stalls || []).filter(s => s.is_unclaimed);
-    if (!open.length) { el.innerHTML = ""; return; }
-    el.innerHTML = `<h3>${t("Is this your farm?")}</h3>
-      <p class="meta">${t("Log in once, then claim. No code needed.")}</p>
-      ${open.map(s => `
-        <article class="card">
-          <h3>${esc(s.farm_name)}</h3>
-          <div class="meta">${esc(s.description || s.pickup_point || "")}</div>
-          <button class="btn primary" type="button" data-claim-node="${esc(s.node_id)}">${t("This is my farm")}</button>
-        </article>`).join("")}`;
-    bindClaimButtons(el);
-  } catch { el.innerHTML = ""; }
 }
 async function loadAdmin() {
   if (role() !== "organizer") { toast(t("Admin only")); show("account"); return; }
@@ -1413,7 +1398,6 @@ async function loadSellView() {
     setup.classList.remove("hidden");
     stall.classList.add("hidden");
     mine.classList.add("hidden");
-    await paintOpenFarms();
     ensureFarmMap();
     return;
   }
