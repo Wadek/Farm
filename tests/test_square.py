@@ -59,6 +59,30 @@ def test_open_stall_and_browse_square(client):
     assert body["lots"][0]["unit"] == "kg"
 
 
+def test_remove_listing_sold_out_on_catalog_gone_from_farm_window(client):
+    token, _ = _register(client, "drop-kale@test.com", "Farmer", "farmer")
+    node = client.post("/nodes", json={
+        "name": "Kale Farm", "type": "hobby_farm",
+        "lat": 60.5522, "lng": 24.7050,
+    }, headers=_auth(token)).json()
+    stall = _open_stall(client, token, node["id"], [
+        {"produce_name": "Kale", "category": "greens", "quantity_kg": 8, "price_per_kg": 4.0},
+        {"produce_name": "Eggs", "category": "eggs", "quantity_kg": 2, "price_per_kg": 6.0},
+    ]).json()
+    kale = next(lot for lot in stall["lots"] if lot["produce_name"] == "Kale")
+    gone = client.post(f"/listings/{kale['id']}/sold-out", headers=_auth(token))
+    assert gone.status_code == 200, gone.text
+    assert gone.json()["status"] == "sold_out"
+    catalog = {i["produce_name"]: i for i in client.get("/catalog").json()["items"]}
+    assert catalog["Kale"]["status"] == "sold_out"
+    assert catalog["Eggs"]["status"] == "active"
+    html = client.get("/").text
+    assert "function liveGoods" in html
+    assert 'g.status !== "sold_out"' in html
+    assert "data-remove" in html
+    assert "function refreshSellAndFarms" in html
+
+
 def test_listing_unit_liters(client):
     token, _ = _register(client, "farmer@test.com", "Farmer", "farmer")
     node = client.post("/nodes", json={

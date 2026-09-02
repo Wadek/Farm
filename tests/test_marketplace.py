@@ -72,6 +72,23 @@ def test_produce_picker_filters_set_list():
     assert ".item-new" in css
 
 
+def test_farms_tab_map_inventory_and_rings_order():
+    html = (ROOT / "static" / "square.html").read_text(encoding="utf-8")
+    assert '["farms", t("Farms"), "farm"]' in html
+    assert '["farms", t("Map"), "map"]' not in html
+    assert "/static/farm.jpg" in html
+    assert "function liveGoods" in html
+    assert 'data-remove="' in html
+    farms_map = html.find('id="farms-map"')
+    farms_list = html.find('id="farms"')
+    rings = html.find('id="map-rings"')
+    assert 0 < farms_map < farms_list < rings
+    css = (ROOT / "static" / "css" / "app.css").read_text(encoding="utf-8")
+    assert "#farms-map.leaflet-map" in css
+    assert "50vh" in css
+    assert (ROOT / "static" / "farm.jpg").is_file()
+
+
 def test_siuntio_ring_and_farms_are_in_seed():
     seed = (ROOT / "seed.py").read_text(encoding="utf-8")
     assert "REKO Siuntio" in seed

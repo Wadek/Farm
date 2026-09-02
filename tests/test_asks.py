@@ -200,6 +200,14 @@ def test_service_worker_and_manifest(client):
     logo = client.get("/static/logo.jpg")
     assert logo.status_code == 200
     assert len(logo.content) > 1000
+    farm = client.get("/static/farm.jpg")
+    assert farm.status_code == 200
+    assert farm.headers["content-type"].startswith("image/")
+    assert len(farm.content) > 1000
+    assert len(farm.content) < 100 * 1024
+    assert 't("Farms")' in page.text
+    assert '["farms", t("Map")' not in page.text
+    assert "#farms-map.leaflet-map" in css.text
     manifest = client.get("/static/manifest.webmanifest")
     assert manifest.status_code == 200
     assert "Satokori" in manifest.text
