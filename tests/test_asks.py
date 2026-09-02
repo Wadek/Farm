@@ -104,6 +104,7 @@ def test_service_worker_and_manifest(client):
     page = client.get("/")
     assert page.status_code == 200
     assert 'id="tabbar"' in page.text
+    assert "viewport-fit=cover" in page.text
     assert "/static/css/app.css" in page.text
     assert 'id="lang-switch"' in page.text
     assert "/static/i18n.js" in page.text
@@ -115,6 +116,8 @@ def test_service_worker_and_manifest(client):
     css = client.get("/static/css/app.css")
     assert css.status_code == 200
     assert "#tabbar" in css.text
+    assert "safe-area-inset-bottom" in css.text
+    assert "min-height: 44px" in css.text
     manifest = client.get("/static/manifest.webmanifest")
     assert manifest.status_code == 200
     assert "Satokori" in manifest.text
