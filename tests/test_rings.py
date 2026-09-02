@@ -73,6 +73,7 @@ def test_farmer_posts_lots_to_drop_and_catalog_groups_them(client):
     catalog = client.get("/catalog").json()["items"]
     assert catalog[0]["produce_name"] == "Raw milk"
     assert catalog[0]["drop"]["ring_name"] == "REKO Test"
+    assert catalog[0]["drop"]["ring_id"]
 
 
 def test_customer_orders_drop_offer_without_a_time(client):
@@ -227,6 +228,51 @@ def test_ring_admin_claims_unclaimed_ring_and_opens_a_drop(client):
     assert drop.status_code == 201, drop.text
     public = client.get("/rings").json()
     assert any(r["id"] == ring_id and r["facebook_url"].endswith("hyvinkaanreko") for r in public["rings"])
+
+
+def test_catalog_drop_items_carry_ring_id_for_location_filter(client):
+    admin, _ = _register(client, "loc-admin@test.com", "Admin", "organizer")
+    farmer, _ = _register(client, "loc-farmer@test.com", "Niina", "farmer")
+    start, end = _window()
+    hy = client.post("/rings", json={
+        "name": "Hyvinkään Farmarin Markkinat / REKO",
+        "place": "Mäkikuumolantie 3, Hyvinkää",
+        "lat": 60.63, "lng": 24.86,
+        "starts_at": start, "ends_at": end,
+    }, headers=_auth(admin)).json()
+    nj = client.post("/rings", json={
+        "name": "REKO Nurmijärvi",
+        "place": "Nurmijärven kirkonkylä",
+        "lat": 60.46, "lng": 24.80,
+        "starts_at": start, "ends_at": end,
+    }, headers=_auth(admin)).json()
+    node = client.post("/nodes", json={
+        "name": "Toikantila", "type": "farm", "lat": 60.50, "lng": 24.76,
+    }, headers=_auth(farmer)).json()
+    client.post("/stalls", json={
+        "node_id": node["id"], "drop_id": hy["id"], "pickup_point": "lot",
+        "lots": [{"produce_name": "Milk", "category": "dairy", "quantity_kg": 4,
+                  "price_per_kg": 1.4, "unit": "L"}],
+    }, headers=_auth(farmer))
+    client.post("/stalls", json={
+        "node_id": node["id"], "drop_id": nj["id"], "pickup_point": "lot",
+        "lots": [{"produce_name": "Eggs", "category": "eggs", "quantity_kg": 12,
+                  "price_per_kg": 0.4, "unit": "kpl"}],
+    }, headers=_auth(farmer))
+    items = client.get("/catalog").json()["items"]
+    drops = [i for i in items if i.get("drop")]
+    ring_ids = {i["drop"]["ring_id"] for i in drops}
+    assert hy["ring_id"] in ring_ids
+    assert nj["ring_id"] in ring_ids
+    by_hy = [i["produce_name"] for i in drops if i["drop"]["ring_id"] == hy["ring_id"]]
+    by_nj = [i["produce_name"] for i in drops if i["drop"]["ring_id"] == nj["ring_id"]]
+    assert "Milk" in by_hy
+    assert "Eggs" in by_nj
+    assert "Eggs" not in by_hy
+    html = client.get("/").text
+    assert "renderRekoChips" in html
+    assert "filterReko" in html
+    assert "data-ring" in html
 
 
 def test_buyer_cannot_create_a_ring(client):

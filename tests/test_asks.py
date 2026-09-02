@@ -152,6 +152,8 @@ def test_service_worker_and_manifest(client):
     assert "drop-banner" not in page.text
     assert 't("Satokori")' in page.text
     assert "function paintReko" in page.text
+    assert "renderRekoChips" in page.text
+    assert "data-ring" in page.text
     assert "min-height: 44px" in css.text
     assert "tile-flag" in css.text
     assert "admin-tiles" in css.text

@@ -18,6 +18,8 @@ def test_finnish_catalog_is_not_english_echo():
     assert FI["Search"] == "Haku"
     assert FI["Satokori"] == "Satokori"
     assert FI["REKO"] == "REKO"
+    assert FI["Try another REKO location."] == "Kokeile toista REKO-paikkaa."
+    assert FI["All"] == "Kaikki"
 
 
 def test_i18n_bootstrap_uses_i18next():
@@ -28,6 +30,8 @@ def test_i18n_bootstrap_uses_i18next():
     assert 'id="view-reko"' in html
     assert 't("Satokori")' in html
     assert "function paintReko" in html
+    assert "function renderRekoChips" in html
+    assert "filterReko" in html
     assert "if (item.drop) return false" in html
     assert "drop-banner" not in html
     assert "farmgate" not in html

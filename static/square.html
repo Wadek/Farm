@@ -206,6 +206,7 @@ let catalogItems = [];
 let activeView = "browse";
 let filterQ = "";
 let filterCat = "all";
+let filterReko = "all";
 let favs = JSON.parse(localStorage.getItem("sk_favs") || "[]");
 const CATS = ["all","greens","vegetable","root","berries","eggs","dairy","preserve","feed"];
 const HERO = { dairy:"--hero-dairy", greens:"--hero-greens", berries:"--hero-berries", eggs:"--hero-eggs", root:"--hero-root", vegetable:"--hero-vegetable", preserve:"--hero-preserve", feed:"--hero-feed", produce:"--hero-produce", meat:"--hero-root" };
@@ -313,7 +314,7 @@ function applyLang() {
   renderNav(activeView);
   renderAuth();
   if (activeView === "browse") { renderChips(catalogItems); paintCatalog(); }
-  else if (activeView === "reko") paintReko();
+  else if (activeView === "reko") { renderChips(catalogItems); paintReko(); }
   else if (activeView === "farms") loadFarms();
   else if (activeView === "basket") loadBasketView();
   else if (activeView === "listings") loadSellView();
@@ -362,7 +363,7 @@ function applyChrome() {
   const browsing = activeView === "browse" || activeView === "reko";
   document.getElementById("search-wrap").classList.toggle("hidden", !browsing);
   document.getElementById("loc-btn").classList.toggle("hidden", activeView !== "browse");
-  document.getElementById("chips").classList.toggle("hidden", activeView !== "browse");
+  document.getElementById("chips").classList.toggle("hidden", activeView !== "browse" && activeView !== "reko");
   const title = document.getElementById("page-title");
   title.classList.toggle("hidden", browsing);
   title.textContent = titles()[activeView] || "Satokori";
@@ -578,7 +579,37 @@ function fmtDrop(drop) {
   const when = drop.starts_at ? fmtTimestamp(drop.starts_at) : "";
   return [drop.ring_name, when, drop.place].filter(Boolean).join(" · ");
 }
+function ringChipLabel(drop) {
+  const name = String((drop && drop.ring_name) || "").trim();
+  if (!name) return (drop && drop.place) || t("REKO");
+  return name.replace(/\s*\/\s*REKO$/i, "").replace(/^REKO\s+/i, "").trim() || name;
+}
+function renderRekoChips(items) {
+  const rings = [];
+  const seen = new Set();
+  (items || []).forEach(item => {
+    const d = item.drop;
+    if (!d) return;
+    const id = d.ring_id || d.id;
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    rings.push({ id, label: ringChipLabel(d) });
+  });
+  rings.sort((a, b) => a.label.localeCompare(b.label, dateLocale()));
+  if (filterReko !== "all" && !seen.has(filterReko)) filterReko = "all";
+  const el = document.getElementById("chips");
+  const list = [{ id: "all", label: t("All") }].concat(rings);
+  el.innerHTML = list.map(r =>
+    `<button type="button" data-ring="${esc(r.id)}" class="${filterReko === r.id ? "on" : ""}">${esc(r.label)}</button>`
+  ).join("");
+  el.querySelectorAll("[data-ring]").forEach(b => b.onclick = () => {
+    filterReko = b.dataset.ring;
+    paintReko();
+    renderRekoChips(catalogItems);
+  });
+}
 function renderChips(items) {
+  if (activeView === "reko") { renderRekoChips(items); return; }
   const found = new Set(items.map(i => (i.category || "").toLowerCase()).filter(Boolean));
   const list = ["all"].concat(CATS.filter(c => c !== "all" && found.has(c)));
   const el = document.getElementById("chips");
@@ -644,9 +675,16 @@ function paintCatalog() {
 function paintReko() {
   const root = document.getElementById("reko-catalog");
   if (!root) return;
-  const rows = catalogItems.filter(item => item.drop && matchesQuery(item));
+  const rows = catalogItems.filter(item => {
+    if (!item.drop) return false;
+    if (filterReko !== "all") {
+      const id = item.drop.ring_id || item.drop.id;
+      if (id !== filterReko) return false;
+    }
+    return matchesQuery(item);
+  });
   if (!rows.length) {
-    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${t("Nothing listed")}</h3><p>${t("Comment a quantity. Pay cash or MobilePay at the lot.")}</p></div>`;
+    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${t("Nothing listed")}</h3><p>${t("Try another REKO location.")}</p></div>`;
     return;
   }
   root.innerHTML = rows.map(tileHtml).join("");
