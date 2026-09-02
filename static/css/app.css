@@ -77,14 +77,26 @@ html.sheet-open, html.sheet-open body {
   height: 100%;
   overscroll-behavior: none;
   touch-action: none;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+html.sheet-open::-webkit-scrollbar,
+html.sheet-open body::-webkit-scrollbar,
+html.sheet-open *::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
 }
 html.sheet-open body {
   position: fixed;
+  inset: 0;
   width: 100%;
-  left: 0;
-  right: 0;
 }
-html.sheet-open main { overflow: hidden; }
+html.sheet-open main,
+html.sheet-open #view-browse,
+html.sheet-open #catalog {
+  overflow: hidden !important;
+}
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 input, select, textarea { font: inherit; color: var(--ink); }
 a { color: var(--acc); text-decoration: none; }
@@ -320,8 +332,13 @@ input, select, textarea {
   overscroll-behavior: contain;
   touch-action: none;
   scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-.detail-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.detail-body::-webkit-scrollbar,
+.detail-body::-webkit-scrollbar-thumb,
+.detail-body::-webkit-scrollbar-track {
+  width: 0; height: 0; display: none; background: transparent;
+}
 .detail-price { font-size: 28px; font-weight: 800; letter-spacing: -.03em; }
 .detail-title { font-size: 20px; font-weight: 700; margin-top: 4px; }
 .detail-bar {
