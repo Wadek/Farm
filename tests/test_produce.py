@@ -23,7 +23,7 @@ def _create_node(client, token):
 
 def _create_produce(client, token, node_id):
     resp = client.post(f"/nodes/{node_id}/produce", json={
-        "name": "Tomatoes", "category": "vegetable",
+        "name": "Tomatoes", "category": "greens",
         "quantity_kg": 10.0, "kcal_per_kg": 180.0, "co2_kg_per_kg": 0.5,
     }, headers=_auth(token))
     assert resp.status_code == 201
@@ -50,7 +50,7 @@ def test_add_produce_wrong_owner(client):
     token_b = _register_and_token(client, "b@test.com")
     node_id = _create_node(client, token_a)
     resp = client.post(f"/nodes/{node_id}/produce", json={
-        "name": "Tomatoes", "category": "vegetable",
+        "name": "Tomatoes", "category": "greens",
     }, headers=_auth(token_b))
     assert resp.status_code == 403
 
@@ -70,7 +70,7 @@ def test_update_produce(client):
     node_id = _create_node(client, token)
     produce_id = _create_produce(client, token, node_id)
     resp = client.patch(f"/nodes/{node_id}/produce/{produce_id}", json={
-        "name": "Tomatoes", "category": "vegetable",
+        "name": "Tomatoes", "category": "greens",
         "quantity_kg": 25.0, "kcal_per_kg": 180.0, "co2_kg_per_kg": 0.5,
     }, headers=_auth(token))
     assert resp.status_code == 200
@@ -104,7 +104,7 @@ def test_browse_listings_public(client):
     assert resp.status_code == 200
     assert len(resp.json()) == 1
     item = resp.json()[0]
-    assert item["image_url"] == "/static/produce/vegetable.jpg"
+    assert item["image_url"] == "/static/produce/greens.jpg"
     pic = client.get(item["image_url"])
     assert pic.status_code == 200
     assert pic.headers["content-type"].startswith("image/")

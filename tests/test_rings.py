@@ -270,7 +270,7 @@ def test_catalog_drop_items_carry_ring_id_for_location_filter(client):
     assert "Eggs" in by_nj
     assert "Eggs" not in by_hy
     html = client.get("/").text
-    assert "renderRekoChips" in html
+    assert 'filterCat === "reko"' in html
     assert "filterReko" in html
     assert "data-ring" in html
 

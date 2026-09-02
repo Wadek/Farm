@@ -20,6 +20,8 @@ def test_finnish_catalog_is_not_english_echo():
     assert FI["REKO"] == "REKO"
     assert FI["Try another REKO location."] == "Kokeile toista REKO-paikkaa."
     assert FI["All"] == "Kaikki"
+    assert FI["Meat"] == "Liha"
+    assert FI["Greens"] == "Vihreät"
 
 
 def test_i18n_bootstrap_uses_i18next():
@@ -27,12 +29,12 @@ def test_i18n_bootstrap_uses_i18next():
     html = (ROOT / "static" / "square.html").read_text(encoding="utf-8")
     assert "/static/locales/fi.json" in boot
     assert "/static/vendor/i18next.min.js" in html
-    assert 'id="view-reko"' in html
+    assert 'id="view-browse"' in html
     assert 't("Satokori")' in html
-    assert "function paintReko" in html
-    assert "function renderRekoChips" in html
+    assert '["reko", t("REKO")' not in html
+    assert 'filterCat === "reko"' in html
     assert "filterReko" in html
-    assert "if (item.drop) return false" in html
+    assert '["all","reko","greens","root"' in html
     assert "drop-banner" not in html
     assert "farmgate" not in html
     assert "data-demo-email" not in html

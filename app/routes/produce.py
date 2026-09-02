@@ -155,22 +155,30 @@ def _produce_view(p: Produce) -> dict:
 
 
 _PRODUCE_ICONS = {
-    "dairy", "eggs", "greens", "berries", "vegetable", "root",
+    "dairy", "eggs", "greens", "berries", "root",
     "preserve", "feed", "produce", "meat",
 }
 _MEAT_WORDS = ("beef", "lamb", "meat", "liha", "karitsa", "nauta", "poro")
 
 
+def _norm_category(cat: str | None, name: str = "") -> str:
+    c = (cat or "produce").lower()
+    if c in ("vegetable", "vegetables"):
+        c = "greens"
+    n = (name or "").lower()
+    if any(w in n for w in _MEAT_WORDS):
+        c = "meat"
+    if c not in _PRODUCE_ICONS:
+        c = "produce"
+    return c
+
+
 def listing_image_url(l: Listing) -> str:
+    name = ((l.produce.name if l.produce else "") or "")
+    cat = _norm_category(l.produce.category if l.produce else None, name)
     custom = getattr(l, "image_url", None)
-    if custom:
+    if custom and "/vegetable.jpg" not in custom:
         return custom
-    name = ((l.produce.name if l.produce else "") or "").lower()
-    cat = ((l.produce.category if l.produce else None) or "produce").lower()
-    if any(w in name for w in _MEAT_WORDS):
-        cat = "meat"
-    if cat not in _PRODUCE_ICONS:
-        cat = "produce"
     return f"/static/produce/{cat}.jpg"
 
 
@@ -182,7 +190,10 @@ def _listing_view(l: Listing) -> dict:
         "node_id": l.node_id,
         "produce_id": l.produce_id,
         "produce_name": l.produce.name if l.produce else None,
-        "category": l.produce.category if l.produce else "produce",
+        "category": _norm_category(
+            l.produce.category if l.produce else None,
+            l.produce.name if l.produce else "",
+        ),
         "quantity_kg": l.quantity_kg,
         "unit": getattr(l, "unit", None) or "kg",
         "price_per_kg": l.price_per_kg,

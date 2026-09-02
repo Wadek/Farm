@@ -244,7 +244,7 @@ def seed():
         toika = nodes["node-toikantila"]
         _lot(db, "lot-milk-toikka", toika.id, "prod-milk-toikka", "Raw milk", "dairy",
              20.0, 1.4, 640, 1.2, toika.description, unit="L", perpetual=True)
-        _lot(db, "lot-beef", toika.id, "prod-beef", "Farm beef", "feed",
+        _lot(db, "lot-beef", toika.id, "prod-beef", "Farm beef", "meat",
              10.0, 18.0, 2500, 12.0, toika.description, unit="kg", perpetual=True)
         _lot(db, "lot-hay-t", toika.id, "prod-hay-t", "Hay bales", "feed",
              50.0, 0.20, 0, 0.05, toika.description, unit="kg", perpetual=True)
@@ -262,7 +262,7 @@ def seed():
         _lot(db, "lot-honey", nodes["node-myllymaa"].id, "prod-honey", "Farm honey",
              "preserve", 10.0, 8.0, 3040, 0.3, nodes["node-myllymaa"].description, unit="kpl", perpetual=True)
         _lot(db, "lot-cabbage", nodes["node-vaihia"].id, "prod-cabbage", "Cabbage",
-             "vegetable", 30.0, 1.2, 250, 0.2, nodes["node-vaihia"].description, unit="kg")
+             "greens", 30.0, 1.2, 250, 0.2, nodes["node-vaihia"].description, unit="kg")
         _lot(db, "lot-flakes", nodes["node-kranni"].id, "prod-flakes", "Oat flakes",
              "preserve", 25.0, 3.5, 3700, 0.4, nodes["node-kranni"].description, unit="kg", perpetual=True)
         _lot(db, "lot-flour", nodes["node-knehtila"].id, "prod-flour", "Organic flour",
@@ -273,9 +273,9 @@ def seed():
              "dairy", 15.0, 1.5, 640, 1.2, nodes["node-ylisjoki"].description, unit="L", perpetual=True)
 
         _lot(db, "lot-lamb-a", nodes["node-airikkala"].id, "prod-lamb-a", "Organic lamb",
-             "feed", 6.0, 22.0, 2400, 10.0, nodes["node-airikkala"].description, unit="kg", perpetual=True)
+             "meat", 6.0, 22.0, 2400, 10.0, nodes["node-airikkala"].description, unit="kg", perpetual=True)
         _lot(db, "lot-veg-l", nodes["node-lohenoja"].id, "prod-veg-l", "Organic vegetables",
-             "vegetable", 20.0, 3.5, 250, 0.2, nodes["node-lohenoja"].description, unit="kg")
+             "greens", 20.0, 3.5, 250, 0.2, nodes["node-lohenoja"].description, unit="kg")
         _lot(db, "lot-wool-a", nodes["node-aliolli"].id, "prod-wool-a", "Alpaca yarn",
              "preserve", 8.0, 18.0, 0, 0.1, nodes["node-aliolli"].description, unit="kpl", perpetual=True)
 
@@ -283,10 +283,10 @@ def seed():
              12.0, 1.4, 640, 1.2, nurmijarvi.place, unit="L", drop_id=drop_nj.id,
              available_from=nj_start, available_until=nj_end, featured=True)
         _lot(db, "lot-reko-veg", nodes["node-lohenoja"].id, "prod-reko-veg", "Organic vegetables",
-             "vegetable", 15.0, 3.5, 250, 0.2, nurmijarvi.place, unit="kg", drop_id=drop_nj.id,
+             "greens", 15.0, 3.5, 250, 0.2, nurmijarvi.place, unit="kg", drop_id=drop_nj.id,
              available_from=nj_start, available_until=nj_end)
         _lot(db, "lot-reko-lamb", nodes["node-airikkala"].id, "prod-reko-lamb", "Organic lamb",
-             "feed", 4.0, 22.0, 2400, 10.0, nurmijarvi.place, unit="kg", drop_id=drop_nj.id,
+             "meat", 4.0, 22.0, 2400, 10.0, nurmijarvi.place, unit="kg", drop_id=drop_nj.id,
              available_from=nj_start, available_until=nj_end)
         _lot(db, "lot-reko-eggs", nodes["node-mantymaeki"].id, "prod-reko-eggs", "Organic eggs",
              "eggs", 30.0, 0.50, 1430, 1.8, hyvinkaa.place, unit="kpl", drop_id=drop_hy.id,

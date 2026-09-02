@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css?v=15">
+<link rel="stylesheet" href="/static/css/app.css?v=16">
 </head>
 <body>
 <header id="topbar">
@@ -33,9 +33,6 @@
   <div id="order-alerts" class="hidden"></div>
   <section id="view-browse" class="hidden">
     <div class="tiles" id="catalog"></div>
-  </section>
-  <section id="view-reko" class="hidden">
-    <div class="tiles" id="reko-catalog"></div>
   </section>
   <section id="view-farms" class="hidden">
     <div id="farms-map" class="leaflet-map"></div>
@@ -210,22 +207,27 @@ let filterQ = "";
 let filterCat = "all";
 let filterReko = "all";
 let favs = JSON.parse(localStorage.getItem("sk_favs") || "[]");
-const CATS = ["all","greens","vegetable","root","berries","eggs","dairy","preserve","feed"];
-const HERO = { dairy:"--hero-dairy", greens:"--hero-greens", berries:"--hero-berries", eggs:"--hero-eggs", root:"--hero-root", vegetable:"--hero-vegetable", preserve:"--hero-preserve", feed:"--hero-feed", produce:"--hero-produce", meat:"--hero-root" };
-const PRODUCE_ICONS = { dairy:1, eggs:1, greens:1, berries:1, vegetable:1, root:1, preserve:1, feed:1, produce:1, meat:1 };
-function heroVar(cat) { return HERO[(cat || "produce").toLowerCase()] || "--hero-produce"; }
+const CATS = ["all","reko","greens","root","berries","eggs","dairy","meat","preserve","feed"];
+const HERO = { dairy:"--hero-dairy", greens:"--hero-greens", berries:"--hero-berries", eggs:"--hero-eggs", root:"--hero-root", preserve:"--hero-preserve", feed:"--hero-feed", produce:"--hero-produce", meat:"--hero-root" };
+const PRODUCE_ICONS = { dairy:1, eggs:1, greens:1, berries:1, root:1, preserve:1, feed:1, produce:1, meat:1 };
+function normCat(c) {
+  c = String(c || "produce").toLowerCase();
+  if (c === "vegetable" || c === "vegetables") return "greens";
+  return c;
+}
+function heroVar(cat) { return HERO[normCat(cat)] || "--hero-produce"; }
 function produceSrc(item) {
-  if (item && item.image_url) return item.image_url;
   const name = String((item && item.produce_name) || "").toLowerCase();
-  let cat = String((item && item.category) || "produce").toLowerCase();
+  let cat = normCat(item && item.category);
   if (/(beef|lamb|meat|liha|karitsa|nauta|poro)/.test(name)) cat = "meat";
+  if (item && item.image_url && !/\/vegetable\.jpg$/.test(item.image_url)) return item.image_url;
   if (!PRODUCE_ICONS[cat]) cat = "produce";
   return "/static/produce/" + cat + ".jpg";
 }
 function produceImg(item, name) {
   const src = esc(produceSrc(item));
   const label = esc(name || (item && item.produce_name) || "");
-  return `<img class="produce-icon" src="${src}" alt="${label}" onerror="this.onerror=null;this.src='/static/produce/produce.jpg'">`;
+  return `<img class="produce-icon" src="${src}" alt="${label}" width="400" height="400" onerror="this.onerror=null;this.src='/static/produce/produce.jpg'">`;
 }
 function saveFavs() { localStorage.setItem("sk_favs", JSON.stringify(favs)); }
 function isFav(id) { return favs.includes(id); }
@@ -316,7 +318,6 @@ function applyLang() {
   renderNav(activeView);
   renderAuth();
   if (activeView === "browse") { renderChips(catalogItems); paintCatalog(); }
-  else if (activeView === "reko") { renderChips(catalogItems); paintReko(); }
   else if (activeView === "farms") loadFarms();
   else if (activeView === "basket") loadBasketView();
   else if (activeView === "listings") loadSellView();
@@ -341,7 +342,6 @@ function icn(name) {
 function navItems() {
   return [
     ["browse", t("Satokori"), "logo"],
-    ["reko", t("REKO"), "reko"],
     ["farms", t("Map"), "map"],
     ["listings", t("Sell"), "sell"],
     ["basket", t("Orders"), "orders"],
@@ -362,10 +362,10 @@ function renderNav(active) {
 }
 function applyChrome() {
   document.body.dataset.role = role();
-  const browsing = activeView === "browse" || activeView === "reko";
+  const browsing = activeView === "browse";
   document.getElementById("search-wrap").classList.toggle("hidden", !browsing);
-  document.getElementById("loc-btn").classList.toggle("hidden", activeView !== "browse");
-  document.getElementById("chips").classList.toggle("hidden", activeView !== "browse" && activeView !== "reko");
+  document.getElementById("loc-btn").classList.toggle("hidden", !browsing);
+  document.getElementById("chips").classList.toggle("hidden", !browsing);
   const title = document.getElementById("page-title");
   title.classList.toggle("hidden", browsing);
   title.textContent = titles()[activeView] || "Satokori";
@@ -642,11 +642,11 @@ function money(item) {
 }
 function catLabel(c) {
   const labels = {
-    all: "All", drop: "This week's REKO", greens: "Greens", vegetable: "Vegetables", root: "Roots",
-    berries: "Berries", eggs: "Eggs", dairy: "Dairy", preserve: "Preserves",
+    all: "All", reko: "REKO", greens: "Greens", root: "Roots",
+    berries: "Berries", eggs: "Eggs", dairy: "Dairy", meat: "Meat", preserve: "Preserves",
     feed: "Feed", produce: "Produce",
   };
-  return t(labels[(c || "").toLowerCase()] || c);
+  return t(labels[normCat(c)] || c);
 }
 function fmtDrop(drop) {
   if (!drop) return "";
@@ -658,37 +658,44 @@ function ringChipLabel(drop) {
   if (!name) return (drop && drop.place) || t("REKO");
   return name.replace(/\s*\/\s*REKO$/i, "").replace(/^REKO\s+/i, "").trim() || name;
 }
-function renderRekoChips(items) {
-  const rings = [];
-  const seen = new Set();
-  (items || []).forEach(item => {
-    const d = item.drop;
-    if (!d) return;
-    const id = d.ring_id || d.id;
-    if (!id || seen.has(id)) return;
-    seen.add(id);
-    rings.push({ id, label: ringChipLabel(d) });
-  });
-  rings.sort((a, b) => a.label.localeCompare(b.label, dateLocale()));
-  if (filterReko !== "all" && !seen.has(filterReko)) filterReko = "all";
-  const el = document.getElementById("chips");
-  const list = [{ id: "all", label: t("All") }].concat(rings);
-  el.innerHTML = list.map(r =>
-    `<button type="button" data-ring="${esc(r.id)}" class="${filterReko === r.id ? "on" : ""}">${esc(r.label)}</button>`
-  ).join("");
-  el.querySelectorAll("[data-ring]").forEach(b => b.onclick = () => {
-    filterReko = b.dataset.ring;
-    paintReko();
-    renderRekoChips(catalogItems);
-  });
-}
 function renderChips(items) {
-  if (activeView === "reko") { renderRekoChips(items); return; }
-  const found = new Set(items.map(i => (i.category || "").toLowerCase()).filter(Boolean));
-  const list = ["all"].concat(CATS.filter(c => c !== "all" && found.has(c)));
+  const found = new Set((items || []).map(i => normCat(i.category)).filter(Boolean));
+  const hasReko = (items || []).some(i => i.drop);
+  const list = ["all"];
+  if (hasReko) list.push("reko");
+  CATS.forEach(c => { if (c !== "all" && c !== "reko" && found.has(c)) list.push(c); });
   const el = document.getElementById("chips");
-  el.innerHTML = list.map(c => `<button type="button" data-cat="${c}" class="${filterCat === c ? "on" : ""}">${catLabel(c)}</button>`).join("");
-  el.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { filterCat = b.dataset.cat; paintCatalog(); renderChips(catalogItems); });
+  let html = list.map(c => `<button type="button" data-cat="${c}" class="${filterCat === c ? "on" : ""}">${catLabel(c)}</button>`).join("");
+  if (filterCat === "reko") {
+    const rings = [];
+    const seen = new Set();
+    (items || []).forEach(item => {
+      const d = item.drop;
+      if (!d) return;
+      const id = d.ring_id || d.id;
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      rings.push({ id, label: ringChipLabel(d) });
+    });
+    rings.sort((a, b) => a.label.localeCompare(b.label, dateLocale()));
+    if (filterReko !== "all" && !seen.has(filterReko)) filterReko = "all";
+    html += rings.map(r =>
+      `<button type="button" data-ring="${esc(r.id)}" class="${filterReko === r.id ? "on" : ""}">${esc(r.label)}</button>`
+    ).join("");
+  }
+  el.innerHTML = html;
+  el.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => {
+    filterCat = b.dataset.cat;
+    if (filterCat !== "reko") filterReko = "all";
+    paintCatalog();
+    renderChips(catalogItems);
+  });
+  el.querySelectorAll("[data-ring]").forEach(b => b.onclick = () => {
+    filterCat = "reko";
+    filterReko = b.dataset.ring === filterReko ? "all" : b.dataset.ring;
+    paintCatalog();
+    renderChips(catalogItems);
+  });
 }
 function tileHtml(item) {
   const soldOut = item.status === "sold_out";
@@ -723,8 +730,7 @@ function bindTiles(root) {
   root.querySelectorAll("[data-fav]").forEach(b => b.onclick = (e) => {
     e.stopPropagation();
     toggleFav(b.dataset.fav);
-    if (activeView === "reko") paintReko();
-    else paintCatalog();
+    paintCatalog();
   });
 }
 function matchesQuery(item) {
@@ -737,30 +743,20 @@ function matchesQuery(item) {
 function paintCatalog() {
   const root = document.getElementById("catalog");
   const rows = catalogItems.filter(item => {
-    if (item.drop) return false;
-    if (filterCat !== "all" && (item.category || "").toLowerCase() !== filterCat) return false;
-    return matchesQuery(item);
-  });
-  if (!rows.length) {
-    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${t("Nothing listed")}</h3><p>${t("Try another search or category.")}</p></div>`;
-    return;
-  }
-  root.innerHTML = rows.map(tileHtml).join("");
-  bindTiles(root);
-}
-function paintReko() {
-  const root = document.getElementById("reko-catalog");
-  if (!root) return;
-  const rows = catalogItems.filter(item => {
-    if (!item.drop) return false;
-    if (filterReko !== "all") {
-      const id = item.drop.ring_id || item.drop.id;
-      if (id !== filterReko) return false;
+    if (filterCat === "reko") {
+      if (!item.drop) return false;
+      if (filterReko !== "all") {
+        const id = item.drop.ring_id || item.drop.id;
+        if (id !== filterReko) return false;
+      }
+    } else if (filterCat !== "all" && normCat(item.category) !== filterCat) {
+      return false;
     }
     return matchesQuery(item);
   });
   if (!rows.length) {
-    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${t("Nothing listed")}</h3><p>${t("Try another REKO location.")}</p></div>`;
+    const hint = filterCat === "reko" ? t("Try another REKO location.") : t("Try another search or category.");
+    root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${t("Nothing listed")}</h3><p>${hint}</p></div>`;
     return;
   }
   root.innerHTML = rows.map(tileHtml).join("");
@@ -773,7 +769,6 @@ async function loadCatalog() {
   catalogItems.forEach(item => { catalogById[item.id] = item; });
   renderChips(catalogItems);
   paintCatalog();
-  paintReko();
 }
 function closeSheet() { document.getElementById("sheet").classList.add("hidden"); }
 function openAsk(item) {
@@ -1174,9 +1169,14 @@ function lotRow(target) {
       <label>${t("€ / unit")} <input name="price" type="number" min="0" step="0.1" value="0"></label>
       <label>${t("Kind")}
         <select name="cat">
-          <option>greens</option><option>root</option><option>berries</option>
-          <option>eggs</option><option>dairy</option><option>preserve</option>
-          <option>feed</option><option>vegetable</option>
+          <option value="greens">${t("Greens")}</option>
+          <option value="root">${t("Roots")}</option>
+          <option value="berries">${t("Berries")}</option>
+          <option value="eggs">${t("Eggs")}</option>
+          <option value="dairy">${t("Dairy")}</option>
+          <option value="meat">${t("Meat")}</option>
+          <option value="preserve">${t("Preserves")}</option>
+          <option value="feed">${t("Feed")}</option>
         </select>
       </label>
     </div>
@@ -1392,8 +1392,7 @@ document.getElementById("auth-seg").querySelectorAll("[data-auth-mode]").forEach
 });
 document.getElementById("q").addEventListener("input", () => {
   filterQ = document.getElementById("q").value;
-  if (activeView === "reko") paintReko();
-  else paintCatalog();
+  paintCatalog();
 });
 document.getElementById("loc-btn").onclick = () => show("farms");
 document.getElementById("farm-save").onclick = async () => {
@@ -1482,6 +1481,7 @@ document.getElementById("visit-form").onsubmit = async (e) => {
 };
 function show(name) {
   closeSheet();
+  if (name === "reko") { filterCat = "reko"; name = "browse"; }
   activeView = name;
   document.querySelectorAll("main > section").forEach(s => s.classList.add("hidden"));
   const view = document.getElementById("view-" + name);

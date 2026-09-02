@@ -119,7 +119,8 @@ def test_service_worker_and_manifest(client):
     assert "farmgate" not in page.text
     assert "maija@naapuri.fi" not in page.text
     assert "anna@hyvinkaa.fi" not in page.text
-    assert 'id="view-reko"' in page.text
+    assert 'id="view-browse"' in page.text
+    assert '["reko", t("REKO")' not in page.text
     assert "viewport-fit=cover" in page.text
     assert "/static/css/app.css" in page.text
     assert 'id="lang-switch"' in page.text
@@ -151,9 +152,9 @@ def test_service_worker_and_manifest(client):
     assert "drop-banner" not in css.text
     assert "drop-banner" not in page.text
     assert 't("Satokori")' in page.text
-    assert "function paintReko" in page.text
-    assert "renderRekoChips" in page.text
+    assert 'filterCat === "reko"' in page.text
     assert "data-ring" in page.text
+    assert "object-fit: contain" in css.text
     assert "min-height: 44px" in css.text
     assert "tile-flag" in css.text
     assert "admin-tiles" in css.text
