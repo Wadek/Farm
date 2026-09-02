@@ -43,6 +43,9 @@ def test_ask_to_pickup_and_farmer_replies(client):
     assert page.status_code == 200
     assert b"vastaa" in page.text.encode("utf-8").lower() or b"Ask" in page.content or True
 
+    farmer_alerts = client.get("/alerts", headers=_auth(farmer)).json()
+    assert any("asked for" in a["body"] for a in farmer_alerts)
+
     replied = client.post(f"/asks/{body['id']}/reply", json={"when_text": "la 10"},
                           headers=_auth(farmer))
     assert replied.status_code == 200, replied.text
@@ -51,13 +54,18 @@ def test_ask_to_pickup_and_farmer_replies(client):
 
     inbox = client.get("/asks", headers=_auth(buyer)).json()
     assert inbox[0]["offer_text"] == "la 10"
+    buyer_alerts = client.get("/alerts", headers=_auth(buyer)).json()
+    assert any("la 10" in a["body"] for a in buyer_alerts)
     ledger = client.get("/ledger", headers=_auth(admin)).json()
     confirmed = next(row for row in ledger if row["id"] == body["id"])
-    assert confirmed["status"] == "completed"
+    assert confirmed["status"] == "pickup_ready"
 
     picked_up = client.post(f"/asks/{body['id']}/picked-up", headers=_auth(buyer))
     assert picked_up.status_code == 200, picked_up.text
-    assert picked_up.json()["status"] == "picked_up"
+    assert picked_up.json()["status"] == "confirmed"
+    farmer_verified = client.post(f"/asks/{body['id']}/farmer-picked-up", headers=_auth(farmer))
+    assert farmer_verified.status_code == 200
+    assert farmer_verified.json()["status"] == "picked_up"
     ledger = client.get("/ledger", headers=_auth(admin)).json()
     completed = next(row for row in ledger if row["id"] == body["id"])
     assert completed["status"] == "picked_up"
@@ -86,6 +94,15 @@ def test_farmer_replies_by_sms(client):
 
     inbound = client.post("/sms/inbound", data={"from": "+358401111111", "message": "la 14"})
     assert inbound.status_code == 200
+
+
+def test_service_worker_and_manifest(client):
+    sw = client.get("/sw.js")
+    assert sw.status_code == 200
+    assert "showNotification" in sw.text
+    manifest = client.get("/static/manifest.webmanifest")
+    assert manifest.status_code == 200
+    assert "Satokori" in manifest.text
 
 
 def test_farmer_can_ask_another_farm_not_own(client):
@@ -186,8 +203,15 @@ def test_pickup_can_be_undone_for_five_minutes_and_orders_can_withdraw(client):
                       headers=_auth(buyer)).json()
     client.post(f"/asks/{ask['id']}/available", json={"when_text": "today"}, headers=_auth(farmer))
     picked = client.post(f"/asks/{ask['id']}/picked-up", headers=_auth(buyer))
-    assert picked.json()["status"] == "picked_up"
-    undone = client.post(f"/asks/{ask['id']}/undo-pickup", headers=_auth(buyer))
+    assert picked.json()["status"] == "confirmed"
+    completed = client.post(f"/asks/{ask['id']}/farmer-picked-up", headers=_auth(farmer))
+    assert completed.json()["status"] == "picked_up"
+    buyer_undo = client.post(f"/asks/{ask['id']}/undo-pickup", headers=_auth(buyer))
+    assert buyer_undo.status_code == 403
+    farmer_undo = client.post(f"/asks/{ask['id']}/undo-pickup", headers=_auth(farmer))
+    assert farmer_undo.status_code == 403
+    admin = _token(client, "undo-admin@t.fi", "Admin", "organizer")
+    undone = client.post(f"/asks/{ask['id']}/undo-pickup", headers=_auth(admin))
     assert undone.status_code == 200
     assert undone.json()["status"] == "confirmed"
 
@@ -252,3 +276,28 @@ def test_sold_out_then_customer_requests_and_farmer_replies(client):
     available = next(i for i in client.get("/catalog").json()["items"] if i["id"] == lot)
     assert available["status"] == "active"
     assert available["quantity_kg"] == 3
+
+
+def test_farmer_acknowledges_incoming_request_without_changing_status(client):
+    farmer = _token(client, "ack-farmer@t.fi", "Farmer", "farmer")
+    buyer = _token(client, "ack-buyer@t.fi", "Buyer", "buyer")
+    node = client.post("/nodes", json={"name": "Beds", "type": "farm", "lat": 60.5, "lng": 24.7},
+                       headers=_auth(farmer)).json()
+    listing = client.post("/stalls", json={
+        "node_id": node["id"], "available_from": "2026-08-22T10:00:00",
+        "available_until": "2026-08-22T14:00:00", "pickup_point": "gate",
+        "lots": [{"produce_name": "Beans", "quantity_kg": 4}],
+    }, headers=_auth(farmer)).json()["lots"][0]
+    ask = client.post("/asks", json={"listing_id": listing["id"], "quantity": 1},
+                      headers=_auth(buyer)).json()
+
+    buyer_ack = client.post(f"/asks/{ask['id']}/acknowledge", headers=_auth(buyer))
+    assert buyer_ack.status_code == 403
+
+    acked = client.post(f"/asks/{ask['id']}/acknowledge", headers=_auth(farmer))
+    assert acked.status_code == 200, acked.text
+    assert acked.json()["status"] == "asked"
+    assert acked.json()["acknowledged_at"]
+    again = client.post(f"/asks/{ask['id']}/acknowledge", headers=_auth(farmer))
+    assert again.status_code == 200
+    assert again.json()["status"] == "asked"

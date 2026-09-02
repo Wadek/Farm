@@ -44,6 +44,7 @@ def create_node(payload: NodeCreate, current_user: User = Depends(get_current_us
     node = Node(
         id=str(uuid.uuid4()),
         owner_id=current_user.id,
+        claimed_at=datetime.now(timezone.utc),
         **payload.model_dump(),
     )
     db.add(node)

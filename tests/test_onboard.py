@@ -69,6 +69,10 @@ def test_farmer_claims_onboarded_farm(client):
     }, headers=_auth(admin))
     assert response.status_code == 201, response.text
     claim_id = response.json()["claim_id"]
+    square = client.get("/square").json()
+    stall = next(s for s in square["stalls"] if s["farm_name"] == "Claimable Farm")
+    assert stall["is_unclaimed"] is True
+    assert stall["farmer_name"] == "Unclaimed"
     claimed = client.post("/nodes/claim", json={"claim_id": claim_id}, headers=_auth(farmer))
     assert claimed.status_code == 200, claimed.text
     assert claimed.json()["farm_name"] == "Claimable Farm"

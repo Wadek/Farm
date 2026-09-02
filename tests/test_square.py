@@ -166,6 +166,33 @@ def test_pending_customer_request_appears_in_ledger(client):
     assert pending["quantity_kg"] == 2
 
 
+def test_unclaimed_farm_appears_on_square_without_listings(client, db):
+    from app.models import Node, NodeType
+
+    db.add(Node(
+        id="node-kumpula",
+        owner_id=None,
+        name="Kumpula Apple Orchard",
+        type=NodeType.farm,
+        lat=60.5100,
+        lng=24.7800,
+        description="Kumpulantie 12, Hyvinkää — orchard gate.",
+        area_m2=15000,
+        claim_id="claim-kumpula-2026",
+        claimed_at=None,
+    ))
+    db.commit()
+
+    square = client.get("/square").json()
+    stall = next(s for s in square["stalls"] if s["node_id"] == "node-kumpula")
+    assert stall["is_unclaimed"] is True
+    assert stall["farmer_name"] == "Unclaimed"
+    assert stall["farm_name"] == "Kumpula Apple Orchard"
+    assert stall["claim_id"] == "claim-kumpula-2026"
+    assert stall["description"].startswith("Kumpulantie")
+    assert stall["goods"] == []
+
+
 def test_farmer_only_open_stall(client):
     token, _ = _register(client, "buyer@test.com", "Anna", "buyer")
     resp = client.post("/stalls", json={

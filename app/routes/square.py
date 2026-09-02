@@ -67,6 +67,42 @@ def _iso(dt: datetime | None) -> str | None:
     return dt.isoformat() if dt else None
 
 
+def _node_distance_km(node: Node, lat: float | None, lng: float | None) -> float | None:
+    if lat is None or lng is None:
+        return None
+    return _haversine(lat, lng, node.lat, node.lng)
+
+
+def _stall_view(node: Node, km: float | None = None, listing: Listing | None = None) -> dict:
+    claimed = node.claimed_at is not None
+    owner_name = node.owner.name if node.owner else ""
+    pickup = ""
+    if listing and listing.pickup_point:
+        pickup = listing.pickup_point
+    elif node.description:
+        pickup = node.description
+    return {
+        "node_id": node.id,
+        "farm_name": node.name,
+        "farmer_name": owner_name if claimed and owner_name else "Unclaimed",
+        "farmer_id": node.owner_id if claimed and node.owner_id else "",
+        "node_type": node.type.value if node.type else None,
+        "lat": node.lat,
+        "lng": node.lng,
+        "description": node.description or "",
+        "pickup_point": pickup,
+        "available_from": _iso(listing.available_from) if listing else None,
+        "available_until": _iso(listing.available_until) if listing else None,
+        "distance_km": round(km, 2) if km is not None else None,
+        "myc_balance": round(node.myc_tokens or 0, 4),
+        "claim_id": node.claim_id,
+        "claimed_at": _iso(node.claimed_at),
+        "is_unclaimed": not claimed,
+        "matched_flares": [],
+        "goods": [],
+    }
+
+
 @router.get("/square")
 def market_square(
     lat: float | None = None,
@@ -74,7 +110,7 @@ def market_square(
     radius_km: float = 20.0,
     db: Session = Depends(get_db),
 ):
-    """Public market square — stalls grouped by farm, with demand flares."""
+    """Public market square — every farm on the map, stalls grouped with demand flares."""
     listings = (
         db.query(Listing)
         .options(
@@ -90,34 +126,18 @@ def market_square(
         .filter(DemandFlare.status == FlareStatus.open)
         .all()
     )
+    nodes = db.query(Node).options(joinedload(Node.owner)).all()
 
     stalls: dict[str, dict] = {}
     for listing in listings:
         node = listing.node
-        if lat is not None and lng is not None:
-            km = _haversine(lat, lng, node.lat, node.lng)
-            if km > radius_km:
-                continue
-        else:
-            km = None
+        km = _node_distance_km(node, lat, lng)
+        if km is not None and km > radius_km:
+            continue
 
         stall = stalls.get(node.id)
         if stall is None:
-            stall = {
-                "node_id": node.id,
-                "farm_name": node.name,
-                "farmer_name": node.owner.name if node.owner else "",
-                "node_type": node.type.value if node.type else None,
-                "lat": node.lat,
-                "lng": node.lng,
-                "pickup_point": listing.pickup_point,
-                "available_from": _iso(listing.available_from),
-                "available_until": _iso(listing.available_until),
-                "distance_km": round(km, 2) if km is not None else None,
-                "myc_balance": round(node.myc_tokens, 4),
-                "matched_flares": [],
-                "goods": [],
-            }
+            stall = _stall_view(node, km=km, listing=listing)
             stalls[node.id] = stall
         else:
             if listing.available_from and (
@@ -142,8 +162,19 @@ def market_square(
                 if flare_id not in stall["matched_flares"]:
                     stall["matched_flares"].append(flare_id)
 
+    for node in nodes:
+        km = _node_distance_km(node, lat, lng)
+        if km is not None and km > radius_km:
+            continue
+        if node.id not in stalls:
+            stalls[node.id] = _stall_view(node, km=km)
+
     stall_list = list(stalls.values())
-    stall_list.sort(key=lambda s: (s["distance_km"] is None, s["distance_km"] or 0))
+    stall_list.sort(key=lambda s: (
+        not s["is_unclaimed"],
+        s["distance_km"] is None,
+        s["distance_km"] or 0,
+    ))
 
     flare_views = []
     for flare in flares:
@@ -259,6 +290,7 @@ def catalog(
                 "available_from": stall["available_from"],
                 "available_until": stall["available_until"],
                 "distance_km": stall["distance_km"],
+                "farmer_id": stall.get("farmer_id") or "",
                 "golden": bool(stall["matched_flares"]),
             })
     items.sort(key=lambda g: (
@@ -514,7 +546,9 @@ def public_ledger(
                 "pending" if ask.status == AskStatus.asked
                 else "declined" if ask.status == AskStatus.declined
                 else "withdrawn" if ask.status == AskStatus.withdrawn
+                else "pending_verification" if ask.status == AskStatus.confirmed and (ask.buyer_verified_at or ask.farmer_verified_at)
                 else "picked_up" if ask.status == AskStatus.picked_up
+                else "pickup_ready" if ask.status == AskStatus.confirmed
                 else "completed"
             ),
             "from_farm": ask.listing.node.name if ask.listing and ask.listing.node else "",
@@ -527,6 +561,8 @@ def public_ledger(
             "note": ask.note,
             "picked_up_by": ask.picked_up_by,
             "picked_up_at": _iso(ask.picked_up_at),
+            "buyer_verified_at": _iso(ask.buyer_verified_at),
+            "farmer_verified_at": _iso(ask.farmer_verified_at),
             "offer_text": ask.offer_text,
             "created_at": _iso(ask.created_at),
         }

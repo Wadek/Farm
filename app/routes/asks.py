@@ -56,8 +56,8 @@ def _ask_view(ask: PickupAsk) -> dict:
         "sold_out": listing_status == "sold_out",
         "buyer_name": ask.buyer.name if ask.buyer else "",
         "farmer_name": ask.farmer.name if ask.farmer else "",
-            "buyer_id": ask.buyer_id,
-            "farmer_id": ask.farmer_id,
+        "buyer_id": ask.buyer_id,
+        "farmer_id": ask.farmer_id,
         "quantity": ask.quantity,
         "unit": ask.unit,
         "note": ask.note,
@@ -65,9 +65,23 @@ def _ask_view(ask: PickupAsk) -> dict:
         "offer_text": ask.offer_text,
         "picked_up_by": ask.picked_up_by,
         "picked_up_at": _iso(ask.picked_up_at),
+        "buyer_verified_at": _iso(ask.buyer_verified_at),
+        "farmer_verified_at": _iso(ask.farmer_verified_at),
+        "acknowledged_at": _iso(ask.acknowledged_at),
         "created_at": _iso(ask.created_at),
+        "updated_at": _iso(ask.updated_at),
         "reply_url": f"{settings.public_base_url.rstrip('/')}/r/{ask.token}",
     }
+
+
+def _alert(db: Session, sender_id: str, recipient_id: str, listing_id: str | None, body: str) -> None:
+    db.add(Message(
+        id=str(uuid.uuid4()),
+        sender_id=sender_id,
+        recipient_id=recipient_id,
+        listing_id=listing_id,
+        body=body,
+    ))
 
 
 def _farmer_sms(ask: PickupAsk) -> str:
@@ -113,6 +127,11 @@ def _apply_reply(ask: PickupAsk, when_text: str, decline: bool, db: Session) -> 
             listing.status = ListingStatus.active
         ask.status = AskStatus.confirmed
         ask.offer_text = text
+        farmer_name = ask.farmer.name if ask.farmer else "Farmer"
+        _alert(
+            db, ask.farmer_id, ask.buyer_id, ask.listing_id,
+            f"{farmer_name} replied: {text}",
+        )
     ask.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ask)
@@ -154,6 +173,11 @@ def create_ask(
         status=AskStatus.asked,
     )
     db.add(ask)
+    produce = listing.produce.name if listing.produce else "produce"
+    _alert(
+        db, current_user.id, farmer.id, listing.id,
+        f"{current_user.name} asked for {payload.quantity:g} {listing.unit or 'kg'} {produce}.",
+    )
     db.commit()
     db.refresh(ask)
     ask = (
@@ -234,7 +258,12 @@ def mark_available(
 ):
     ask = (
         db.query(PickupAsk)
-        .options(joinedload(PickupAsk.listing).joinedload(Listing.node).joinedload(Node.owner))
+        .options(
+            joinedload(PickupAsk.listing).joinedload(Listing.node).joinedload(Node.owner),
+            joinedload(PickupAsk.listing).joinedload(Listing.produce),
+            joinedload(PickupAsk.buyer),
+            joinedload(PickupAsk.farmer),
+        )
         .filter(PickupAsk.id == ask_id)
         .first()
     )
@@ -254,6 +283,11 @@ def mark_available(
     ask.status = AskStatus.confirmed
     ask.offer_text = payload.when_text.strip() or "Ready for pickup"
     ask.updated_at = datetime.now(timezone.utc)
+    farmer_name = ask.farmer.name if ask.farmer else current_user.name
+    _alert(
+        db, ask.farmer_id, ask.buyer_id, ask.listing_id,
+        f"{farmer_name} replied: {ask.offer_text}",
+    )
     db.commit()
     db.refresh(ask)
     if ask.buyer and ask.buyer.phone:
@@ -309,9 +343,17 @@ def confirm_picked_up(
         raise HTTPException(status_code=403, detail="Only the customer can confirm pickup")
     if ask.status not in (AskStatus.confirmed, AskStatus.offered):
         raise HTTPException(status_code=409, detail="Pickup is not confirmed")
-    ask.status = AskStatus.picked_up
+    ask.buyer_verified_at = datetime.now(timezone.utc)
     ask.picked_up_by = current_user.name
-    ask.picked_up_at = datetime.now(timezone.utc)
+    ask.picked_up_at = ask.buyer_verified_at
+    if ask.farmer_verified_at:
+        ask.status = AskStatus.picked_up
+    else:
+        ask.status = AskStatus.confirmed
+        db.add(Message(
+            id=str(uuid.uuid4()), sender_id=ask.buyer_id, recipient_id=ask.farmer_id,
+            listing_id=ask.listing_id, body="Customer verified pickup. Please verify the handoff to complete the transaction."
+        ))
     ask.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ask)
@@ -319,16 +361,19 @@ def confirm_picked_up(
 
 
 def _undo_pickup(ask: PickupAsk, current_user: User, db: Session) -> PickupAsk:
+    if current_user.role != UserRole.organizer:
+        raise HTTPException(status_code=403, detail="Admin only")
     if ask.status != AskStatus.picked_up:
         raise HTTPException(status_code=409, detail="Pickup is not marked complete")
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    if ask.picked_up_at is None or (now - ask.picked_up_at).total_seconds() > 300:
+    picked = ask.picked_up_at.replace(tzinfo=None) if ask.picked_up_at and getattr(ask.picked_up_at, "tzinfo", None) else ask.picked_up_at
+    if picked is None or (now - picked).total_seconds() > 300:
         raise HTTPException(status_code=409, detail="Pickup can only be undone for five minutes")
-    if current_user.role != UserRole.organizer and current_user.id not in (ask.buyer_id, ask.farmer_id):
-        raise HTTPException(status_code=403, detail="Not your pickup")
     ask.status = AskStatus.confirmed
     ask.picked_up_by = None
     ask.picked_up_at = None
+    ask.buyer_verified_at = None
+    ask.farmer_verified_at = None
     ask.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ask)
@@ -341,6 +386,22 @@ def undo_pickup(ask_id: str, current_user: User = Depends(get_current_user), db:
     if not ask:
         raise HTTPException(status_code=404, detail="Ask not found")
     return _ask_view(_load_token(_undo_pickup(ask, current_user, db).token, db))
+
+
+@router.post("/asks/{ask_id}/acknowledge")
+def acknowledge_ask(ask_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Farmer saw the incoming request. Does not fulfill, decline, or change handoff state."""
+    ask = db.query(PickupAsk).filter(PickupAsk.id == ask_id).first()
+    if not ask:
+        raise HTTPException(status_code=404, detail="Ask not found")
+    if ask.farmer_id != current_user.id and current_user.role != UserRole.organizer:
+        raise HTTPException(status_code=403, detail="Not your ask")
+    if not ask.acknowledged_at:
+        ask.acknowledged_at = datetime.now(timezone.utc)
+        ask.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(ask)
+    return _ask_view(_load_token(ask.token, db))
 
 
 @router.post("/asks/{ask_id}/withdraw")
@@ -372,9 +433,17 @@ def farmer_confirm_picked_up(
         raise HTTPException(status_code=403, detail="Not your ask")
     if ask.status not in (AskStatus.confirmed, AskStatus.offered):
         raise HTTPException(status_code=409, detail="Pickup is not confirmed")
-    ask.status = AskStatus.picked_up
+    ask.farmer_verified_at = datetime.now(timezone.utc)
     ask.picked_up_by = current_user.name
-    ask.picked_up_at = datetime.now(timezone.utc)
+    ask.picked_up_at = ask.farmer_verified_at
+    if ask.buyer_verified_at:
+        ask.status = AskStatus.picked_up
+    else:
+        ask.status = AskStatus.confirmed
+        db.add(Message(
+            id=str(uuid.uuid4()), sender_id=ask.farmer_id, recipient_id=ask.buyer_id,
+            listing_id=ask.listing_id, body="Farmer verified pickup. Please verify the handoff to complete the transaction."
+        ))
     ask.updated_at = datetime.now(timezone.utc)
     db.commit()
     return _ask_view(_load_token(ask.token, db))

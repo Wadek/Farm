@@ -1,0 +1,16 @@
+{
+  "name": "Satokori",
+  "short_name": "Satokori",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f1e4",
+  "theme_color": "#17241c",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -30,6 +30,9 @@ class PickupAsk(Base):
     offer_text = Column(String, default="")
     picked_up_by = Column(String, nullable=True)
     picked_up_at = Column(DateTime, nullable=True)
+    buyer_verified_at = Column(DateTime, nullable=True)
+    farmer_verified_at = Column(DateTime, nullable=True)
+    acknowledged_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
