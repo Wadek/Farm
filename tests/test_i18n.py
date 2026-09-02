@@ -32,6 +32,8 @@ def test_finnish_catalog_is_not_english_echo():
     assert EN["Tinkimaito"] == "Farm milk"
     assert EN["Tyrni"] == "Sea buckthorn"
     assert EN["Lehtikaali (kale)"] == "Kale"
+    assert FI["I'll be there"] == "Tulen"
+    assert FI["Not this week"] == "En tällä viikolla"
 
 
 def test_i18n_bootstrap_uses_i18next():
@@ -44,9 +46,9 @@ def test_i18n_bootstrap_uses_i18next():
     assert 'return me ? "browse" : "home"' in html
     assert 't("Satokori")' in html
     assert '["reko", t("REKO")' not in html
-    assert 'filterCat === "reko"' in html
-    assert "filterReko" in html
-    assert '["all","reko","greens","root"' in html
+    assert "function catalogRings" in html
+    assert "filterRing" in html
+    assert 'data-ring="all"' in html
     assert "drop-banner" not in html
     assert "farmgate" not in html
     assert "data-demo-email" not in html
@@ -61,7 +63,7 @@ def test_i18n_bootstrap_uses_i18next():
     assert 'id="sheet-x"' in html
     assert "function bindSheetDismiss" in html
     assert 'html lang="fi"' in html
-    assert 'list.push("saved")' in html
+    assert 'list.push("saved")' not in html
     assert "function produceSrc" in html
     assert "function produceLabel" in boot
     assert "produceLabel(item.produce_name)" in html

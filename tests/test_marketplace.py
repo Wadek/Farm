@@ -25,7 +25,7 @@ def _window():
 
 def test_featured_stays_on_reko_filter_in_the_page():
     html = (ROOT / "static" / "square.html").read_text(encoding="utf-8")
-    assert "if (item.featured) return true;" in html
+    assert "function catalogRings" in html
     assert "function isLiveFarm" in html
     assert 't("Live")' in html
     assert "radius_km=80" in html
@@ -34,15 +34,16 @@ def test_featured_stays_on_reko_filter_in_the_page():
 
 def test_saved_chip_filters_and_pins_favorites():
     html = (ROOT / "static" / "square.html").read_text(encoding="utf-8")
-    assert 'list.push("saved")' in html
-    assert 'filterCat === "saved"' in html
+    assert 'list.push("saved")' not in html
     assert "function toggleFav" in html
     assert 't("Removed from saved")' in html
-    assert 't("Nothing saved")' in html
     assert "sk_favs" in html
+    assert "function catalogRings" in html
+    assert 'data-ring="all"' in html
     css = (ROOT / "static" / "css" / "app.css").read_text(encoding="utf-8")
     assert ".fav.on" in css
     assert ".ask-channels" in css
+    assert "scrollbar-width: none" in css
 
 
 def test_siuntio_ring_and_farms_are_in_seed():
@@ -153,4 +154,4 @@ def test_featured_farm_gate_is_first_in_catalog(client, db):
     assert catalog[0]["featured"] is True
     assert catalog[0]["drop"] is None
     html = client.get("/").text
-    assert "if (item.featured) return true;" in html
+    assert "a.featured ? 0 : 1" in html

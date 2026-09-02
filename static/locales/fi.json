@@ -412,5 +412,11 @@
   "Carrots": "Porkkanat",
   "Porkkanat": "Porkkanat",
   "Tilamunat": "Tilamunat",
-  "Pienpaaliheinä": "Pienpaaliheinä"
+  "Pienpaaliheinä": "Pienpaaliheinä",
+  "Mark if you will be at the drop. Your current lots go with you.": "Merkitse, tuletko jakoon. Nykyiset erät tulevat mukaan.",
+  "I'll be there": "Tulen",
+  "Not this week": "En tällä viikolla",
+  "Marked for this week's REKO": "Merkitty tämän viikon REKO-jakoon",
+  "Not going to this REKO": "Ei menossa tähän REKO-jakoon",
+  "List something at the farm first": "Listaa ensin jotain tilalle"
 }

@@ -270,8 +270,8 @@ def test_catalog_drop_items_carry_ring_id_for_location_filter(client):
     assert "Eggs" in by_nj
     assert "Eggs" not in by_hy
     html = client.get("/").text
-    assert 'filterCat === "reko"' in html
-    assert "filterReko" in html
+    assert "function catalogRings" in html
+    assert "filterRing" in html
     assert "data-ring" in html
 
 
@@ -341,3 +341,42 @@ def test_reko_channel_on_gate_listing_is_rejected(client):
         "listing_id": listing_id, "quantity": 1, "channel": "reko",
     }, headers=_auth(buyer))
     assert denied.status_code == 400
+
+
+def test_farmer_marks_upcoming_reko_attendance(client):
+    admin, _ = _register(client, "att-admin@test.com", "Admin", "organizer")
+    farmer, _ = _register(client, "att-farmer@test.com", "Niina", "farmer")
+    start, end = _window()
+    drop = client.post("/rings", json={
+        "name": "REKO Test", "place": "Lot A", "lat": 60.55, "lng": 24.70,
+        "starts_at": start, "ends_at": end,
+    }, headers=_auth(admin)).json()
+    node = client.post("/nodes", json={
+        "name": "Toikantila", "type": "farm", "lat": 60.50, "lng": 24.76,
+    }, headers=_auth(farmer)).json()
+    empty = client.post(f"/drops/{drop['id']}/attend", json={
+        "going": True, "node_id": node["id"],
+    }, headers=_auth(farmer))
+    assert empty.status_code == 400
+    client.post("/stalls", json={
+        "node_id": node["id"], "pickup_point": "gate",
+        "lots": [{"produce_name": "Raw milk", "category": "dairy", "quantity_kg": 8,
+                  "price_per_kg": 1.4, "unit": "L", "perpetual": True}],
+    }, headers=_auth(farmer))
+    yes = client.post(f"/drops/{drop['id']}/attend", json={
+        "going": True, "node_id": node["id"],
+    }, headers=_auth(farmer))
+    assert yes.status_code == 200, yes.text
+    assert yes.json()["going"] is True
+    assert yes.json()["lot_count"] >= 1
+    catalog = client.get("/catalog").json()["items"]
+    drop_milk = [i for i in catalog if i.get("drop") and i["produce_name"] == "Raw milk"]
+    assert drop_milk
+    no = client.post(f"/drops/{drop['id']}/attend", json={
+        "going": False, "node_id": node["id"],
+    }, headers=_auth(farmer))
+    assert no.status_code == 200, no.text
+    catalog2 = client.get("/catalog").json()["items"]
+    still = [i for i in catalog2 if i.get("drop") and i["produce_name"] == "Raw milk"
+             and i["node_id"] == node["id"]]
+    assert still == []
