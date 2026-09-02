@@ -97,8 +97,8 @@ def seed():
     db = SessionLocal()
     try:
         wade = _user(
-            db, "user-wade", "wade@kariniemi.farm", "farmgate", "Wade Kariniemi",
-            UserRole.organizer, phone="+358403333333",
+            db, "user-wade", "wkariniemi@proton.me", "farmgate", "Wade Kariniemi",
+            UserRole.organizer, phone="0453549844",
         )
 
         # Oldest first so Toikantila (today's visit) is the latest farm at the top.
@@ -106,7 +106,7 @@ def seed():
         kariniemi = _node(
             db, "node-kariniemi", wade.id, "Kariniemi Farms", NodeType.farm,
             60.5522, 24.7050,
-            "Korpiharjuntie 363, 05200 Rajamäki — farm gate, look for the painted sign.",
+            "Korpiharjuntie 363, 05200 Rajamäki.",
             50000,
             claim_id="claim-kariniemi",
             claimed_at=now,
@@ -206,7 +206,7 @@ def seed():
         print("Seeded Satokori")
         print()
         print("Organizer (password: farmgate)")
-        print("  wade@kariniemi.farm   Kariniemi Farms (claimed)")
+        print("  wkariniemi@proton.me   Kariniemi Farms (claimed)")
         print()
         print("Unclaimed farms — farmer logs in, then taps This is my farm:")
         for node_id, name, *_rest in farms:
