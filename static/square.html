@@ -707,11 +707,14 @@ function catalogRings(items) {
 function renderChips(items) {
   const el = document.getElementById("chips");
   const rings = catalogRings(items);
-  if (filterRing !== "all" && !rings.some(r => r.id === filterRing)) filterRing = "all";
+  if (filterRing !== "all" && filterRing !== "saved" && !rings.some(r => r.id === filterRing)) filterRing = "all";
   let html = `<button type="button" data-ring="all" class="${filterRing === "all" ? "on" : ""}">${t("All")}</button>`;
   html += rings.map(r =>
     `<button type="button" data-ring="${esc(r.id)}" class="${filterRing === r.id ? "on" : ""}">${esc(r.label)}</button>`
   ).join("");
+  const savedN = (items || []).filter(i => isFav(i.id)).length;
+  const savedLabel = savedN ? t("Saved") + " " + savedN : t("Saved");
+  html += `<button type="button" data-ring="saved" class="${filterRing === "saved" ? "on" : ""}">${savedLabel}</button>`;
   el.innerHTML = html;
   el.querySelectorAll("[data-ring]").forEach(b => b.onclick = () => {
     filterRing = b.dataset.ring;
@@ -776,6 +779,7 @@ function paintCatalog() {
   const rows = catalogItems.filter(item => {
     if (!matchesQuery(item)) return false;
     if (filterRing === "all") return true;
+    if (filterRing === "saved") return isFav(item.id);
     const id = item.drop && (item.drop.ring_id || item.drop.id);
     return id === filterRing;
   });
@@ -788,8 +792,10 @@ function paintCatalog() {
     return sa - sb;
   });
   if (!rows.length) {
-    const hint = filterRing === "all" ? t("Try another search or category.") : t("Try another REKO location.");
-    const title = t("Nothing listed");
+    const hint = filterRing === "saved"
+      ? t("Tap the heart on a listing to keep it here.")
+      : filterRing === "all" ? t("Try another search or category.") : t("Try another REKO location.");
+    const title = filterRing === "saved" ? t("Nothing saved") : t("Nothing listed");
     root.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>${title}</h3><p>${hint}</p></div>`;
     return;
   }

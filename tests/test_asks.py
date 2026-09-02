@@ -181,7 +181,7 @@ def test_service_worker_and_manifest(client):
     assert "function catalogRings" in page.text
     assert "filterRing" in page.text
     assert 'data-ring="all"' in page.text
-    assert 'list.push("saved")' not in page.text
+    assert 'data-ring="saved"' in page.text
     assert "scrollbar-width: none" in css.text
     assert "data-ring" in page.text
     assert "object-fit: contain" in css.text

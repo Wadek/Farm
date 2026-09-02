@@ -34,12 +34,17 @@ def test_featured_stays_on_reko_filter_in_the_page():
 
 def test_saved_chip_filters_and_pins_favorites():
     html = (ROOT / "static" / "square.html").read_text(encoding="utf-8")
-    assert 'list.push("saved")' not in html
+    assert 'data-ring="all"' in html
+    assert 'data-ring="saved"' in html
+    assert 'filterRing === "saved"' in html
+    assert "isFav(item.id)" in html
+    assert 't("Nothing saved")' in html
+    assert 't("Tap the heart on a listing to keep it here.")' in html
     assert "function toggleFav" in html
     assert 't("Removed from saved")' in html
     assert "sk_favs" in html
     assert "function catalogRings" in html
-    assert 'data-ring="all"' in html
+    assert "isFav(a.id) ? 0 : 1" in html
     css = (ROOT / "static" / "css" / "app.css").read_text(encoding="utf-8")
     assert ".fav.on" in css
     assert ".ask-channels" in css

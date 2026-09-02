@@ -49,6 +49,7 @@ def test_i18n_bootstrap_uses_i18next():
     assert "function catalogRings" in html
     assert "filterRing" in html
     assert 'data-ring="all"' in html
+    assert 'data-ring="saved"' in html
     assert "drop-banner" not in html
     assert "farmgate" not in html
     assert "data-demo-email" not in html
@@ -63,7 +64,7 @@ def test_i18n_bootstrap_uses_i18next():
     assert 'id="sheet-x"' in html
     assert "function bindSheetDismiss" in html
     assert 'html lang="fi"' in html
-    assert 'list.push("saved")' not in html
+    assert 'filterRing === "saved"' in html
     assert "function produceSrc" in html
     assert "function produceLabel" in boot
     assert "produceLabel(item.produce_name)" in html
