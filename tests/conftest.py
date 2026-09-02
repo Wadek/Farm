@@ -1,9 +1,14 @@
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.db import Base, get_db
-from main import app
+
+Path("data").mkdir(parents=True, exist_ok=True)
+
+from app.db import Base, get_db  # noqa: E402
+from main import app  # noqa: E402
 
 TEST_DB_URL = "sqlite:///./data/test.db"
 

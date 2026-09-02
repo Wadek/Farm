@@ -8,6 +8,10 @@ def test_verify_workflow_runs_pytest_on_pull_requests():
     assert "pytest tests/" in text
     assert "pull_request" in text
     assert "python-version" in text
+    assert "mkdir -p data" in text
+    assert "cancel-in-progress: true" in text
+    assert "frontier/**" not in text
+    assert "- main" in text
 
 
 def test_pr_template_requires_frontier_and_forbids_agent_merge():
