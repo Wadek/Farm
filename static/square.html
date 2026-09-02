@@ -6,26 +6,36 @@
 <title>Satokori</title>
 <link rel="manifest" href="/static/manifest.webmanifest">
 <meta name="theme-color" content="#17241c">
+<script>try{if(localStorage.getItem("sk_me"))document.documentElement.setAttribute("data-signed-in","1")}catch(e){}</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Satokori">
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css?v=20">
+<link rel="stylesheet" href="/static/css/app.css?v=21">
 </head>
 <body>
 <header id="topbar">
-  <button type="button" id="loc-btn">Hyvinkää<small>80 km</small></button>
-  <div class="searchf" id="search-wrap">
+  <button type="button" id="loc-btn" class="hidden">Hyvinkää<small>80 km</small></button>
+  <div class="searchf hidden" id="search-wrap">
     <input id="q" type="search" placeholder="Maito, munat, lehtikaali…" data-i18n-placeholder="Milk, eggs, kale…" autocomplete="off">
   </div>
   <div id="page-title" class="hidden"></div>
   <button type="button" id="settings-btn" class="icon-btn" aria-label="Settings"></button>
 </header>
-<div class="chips" id="chips"></div>
+<div class="chips hidden" id="chips"></div>
 <main>
   <div id="order-alerts" class="hidden"></div>
+  <section id="view-home">
+    <div class="home">
+      <h1>Satokori</h1>
+      <p class="lede" data-i18n="Food from nearby farms. No middleman.">Ruokaa lähitiloilta. Ei välikäsiä.</p>
+      <p class="meta" data-i18n="Order for a REKO drop, or ask at the farm gate.">Tilaa REKO-jakoon, tai pyydä noutoa tilalta.</p>
+      <button class="btn primary block" type="button" data-view="browse" data-i18n="See what's listed">Katso tarjonta</button>
+      <button class="btn ghost block" type="button" data-view="account" data-i18n="Log in">Kirjaudu</button>
+    </div>
+  </section>
   <section id="view-browse" class="hidden">
     <div class="tiles" id="catalog"></div>
   </section>
@@ -344,6 +354,7 @@ function applyLang() {
   else if (activeView === "basket") loadBasketView();
   else if (activeView === "listings") loadSellView();
   else if (activeView === "account") renderYou();
+  else if (activeView === "home") bindHome();
   else if (activeView === "ledger") loadLedger();
   else if (activeView === "admin") loadAdmin();
   else if (activeView === "visit") paintStatic();
@@ -370,9 +381,9 @@ function navItems() {
     ["account", t("You"), "you"],
   ];
 }
-function defaultView() { return "browse"; }
+function defaultView() { return me ? "account" : "home"; }
 function titles() {
-  return { browse: t("Satokori"), reko: t("REKO"), farms: t("Farms"), listings: t("Sell"), basket: t("Orders"), account: t("You"), visit: t("Field visit"), ledger: t("Ledger"), admin: t("Admin") };
+  return { home: t("Satokori"), browse: t("Satokori"), reko: t("REKO"), farms: t("Farms"), listings: t("Sell"), basket: t("Orders"), account: t("You"), visit: t("Field visit"), ledger: t("Ledger"), admin: t("Admin") };
 }
 function renderNav(active) {
   const nav = document.getElementById("tabbar");
@@ -385,11 +396,12 @@ function renderNav(active) {
 function applyChrome() {
   document.body.dataset.role = role();
   const browsing = activeView === "browse";
+  const home = activeView === "home";
   document.getElementById("search-wrap").classList.toggle("hidden", !browsing);
   document.getElementById("loc-btn").classList.toggle("hidden", !browsing);
   document.getElementById("chips").classList.toggle("hidden", !browsing);
   const title = document.getElementById("page-title");
-  title.classList.toggle("hidden", browsing);
+  title.classList.toggle("hidden", browsing || home);
   title.textContent = titles()[activeView] || "Satokori";
 }
 function lockGlyph() {
@@ -573,10 +585,16 @@ async function logout() {
   pushReady = false;
   localStorage.removeItem("sk_token");
   localStorage.removeItem("sk_me");
+  document.documentElement.removeAttribute("data-signed-in");
   stopNotifyLoop();
   renderAuth();
   applyChrome();
-  show("browse");
+  show("home");
+}
+function bindHome() {
+  const el = document.getElementById("view-home");
+  if (!el) return;
+  el.querySelectorAll("[data-view]").forEach(b => b.onclick = () => show(b.dataset.view));
 }
 async function login(email, password) {
   const res = await fetch("/auth/token", {
@@ -590,22 +608,19 @@ async function login(email, password) {
   me = await api("/auth/me");
   localStorage.setItem("sk_token", token);
   localStorage.setItem("sk_me", JSON.stringify(me));
+  document.documentElement.setAttribute("data-signed-in", "1");
   renderAuth();
   applyChrome();
   enableNotifications();
   startNotifyLoop();
+  show("account");
+  toast(t("Signed in"));
   if (me.role === "farmer" || me.role === "organizer") {
     try {
       const nodes = await api("/nodes");
-      if (!nodes.length) {
-        show("farms");
-        toast(t("Claim your farm on the map, or add a new one from Sell."));
-        return;
-      }
+      if (!nodes.length) toast(t("Claim your farm on the map, or add a new one from Sell."));
     } catch {}
   }
-  show("browse");
-  toast(t("Signed in"));
 }
 async function registerAccount(payload) {
   const res = await fetch("/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -1593,6 +1608,7 @@ function show(name) {
   view.classList.remove("hidden");
   renderNav(name);
   applyChrome();
+  if (name === "home") bindHome();
   if (name === "browse" || name === "reko") loadCatalog();
   if (name === "farms") loadFarms();
   if (name === "basket") loadBasketView();
@@ -1896,7 +1912,8 @@ function boot() {
   lotRow(document.getElementById("v-lots"));
   renderAuth();
   applyChrome();
-  show(me ? defaultView() : "browse");
+  bindHome();
+  show(defaultView());
   if (me) { enableNotifications(); startNotifyLoop(); }
 }
 if (window.i18nReady) window.i18nReady.then(boot).catch(() => boot());
