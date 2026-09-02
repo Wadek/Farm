@@ -13,6 +13,7 @@ from app.models.flare import DemandFlare, FlareStatus
 from app.models.user import User, UserRole
 from app.dependencies import get_current_user
 from app.routes.produce import _haversine, _listing_view, _norm_category
+from app.services import geo
 
 router = APIRouter(tags=["square"])
 
@@ -330,11 +331,27 @@ def open_stall(
     }
 
 
+@router.get("/geocode")
+def geocode_address(q: str = ""):
+    """Finnish street address → lat/lng. Used to arrange the catalog nearest-to-me."""
+    query = " ".join((q or "").split())
+    if len(query) < 3:
+        raise HTTPException(status_code=400, detail="Enter an address")
+    try:
+        hit = geo.geocode_fi(query)
+    except Exception:
+        raise HTTPException(status_code=502, detail="Address lookup failed")
+    if not hit:
+        raise HTTPException(status_code=404, detail="Address not found")
+    return hit
+
+
 @router.get("/catalog")
 def catalog(
     lat: float | None = None,
     lng: float | None = None,
     radius_km: float = 80.0,
+    sort: str = "featured",
     db: Session = Depends(get_db),
 ):
     """Flat grocery list across the farmer network. Skip the shop."""
@@ -354,13 +371,19 @@ def catalog(
                 "farm_created_at": stall.get("created_at"),
                 "golden": bool(stall["matched_flares"]),
             })
-    items.sort(
-        key=lambda g: (g.get("farm_created_at") or "", g.get("created_at") or "", g.get("produce_name") or ""),
-        reverse=True,
-    )
-    items.sort(key=lambda g: ((g.get("drop") or {}).get("starts_at") or ""), reverse=True)
-    items.sort(key=lambda g: 0 if g.get("drop") else 1)
-    items.sort(key=lambda g: 0 if g.get("featured") else 1)
+    if sort == "distance":
+        items.sort(key=lambda g: (
+            g.get("distance_km") is None,
+            g.get("distance_km") if g.get("distance_km") is not None else 0,
+        ))
+    else:
+        items.sort(
+            key=lambda g: (g.get("farm_created_at") or "", g.get("created_at") or "", g.get("produce_name") or ""),
+            reverse=True,
+        )
+        items.sort(key=lambda g: ((g.get("drop") or {}).get("starts_at") or ""), reverse=True)
+        items.sort(key=lambda g: 0 if g.get("drop") else 1)
+        items.sort(key=lambda g: 0 if g.get("featured") else 1)
     return JSONResponse(
         {"items": items, "count": len(items), "flares": square["flares"]},
         headers={"Cache-Control": "no-store"},

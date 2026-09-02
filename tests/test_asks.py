@@ -127,6 +127,8 @@ def test_service_worker_and_manifest(client):
     assert "Hyvinkää<small>80 km</small>" not in page.text
     assert 'id="brand"' in page.text
     assert 'src="/static/logo.jpg"' in page.text
+    assert 'data-ring="near"' in page.text
+    assert 't("Nearest to me")' in page.text
     assert 'return me ? "browse" : "home"' in page.text
     assert 'show("home")' in page.text
     assert 'show("account")' in page.text

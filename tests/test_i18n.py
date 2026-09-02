@@ -43,6 +43,9 @@ def test_finnish_catalog_is_not_english_echo():
     assert FI["Approve or decline this claim."] == "Hyväksy tai hylkää tämä lunastus."
     assert FI["Item not found, add a new item"] == "Tuotetta ei löydy, lisää uusi"
     assert FI["Pick an item, or add a new one."] == "Valitse tuote listasta tai lisää uusi."
+    assert FI["Nearest to me"] == "Lähimpänä minua"
+    assert FI["Your address"] == "Osoitteesi"
+    assert FI["Address not found"] == "Osoitetta ei löydy"
 
 
 def test_i18n_bootstrap_uses_i18next():
@@ -59,6 +62,9 @@ def test_i18n_bootstrap_uses_i18next():
     assert "filterRing" in html
     assert 'data-ring="all"' in html
     assert 'data-ring="saved"' in html
+    assert 'data-ring="near"' in html
+    assert "function catalogOrigin" in html
+    assert "function openAddressSheet" in html
     assert "drop-banner" not in html
     assert "farmgate" not in html
     assert "data-demo-email" not in html

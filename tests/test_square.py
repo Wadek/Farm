@@ -100,6 +100,57 @@ def test_listing_unit_liters(client):
     assert catalog["items"][0]["category"] == "dairy"
 
 
+def test_geocode_finnish_address(client, monkeypatch):
+    class Fake:
+        def raise_for_status(self):
+            return None
+        def json(self):
+            return [{
+                "lat": "60.4031",
+                "lon": "24.7542",
+                "display_name": "Kumpulantie 12, 05800 Hyvinkää, Finland",
+            }]
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        assert "nominatim.openstreetmap.org" in url
+        assert params["countrycodes"] == "fi"
+        assert params["q"] == "Kumpulantie 12 Hyvinkää"
+        assert "Satokori" in headers["User-Agent"]
+        return Fake()
+
+    monkeypatch.setattr("app.services.geo.requests.get", fake_get)
+    resp = client.get("/geocode", params={"q": "Kumpulantie 12 Hyvinkää"})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["lat"] == 60.4031
+    assert body["lng"] == 24.7542
+    assert "Hyvinkää" in body["label"]
+
+
+def test_geocode_missing_and_unknown(client, monkeypatch):
+    assert client.get("/geocode", params={"q": "ab"}).status_code == 400
+    assert client.get("/geocode", params={"q": "  "}).status_code == 400
+
+    class Empty:
+        def raise_for_status(self):
+            return None
+        def json(self):
+            return []
+
+    monkeypatch.setattr("app.services.geo.requests.get", lambda *a, **k: Empty())
+    miss = client.get("/geocode", params={"q": "Nowhere Road 99"})
+    assert miss.status_code == 404
+    assert miss.json()["detail"] == "Address not found"
+
+    def boom(*a, **k):
+        raise RuntimeError("timeout")
+
+    monkeypatch.setattr("app.services.geo.requests.get", boom)
+    fail = client.get("/geocode", params={"q": "Kumpulantie 12"})
+    assert fail.status_code == 502
+    assert fail.json()["detail"] == "Address lookup failed"
+
+
 def test_square_radius_filter(client):
     token, _ = _register(client, "farmer@test.com", "Farmer", "farmer")
     node = client.post("/nodes", json={
