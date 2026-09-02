@@ -65,19 +65,14 @@
         </label>
         <button class="btn primary" type="submit" data-i18n="Create account">Create account</button>
       </form>
-      <p class="meta" data-i18n="Local test accounts">Local test accounts</p>
-      <div class="btn-row" style="flex-wrap:wrap">
-        <button class="btn ghost" type="button" data-demo-email="wade@kariniemi.farm" data-demo-password="farmgate">Admin</button>
-        <button class="btn ghost" type="button" data-demo-email="maija@naapuri.fi" data-demo-password="farmgate">Maija</button>
-        <button class="btn ghost" type="button" data-demo-email="pekka@hyvinkaa.fi" data-demo-password="farmgate">Pekka</button>
-        <button class="btn ghost" type="button" data-demo-email="anna@hyvinkaa.fi" data-demo-password="market">Anna</button>
-      </div>
+      <button class="btn ghost" type="button" data-demo-email="wade@kariniemi.farm" data-demo-password="farmgate" data-i18n="Admin">Admin</button>
     </div>
     <div id="you-user" class="hidden grid"></div>
   </section>
   <section id="view-listings" class="hidden">
     <div id="farm-setup" class="card grid hidden">
       <h3 data-i18n="Add your farm">Add your farm</h3>
+      <div id="claim-open" class="grid" style="margin-bottom:12px"></div>
       <p class="meta" data-i18n="Pin the pickup spot. Then list this week’s harvest. No claim code.">Pin the pickup spot. Then list this week’s harvest. No claim code.</p>
       <label><span data-i18n="Farm name">Farm name</span> <input id="farm-name" required placeholder="Rajamäki Beds"></label>
       <label><span data-i18n="Pickup point">Pickup point</span> <input id="farm-pickup" required placeholder="Red shed / farm gate"></label>
@@ -154,6 +149,15 @@
       <button class="btn primary" type="submit" data-i18n="Add this farm">Add this farm</button>
     </form>
     <div id="visit-result" class="card hidden" style="margin-top:1rem"></div>
+  </section>
+  <section id="view-admin" class="hidden">
+    <div class="card">
+      <h3 data-i18n="Admin">Admin</h3>
+      <p class="meta" data-i18n="Farms, claims, and the listing that sits first in Search.">Farms, claims, and the listing that sits first in Search.</p>
+    </div>
+    <div class="admin-tiles" id="admin-tiles"></div>
+    <div class="card" id="admin-featured" style="margin-bottom:8px"></div>
+    <div class="card" id="admin-farms"></div>
   </section>
   <section id="view-ledger" class="hidden">
     <div class="card">
@@ -270,6 +274,7 @@ function applyLang() {
   else if (activeView === "listings") loadSellView();
   else if (activeView === "account") renderYou();
   else if (activeView === "ledger") loadLedger();
+  else if (activeView === "admin") loadAdmin();
   else if (activeView === "visit") paintStatic();
 }
 function icn(name) {
@@ -293,7 +298,7 @@ function navItems() {
 }
 function defaultView() { return "browse"; }
 function titles() {
-  return { browse: t("Search"), farms: t("Farms"), listings: t("Sell"), basket: t("Orders"), account: t("You"), visit: t("Field visit"), ledger: t("Ledger") };
+  return { browse: t("Search"), farms: t("Farms"), listings: t("Sell"), basket: t("Orders"), account: t("You"), visit: t("Field visit"), ledger: t("Ledger"), admin: t("Admin") };
 }
 function renderNav(active) {
   const nav = document.getElementById("tabbar");
@@ -337,7 +342,7 @@ function renderYou() {
       <button class="btn ghost" id="logout" type="button">${t("Log out")}</button>
     </div>
     <div class="card grid" id="alert-setup"></div>
-    ${me.role === "organizer" ? `<div class="btn-row"><button class="btn" data-view="ledger">${t("Ledger")}</button><button class="btn" data-view="visit">${t("Field visit")}</button></div>` : ""}`;
+    ${me.role === "organizer" ? `<div class="btn-row"><button class="btn" data-view="admin">${t("Admin")}</button><button class="btn" data-view="ledger">${t("Ledger")}</button></div><div class="btn-row" style="margin-top:8px"><button class="btn" data-view="visit">${t("Field visit")}</button></div>` : ""}`;
   user.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { setLang(b.dataset.lang); applyLang(); });
   user.querySelector("#logout").onclick = logout;
   user.querySelectorAll("[data-view]").forEach(b => b.onclick = () => show(b.dataset.view));
@@ -475,7 +480,9 @@ function paintCatalog() {
   root.innerHTML = rows.map(item => {
     const soldOut = item.status === "sold_out";
     const km = item.distance_km != null ? item.distance_km + " km" : "";
-    return `<article class="tile ${soldOut ? "sold-out" : ""}" data-open="${item.id}">
+    const flag = item.featured ? `<span class="tile-flag gold">${t("Featured")}</span>` : item.demo ? `<span class="tile-flag demo">${t("Demo")}</span>` : "";
+    return `<article class="tile ${soldOut ? "sold-out" : ""} ${item.featured ? "featured" : ""}" data-open="${item.id}">
+      ${flag}
       <button type="button" class="fav ${isFav(item.id) ? "on" : ""}" data-fav="${item.id}" aria-label="${t("Save")}">♥</button>
       <div class="tile-hero" style="background:var(${heroVar(item.category)})"><span>${esc(item.produce_name)}</span></div>
       <div class="tile-body">
@@ -517,6 +524,8 @@ function openAsk(item) {
       <div class="detail-price">${soldOut ? t("Sold out") : money(item)}</div>
       <div class="detail-title">${esc(item.produce_name)}</div>
       <p class="meta">${esc(item.farm_name)} · ${esc(item.farmer_name || "")}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}<br>${fmtWhen(item.available_from, item.available_until, item.perpetual)} · ${esc(item.pickup_point || "")}</p>
+      ${item.featured ? `<p class="meta">${t("Featured listing")}</p>` : ""}
+      ${item.demo ? `<p class="meta">${t("Demo listing — sample stock until the farmer posts the real harvest.")}</p>` : ""}
       <p class="meta">${soldOut ? t("Sold out. You can still ask when it is back.") : item.perpetual ? t("Ask anytime — they name a pickup time") : qtyLabel(item) + " " + t("available") + "."}</p>
       ${own ? `<p class="meta">${t("This is your listing.")}</p>` : `
       <form id="ask-form" class="grid">
@@ -778,20 +787,30 @@ async function loadFarms() {
       <h3>${esc(s.farm_name)}</h3>
       <div class="meta">${unclaimed ? t("Open to claim") : esc(s.farmer_name)} · ${esc(place)}${km ? " · " + km : ""}</div>
       ${s.goods && s.goods.length ? s.goods.map(g => `<div class="meta">${esc(g.produce_name)} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("") : `<p class="meta">${t("No produce listed yet.")}</p>`}
-      ${unclaimed ? `<button class="btn primary" data-claim="${esc(s.claim_id || "")}">${t("This is my farm")}</button>` : ""}
+      ${unclaimed ? `<button class="btn primary" data-claim-node="${esc(s.node_id)}" data-claim="${esc(s.claim_id || "")}">${t("This is my farm")}</button>` : ""}
     </article>`;
   }).join("") || `<div class="empty"><h3>${t("No farms yet")}</h3><p>${t("Farmers add themselves from Sell.")}</p></div>`;
 
-  document.querySelectorAll("[data-claim]").forEach(b => b.onclick = async () => {
-    if (role() === "guest") { show("account"); toast(t("Create a farmer account first")); return; }
-    if (role() !== "farmer" && role() !== "organizer") { toast(t("Farmer accounts only")); return; }
-    if (!b.dataset.claim) { show("listings"); return; }
-    try {
-      const res = await api("/nodes/claim", { method: "POST", body: JSON.stringify({ claim_id: b.dataset.claim }) });
-      toast(res.farm_name + t(" is yours"));
-      loadFarms();
-      show("listings");
-    } catch (err) { toast(err.message); }
+  bindClaimButtons(document.getElementById("farms"));
+}
+async function claimFarm(nodeId, claimId) {
+  if (role() === "guest") { show("account"); toast(t("Create a farmer account first")); return; }
+  if (role() !== "farmer" && role() !== "organizer") { toast(t("Farmer accounts only")); return; }
+  const body = {};
+  if (nodeId) body.node_id = nodeId;
+  else if (claimId) body.claim_id = claimId;
+  else { show("listings"); return; }
+  const res = await api("/nodes/claim", { method: "POST", body: JSON.stringify(body) });
+  toast(res.farm_name + t(" is yours"));
+  show("listings");
+}
+function bindClaimButtons(root) {
+  if (!root) return;
+  root.querySelectorAll("[data-claim-node], [data-claim]").forEach(b => {
+    b.onclick = async () => {
+      try { await claimFarm(b.dataset.claimNode, b.dataset.claim); }
+      catch (err) { toast(err.message); }
+    };
   });
 }
 function lotRow(target) {
@@ -1068,7 +1087,70 @@ function show(name) {
   if (name === "account") renderYou();
   if (name === "visit") { ensureVisitMap(); setTimeout(() => visitMap && visitMap.invalidateSize(), 80); }
   if (name === "ledger") loadLedger();
+  if (name === "admin") loadAdmin();
   if (role() !== "guest") loadOrderAlerts();
+}
+async function paintOpenFarms() {
+  const el = document.getElementById("claim-open");
+  if (!el) return;
+  try {
+    const square = await api(`/square?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=40`);
+    const open = (square.stalls || []).filter(s => s.is_unclaimed);
+    if (!open.length) { el.innerHTML = ""; return; }
+    el.innerHTML = `<h3>${t("Is this your farm?")}</h3>
+      <p class="meta">${t("Log in once, then claim. No code needed.")}</p>
+      ${open.map(s => `
+        <article class="card">
+          <h3>${esc(s.farm_name)}</h3>
+          <div class="meta">${esc(s.description || s.pickup_point || "")}</div>
+          <button class="btn primary" type="button" data-claim-node="${esc(s.node_id)}">${t("This is my farm")}</button>
+        </article>`).join("")}`;
+    bindClaimButtons(el);
+  } catch { el.innerHTML = ""; }
+}
+async function loadAdmin() {
+  if (role() !== "organizer") { toast(t("Admin only")); show("account"); return; }
+  let data;
+  try { data = await api("/admin/overview"); }
+  catch (e) { toast(e.message); return; }
+  document.getElementById("admin-tiles").innerHTML = `
+    <div class="admin-tile"><div class="l">${t("Farms")}</div><div class="v">${data.farm_count}</div></div>
+    <div class="admin-tile"><div class="l">${t("Open to claim")}</div><div class="v">${data.unclaimed_count}</div></div>
+    <div class="admin-tile"><div class="l">${t("Listings")}</div><div class="v">${data.listing_count}</div></div>
+    <div class="admin-tile"><div class="l">${t("Demo")}</div><div class="v">${data.demo_count}</div></div>`;
+  const feat = data.featured;
+  document.getElementById("admin-featured").innerHTML = `
+    <h3>${t("Featured listing")}</h3>
+    <p class="meta">${feat ? `${esc(feat.produce_name)} · ${esc(feat.node_name || "")}` : t("Nothing featured. Pick one below.")}</p>
+    ${feat ? `<button class="btn ghost" type="button" id="clear-featured">${t("Clear featured")}</button>` : ""}
+    <div class="grid" style="margin-top:8px">${(data.listings || []).map(l => `
+      <div class="farm-row">
+        <div>
+          <div><b>${esc(l.produce_name)}</b> ${l.featured ? `<span class="tag gold">${t("Featured")}</span>` : ""} ${l.demo ? `<span class="tag copper">${t("Demo")}</span>` : ""}</div>
+          <div class="meta">${esc(l.node_name || "")} · ${qtyLabel(l)} · ${money(l)}</div>
+        </div>
+        <button class="btn ${l.featured ? "ghost" : "primary"}" type="button" data-feature="${esc(l.id)}">${l.featured ? t("Featured") : t("Feature")}</button>
+      </div>`).join("")}</div>`;
+  const clearBtn = document.getElementById("clear-featured");
+  if (clearBtn) clearBtn.onclick = async () => {
+    try { await api("/admin/featured", { method: "POST", body: JSON.stringify({ listing_id: null }) }); toast(t("Featured cleared")); loadAdmin(); loadCatalog(); }
+    catch (e) { toast(e.message); }
+  };
+  document.getElementById("admin-featured").querySelectorAll("[data-feature]").forEach(b => b.onclick = async () => {
+    try { await api("/admin/featured", { method: "POST", body: JSON.stringify({ listing_id: b.dataset.feature }) }); toast(t("Featured updated")); loadAdmin(); loadCatalog(); }
+    catch (e) { toast(e.message); }
+  });
+  document.getElementById("admin-farms").innerHTML = `
+    <h3>${t("All farms")}</h3>
+    ${(data.farms || []).map(f => `
+      <div class="farm-row">
+        <div>
+          <div><b>${esc(f.name)}</b> ${f.is_unclaimed ? `<span class="tag gold">${t("Open to claim")}</span>` : `<span class="tag acc">${t("Claimed")}</span>`}</div>
+          <div class="meta">${esc(f.owner_name || t("Unclaimed"))}${f.owner_phone ? " · " + esc(f.owner_phone) : ""}</div>
+          <div class="meta">${esc(f.description || "")}</div>
+          <div class="meta">${f.listing_count} ${t("listings")} · ${f.demo_count} ${t("Demo")}</div>
+        </div>
+      </div>`).join("") || `<p class="meta">${t("No farms yet")}</p>`}`;
 }
 async function loadSellView() {
   const setup = document.getElementById("farm-setup");
@@ -1088,6 +1170,7 @@ async function loadSellView() {
     setup.classList.remove("hidden");
     stall.classList.add("hidden");
     mine.classList.add("hidden");
+    await paintOpenFarms();
     ensureFarmMap();
     return;
   }

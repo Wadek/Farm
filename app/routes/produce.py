@@ -172,6 +172,8 @@ def _listing_view(l: Listing) -> dict:
         "perpetual": bool(getattr(l, "perpetual", False)) or (
             l.available_from is None and l.available_until is None
         ),
+        "demo": bool(getattr(l, "demo", False)),
+        "featured": bool(getattr(l, "featured", False)),
         "status": l.status,
         "created_at": created_at,
         "node_name": l.node.name if l.node else None,
@@ -179,6 +181,7 @@ def _listing_view(l: Listing) -> dict:
         "farmer_name": l.node.owner.name if l.node and l.node.owner else None,
         "node_lat": l.node.lat if l.node else None,
         "node_lng": l.node.lng if l.node else None,
+        "farm_created_at": l.node.created_at.isoformat() if l.node and l.node.created_at else None,
     }
 
 

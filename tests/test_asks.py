@@ -108,6 +108,11 @@ def test_service_worker_and_manifest(client):
     page = client.get("/")
     assert page.status_code == 200
     assert 'id="tabbar"' in page.text
+    assert 'id="view-admin"' in page.text
+    assert 'id="claim-open"' in page.text
+    assert "maija@naapuri.fi" not in page.text
+    assert "anna@hyvinkaa.fi" not in page.text
+    assert "wade@kariniemi.farm" in page.text
     assert "viewport-fit=cover" in page.text
     assert "/static/css/app.css" in page.text
     assert 'id="lang-switch"' in page.text
@@ -122,6 +127,8 @@ def test_service_worker_and_manifest(client):
     assert "#tabbar" in css.text
     assert "safe-area-inset-bottom" in css.text
     assert "min-height: 44px" in css.text
+    assert "tile-flag" in css.text
+    assert "admin-tiles" in css.text
     manifest = client.get("/static/manifest.webmanifest")
     assert manifest.status_code == 200
     assert "Satokori" in manifest.text
