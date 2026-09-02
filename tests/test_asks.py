@@ -134,6 +134,8 @@ def test_service_worker_and_manifest(client):
     assert 'id="settings-btn"' in page.text
     assert 'id="sheet-x"' in page.text
     assert "function bindSheetDismiss" in page.text
+    assert "function lockPage" in page.text
+    assert "setPointerCapture" in page.text
     assert "translateX(-110%)" in page.text
     assert 'data-theme="light"' in page.text
     assert 'data-lang="fi"' in page.text
@@ -169,7 +171,10 @@ def test_service_worker_and_manifest(client):
     assert css.status_code == 200
     assert "#tabbar" in css.text
     assert "safe-area-inset-bottom" in css.text
-    assert "bottom: var(--tabh)" in css.text
+    assert "html.sheet-open" in css.text
+    assert "touch-action: none" in css.text
+    assert "overscroll-behavior: none" in css.text
+    assert "z-index: 80" in css.text
     assert "drop-banner" not in css.text
     assert "drop-banner" not in page.text
     assert 't("Satokori")' in page.text
