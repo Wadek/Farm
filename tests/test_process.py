@@ -22,6 +22,10 @@ def test_pr_template_requires_frontier_and_forbids_agent_merge():
     assert "--no-verify" in text
 
 
+def test_repo_has_no_claude_project_file():
+    assert not (ROOT / "CLAUDE.md").exists()
+
+
 def test_main_ruleset_blocks_direct_push_shape():
     text = (ROOT / ".github" / "rulesets" / "protect-main.json").read_text(encoding="utf-8")
     assert '"name": "Protect main"' in text
