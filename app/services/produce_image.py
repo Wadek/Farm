@@ -9,6 +9,7 @@ _NAME_RULES: list[tuple[tuple[str, ...], str]] = [
     (("raspberry", "raspberr", "vadelma"), "raspberry.jpg"),
     (("blueberry", "blueberr", "mustikka"), "blueberry.jpg"),
     (("strawberry", "strawberr", "mansikka"), "strawberry.jpg"),
+    (("haskap", "hunajamarja", "tyrni", "sea buckthorn"), "blueberry.jpg"),
     (("cabbage", "kerakaali", "kaali"), "cabbage.jpg"),
     (("lettuce", "salaatti", "chard", "mangold", "vegetable", "vegetables"), "lettuce.jpg"),
     (("honey", "hunaja"), "honey.jpg"),

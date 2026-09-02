@@ -195,6 +195,7 @@ def _listing_view(l: Listing) -> dict:
         ),
         "demo": bool(getattr(l, "demo", False)),
         "featured": bool(getattr(l, "featured", False)),
+        "claimed": bool(l.node and l.node.claimed_at and l.node.owner_id),
         "status": l.status,
         "created_at": created_at,
         "node_name": l.node.name if l.node else None,

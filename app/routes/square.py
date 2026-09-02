@@ -85,6 +85,22 @@ def _node_distance_km(node: Node, lat: float | None, lng: float | None) -> float
     return _haversine(lat, lng, node.lat, node.lng)
 
 
+def _listing_distance_km(listing: Listing, lat: float | None, lng: float | None) -> float | None:
+    """Farm-gate uses the farm. A REKO lot uses the nearer of farm or drop."""
+    if lat is None or lng is None:
+        return None
+    node = listing.node
+    farm_km = _haversine(lat, lng, node.lat, node.lng) if node else None
+    drop = getattr(listing, "drop", None)
+    ring = drop.ring if drop else None
+    if ring and ring.lat is not None and ring.lng is not None:
+        drop_km = _haversine(lat, lng, ring.lat, ring.lng)
+        if farm_km is None:
+            return drop_km
+        return min(farm_km, drop_km)
+    return farm_km
+
+
 def _stall_view(node: Node, km: float | None = None, listing: Listing | None = None) -> dict:
     claimed = node.claimed_at is not None
     owner_name = node.owner.name if node.owner else ""
@@ -147,7 +163,7 @@ def market_square(
     stalls: dict[str, dict] = {}
     for listing in listings:
         node = listing.node
-        km = _node_distance_km(node, lat, lng)
+        km = _listing_distance_km(listing, lat, lng)
         if km is not None and km > radius_km:
             continue
 
@@ -318,7 +334,7 @@ def open_stall(
 def catalog(
     lat: float | None = None,
     lng: float | None = None,
-    radius_km: float = 40.0,
+    radius_km: float = 80.0,
     db: Session = Depends(get_db),
 ):
     """Flat grocery list across the farmer network. Skip the shop."""

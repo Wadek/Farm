@@ -12,11 +12,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css?v=17">
+<link rel="stylesheet" href="/static/css/app.css?v=18">
 </head>
 <body>
 <header id="topbar">
-  <button type="button" id="loc-btn">Hyvinkää<small>40 km</small></button>
+  <button type="button" id="loc-btn">Hyvinkää<small>80 km</small></button>
   <div class="searchf" id="search-wrap">
     <input id="q" type="search" placeholder="Milk, eggs, kale…" data-i18n-placeholder="Milk, eggs, kale…" autocomplete="off">
   </div>
@@ -224,6 +224,7 @@ const PRODUCE_NAME_ICONS = [
   [["raspberry", "raspberr", "vadelma"], "raspberry.jpg"],
   [["blueberry", "blueberr", "mustikka"], "blueberry.jpg"],
   [["strawberry", "strawberr", "mansikka"], "strawberry.jpg"],
+  [["haskap", "hunajamarja", "tyrni", "sea buckthorn"], "blueberry.jpg"],
   [["cabbage", "kerakaali", "kaali"], "cabbage.jpg"],
   [["lettuce", "salaatti", "chard", "mangold", "vegetable", "vegetables"], "lettuce.jpg"],
   [["honey", "hunaja"], "honey.jpg"],
@@ -726,6 +727,9 @@ function renderChips(items) {
     renderChips(catalogItems);
   });
 }
+function isLiveFarm(item) {
+  return !!(item && (item.claimed || item.farmer_id));
+}
 function tileHtml(item) {
   const soldOut = item.status === "sold_out";
   const km = item.distance_km != null ? item.distance_km + " km" : "";
@@ -734,11 +738,13 @@ function tileHtml(item) {
     ? `<span class="tile-flag lock">${lockGlyph()} ${t("Private")}</span>`
     : item.featured
       ? `<span class="tile-flag gold">${t("Featured")}</span>`
-      : item.drop
-        ? `<span class="tile-flag drop">${t("This week's REKO")}</span>`
+      : isLiveFarm(item)
+        ? `<span class="tile-flag live">${t("Live")}</span>`
         : item.demo
           ? `<span class="tile-flag demo">${t("Demo")}</span>`
-          : "";
+          : item.drop
+            ? `<span class="tile-flag drop">${t("This week's REKO")}</span>`
+            : "";
   return `<article class="tile ${soldOut ? "sold-out" : ""} ${item.featured ? "featured" : ""}" data-open="${item.id}">
     ${flag}
     <button type="button" class="fav ${isFav(item.id) ? "on" : ""}" data-fav="${item.id}" aria-label="${t("Save")}">♥</button>
@@ -772,6 +778,8 @@ function matchesQuery(item) {
 function paintCatalog() {
   const root = document.getElementById("catalog");
   const rows = catalogItems.filter(item => {
+    if (!matchesQuery(item)) return false;
+    if (item.featured) return true;
     if (filterCat === "reko") {
       if (!item.drop) return false;
       if (filterReko !== "all") {
@@ -781,7 +789,7 @@ function paintCatalog() {
     } else if (filterCat !== "all" && normCat(item.category) !== filterCat) {
       return false;
     }
-    return matchesQuery(item);
+    return true;
   });
   if (!rows.length) {
     const hint = filterCat === "reko" ? t("Try another REKO location.") : t("Try another search or category.");
@@ -792,7 +800,7 @@ function paintCatalog() {
   bindTiles(root);
 }
 async function loadCatalog() {
-  const data = await api(`/catalog?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=40`);
+  const data = await api(`/catalog?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=80`);
   catalogItems = data.items || [];
   catalogById = {};
   catalogItems.forEach(item => { catalogById[item.id] = item; });
@@ -826,7 +834,7 @@ function openAsk(item) {
       <div class="detail-title">${esc(item.produce_name)}</div>
       <p class="meta">${esc(item.farm_name)} · ${esc(item.farmer_name || "")}${item.distance_km != null ? " · " + item.distance_km + " km" : ""}<br>${esc(whenLine)} · ${esc(item.pickup_point || "")}</p>
       ${item.featured ? `<p class="meta">${t("Featured listing")}</p>` : ""}
-      ${item.demo ? `<p class="meta">${t("Demo listing — sample stock until the farmer posts the real harvest.")}</p>` : ""}
+      ${isLiveFarm(item) ? `<p class="meta">${t("Live listing")}</p>` : item.demo ? `<p class="meta">${t("Demo listing — sample stock until the farmer posts the real harvest.")}</p>` : ""}
       <p class="meta">${hint}</p>
       ${own ? `<p class="meta">${t("This is your listing.")}</p>` : `
       <form id="ask-form" class="grid">
@@ -1090,7 +1098,7 @@ function ensureVisitMap() {
   setPin(L.latLng(HERE.lat, HERE.lng));
 }
 async function loadFarms() {
-  const square = await api(`/square?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=40`);
+  const square = await api(`/square?lat=${HERE.lat}&lng=${HERE.lng}&radius_km=80`);
   ensureFarmsMap();
   farmMarkers.forEach(m => farmsMap.removeLayer(m));
   ringMarkers.forEach(m => farmsMap.removeLayer(m));

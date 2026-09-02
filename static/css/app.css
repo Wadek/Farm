@@ -163,6 +163,7 @@ main { max-width: 720px; margin: 0 auto; padding: 8px 8px 16px; }
   letter-spacing: .04em; text-transform: uppercase; color: var(--ink);
 }
 .tile-flag.gold { background: var(--gold); color: #fff; }
+.tile-flag.live { background: var(--acc); color: var(--on-acc); }
 .tile-flag.demo { color: var(--copper); }
 .tile-flag.drop { background: #17241c; color: #f6f3ec; }
 .tile-flag.lock, .tag .lock-ico { display: inline-flex; align-items: center; gap: 4px; }
