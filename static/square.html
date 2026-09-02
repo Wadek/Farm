@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css?v=22">
+<link rel="stylesheet" href="/static/css/app.css?v=23">
 </head>
 <body>
 <header id="topbar">
@@ -518,15 +518,12 @@ function applyPickedTheme(name, root) {
   scope.querySelectorAll("[data-theme]").forEach(b => b.classList.toggle("on", b.dataset.theme === getTheme()));
 }
 function openSettings() {
-  const sheet = document.getElementById("sheet");
   const body = document.getElementById("sheet-body");
   body.innerHTML = `
     <div class="detail-body">
       ${settingsHtml()}
     </div>`;
-  sheet.classList.remove("hidden");
-  resetSheetCard();
-  sheet.onclick = (e) => { if (e.target === sheet) closeSheet(); };
+  showSheet();
   bindSettings(body);
 }
 function renderYou() {
@@ -840,9 +837,30 @@ function resetSheetCard() {
   card.style.transform = "";
   card.style.transition = "";
 }
+function lockPage(on) {
+  const html = document.documentElement;
+  if (on) {
+    if (!html.classList.contains("sheet-open")) html.dataset.sheetY = String(window.scrollY || 0);
+    html.classList.add("sheet-open");
+    document.body.style.top = "-" + (html.dataset.sheetY || "0") + "px";
+  } else {
+    const y = Number(html.dataset.sheetY || 0);
+    html.classList.remove("sheet-open");
+    document.body.style.top = "";
+    window.scrollTo(0, y);
+  }
+}
 function closeSheet() {
   document.getElementById("sheet").classList.add("hidden");
   resetSheetCard();
+  lockPage(false);
+}
+function showSheet() {
+  const sheet = document.getElementById("sheet");
+  lockPage(true);
+  sheet.classList.remove("hidden");
+  resetSheetCard();
+  sheet.onclick = (e) => { if (e.target === sheet) closeSheet(); };
 }
 let sheetDismissBound = false;
 function bindSheetDismiss() {
@@ -852,30 +870,36 @@ function bindSheetDismiss() {
   if (!sheet || !card || !xBtn || sheetDismissBound) return;
   sheetDismissBound = true;
   xBtn.onclick = (e) => { e.stopPropagation(); closeSheet(); };
-  let pid = null, x0 = 0, y0 = 0, dx = 0, armed = false, dragging = false;
+  let pid = null, x0 = 0, y0 = 0, lastY = 0, dx = 0, armed = false, dragging = false, scrolling = false;
   function skip(el) {
     return el && el.closest && el.closest("input, textarea, select, button, a, .sheet-x");
   }
+  function scroller() { return card.querySelector(".detail-body"); }
   function onMove(e) {
-    if (!armed || e.pointerId !== pid) return;
+    if (!armed || (e.pointerId != null && e.pointerId !== pid)) return;
     const mx = e.clientX - x0, my = e.clientY - y0;
-    if (!dragging && Math.abs(my) > 20 && Math.abs(my) >= Math.abs(mx)) {
-      armed = false;
-      card.style.transform = "";
-      return;
+    if (!dragging && !scrolling) {
+      if (Math.abs(mx) < 10 && Math.abs(my) < 10) return;
+      if (Math.abs(mx) > Math.abs(my)) dragging = true;
+      else scrolling = true;
     }
-    if (mx >= 0) return;
-    dragging = true;
-    dx = mx;
-    card.style.transform = "translateX(" + dx + "px)";
+    if (dragging) {
+      if (e.cancelable) e.preventDefault();
+      dx = mx < 0 ? mx : 0;
+      card.style.transform = dx ? "translateX(" + dx + "px)" : "";
+    } else if (scrolling) {
+      const box = scroller();
+      if (box) box.scrollTop -= (e.clientY - lastY);
+      lastY = e.clientY;
+    }
   }
   function endSwipe(e) {
-    if (pid != null && e && e.pointerId !== pid) return;
+    if (pid != null && e && e.pointerId != null && e.pointerId !== pid) return;
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", endSwipe);
     window.removeEventListener("pointercancel", endSwipe);
-    if (!armed && !dragging) { pid = null; dx = 0; return; }
-    const go = dx < -80;
+    try { if (pid != null && card.releasePointerCapture) card.releasePointerCapture(pid); } catch (_) {}
+    const go = dragging && dx < -80;
     card.style.transition = "transform .18s ease";
     if (go) {
       card.style.transform = "translateX(-110%)";
@@ -883,18 +907,23 @@ function bindSheetDismiss() {
     } else {
       card.style.transform = "";
     }
-    armed = false; dragging = false; dx = 0; pid = null;
+    armed = false; dragging = false; scrolling = false; dx = 0; pid = null;
   }
   card.addEventListener("pointerdown", (e) => {
     if (sheet.classList.contains("hidden")) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     if (skip(e.target)) return;
-    pid = e.pointerId; x0 = e.clientX; y0 = e.clientY; dx = 0; armed = true; dragging = false;
+    pid = e.pointerId; x0 = e.clientX; y0 = e.clientY; lastY = e.clientY; dx = 0;
+    armed = true; dragging = false; scrolling = false;
     card.style.transition = "none";
-    window.addEventListener("pointermove", onMove);
+    try { if (card.setPointerCapture) card.setPointerCapture(e.pointerId); } catch (_) {}
+    window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", endSwipe);
     window.addEventListener("pointercancel", endSwipe);
   });
+  card.addEventListener("touchmove", (e) => {
+    if (armed && dragging && e.cancelable) e.preventDefault();
+  }, { passive: false });
 }
 function sameProduceListings(item) {
   return (catalogItems || []).filter(x => x && item &&
@@ -910,7 +939,6 @@ function listingForChannel(item, channel) {
 function openAsk(item, step) {
   if (!item) return;
   step = step || "detail";
-  const sheet = document.getElementById("sheet");
   const body = document.getElementById("sheet-body");
   const soldOut = item.status === "sold_out";
   const own = me && item.farmer_id === me.id;
@@ -988,9 +1016,7 @@ function openAsk(item, step) {
       ${extra}
     </div>
     ${own ? "" : bar}`;
-  sheet.classList.remove("hidden");
-  resetSheetCard();
-  sheet.onclick = (e) => { if (e.target === sheet) closeSheet(); };
+  showSheet();
   const favBtn = body.querySelector("[data-fav-detail]");
   if (favBtn) favBtn.onclick = () => { toggleFav(item.id); openAsk(catalogById[item.id] || item, "detail"); renderChips(catalogItems); paintCatalog(); };
   const back = body.querySelector("#ask-back");
