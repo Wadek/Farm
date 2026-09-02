@@ -49,6 +49,8 @@ def test_saved_chip_filters_and_pins_favorites():
     assert ".fav.on" in css
     assert ".ask-channels" in css
     assert "scrollbar-width: none" in css
+    assert "html.sheet-open *::-webkit-scrollbar" in css
+    assert "-ms-overflow-style: none" in css
 
 
 def test_produce_picker_filters_set_list():

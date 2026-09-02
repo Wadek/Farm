@@ -173,6 +173,8 @@ def test_service_worker_and_manifest(client):
     assert "#tabbar" in css.text
     assert "safe-area-inset-bottom" in css.text
     assert "html.sheet-open" in css.text
+    assert "html.sheet-open *::-webkit-scrollbar" in css.text
+    assert "-ms-overflow-style: none" in css.text
     assert "touch-action: none" in css.text
     assert "overscroll-behavior: none" in css.text
     assert "z-index: 80" in css.text
