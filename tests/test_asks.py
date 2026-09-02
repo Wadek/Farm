@@ -113,13 +113,25 @@ def test_service_worker_and_manifest(client):
     assert "cat.greens" not in page.text
     assert 'data-i18n-placeholder="Milk, eggs, kale…"' in page.text
     assert 'id="view-admin"' in page.text
-    assert 'id="claim-open"' in page.text
+    assert 'id="claim-open"' not in page.text
+    assert "data-demo-email" not in page.text
+    assert "data-demo-password" not in page.text
+    assert "farmgate" not in page.text
     assert "maija@naapuri.fi" not in page.text
     assert "anna@hyvinkaa.fi" not in page.text
-    assert "wkariniemi@proton.me" in page.text
+    assert 'id="view-browse"' in page.text
+    assert '["reko", t("REKO")' not in page.text
     assert "viewport-fit=cover" in page.text
     assert "/static/css/app.css" in page.text
     assert 'id="lang-switch"' in page.text
+    assert 'id="settings-btn"' in page.text
+    assert 'id="theme-btn"' in page.text
+    assert "function applyPickedTheme" in page.text
+    assert "function produceSrc" in page.text
+    assert "/static/produce/" in page.text
+    dairy = client.get("/static/produce/dairy.jpg")
+    assert dairy.status_code == 200
+    assert dairy.headers["content-type"].startswith("image/")
     assert "/static/i18n.js" in page.text
     i18n = client.get("/static/i18n.js")
     assert i18n.status_code == 200
@@ -137,6 +149,14 @@ def test_service_worker_and_manifest(client):
     assert css.status_code == 200
     assert "#tabbar" in css.text
     assert "safe-area-inset-bottom" in css.text
+    assert "bottom: var(--tabh)" in css.text
+    assert "drop-banner" not in css.text
+    assert "drop-banner" not in page.text
+    assert 't("Satokori")' in page.text
+    assert 'filterCat === "reko"' in page.text
+    assert 'list.push("saved")' in page.text
+    assert "data-ring" in page.text
+    assert "object-fit: contain" in css.text
     assert "min-height: 44px" in css.text
     assert "tile-flag" in css.text
     assert "admin-tiles" in css.text

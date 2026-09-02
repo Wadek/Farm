@@ -1,7 +1,10 @@
-/* i18next catalogs: /static/locales/{en,fi}.json. Saved lang wins, else fi if the phone is Finnish. */
+/* Locale catalogs in /static/locales/{en,fi}.json. i18next is optional (vendored).
+   Finnish must work even if the library file fails to load. */
 (function (global) {
   const KEY = "sk_lang";
+  const THEME_KEY = "sk_theme";
   let lang = "en";
+  let packs = { en: {}, fi: {} };
 
   function detect() {
     const saved = localStorage.getItem(KEY);
@@ -10,51 +13,78 @@
     return nav.startsWith("fi") ? "fi" : "en";
   }
 
+  function detectTheme() {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "dark" || saved === "light") return saved;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  function applyTheme(name) {
+    const theme = name === "dark" ? "dark" : "light";
+    const root = document.documentElement;
+    root.setAttribute("data-theme", theme);
+    root.style.colorScheme = theme;
+    try { localStorage.setItem(THEME_KEY, theme); } catch (_) {}
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#0e1511" : "#f6f3ec");
+    return theme;
+  }
+
   function t(key, ...args) {
     if (key == null || key === "") return "";
-    if (!global.i18next) return String(key);
-    const opts = {};
-    args.forEach((v, i) => { opts[String(i)] = v; });
-    return global.i18next.t(String(key), Object.assign({ defaultValue: String(key) }, opts));
+    const k = String(key);
+    const pack = packs[lang] || {};
+    let v = pack[k];
+    if (v == null || v === "") v = (packs.en || {})[k];
+    if (v == null || v === "") v = k;
+    for (let i = 0; i < args.length; i++) v = String(v).split("{" + i + "}").join(args[i]);
+    return v;
   }
 
   function setLang(next) {
     lang = next === "fi" ? "fi" : "en";
     localStorage.setItem(KEY, lang);
     document.documentElement.lang = lang;
-    if (global.i18next) global.i18next.changeLanguage(lang);
+    if (global.i18next && global.i18next.changeLanguage) global.i18next.changeLanguage(lang);
     return lang;
   }
 
   function getLang() { return lang; }
   function dateLocale() { return lang === "fi" ? "fi-FI" : "en-GB"; }
+  function getTheme() { return document.documentElement.getAttribute("data-theme") || "light"; }
 
   lang = detect();
   document.documentElement.lang = lang;
+  applyTheme(detectTheme());
 
   global.t = t;
   global.setLang = setLang;
   global.getLang = getLang;
   global.dateLocale = dateLocale;
+  global.getTheme = getTheme;
+  global.setTheme = applyTheme;
   global.i18nReady = (async function () {
-    const i18n = global.i18next;
-    if (!i18n) throw new Error("i18next failed to load");
     const [en, fi] = await Promise.all([
       fetch("/static/locales/en.json").then((r) => r.json()),
       fetch("/static/locales/fi.json").then((r) => r.json()),
     ]);
-    await i18n.init({
-      lng: lang,
-      fallbackLng: "en",
-      resources: {
-        en: { translation: en },
-        fi: { translation: fi },
-      },
-      interpolation: { escapeValue: false, prefix: "{", suffix: "}" },
-      returnNull: false,
-      keySeparator: false,
-      nsSeparator: false,
-    });
+    packs.en = en;
+    packs.fi = fi;
+    const i18n = global.i18next;
+    if (i18n && i18n.init) {
+      await i18n.init({
+        lng: lang,
+        fallbackLng: "en",
+        resources: {
+          en: { translation: en },
+          fi: { translation: fi },
+        },
+        interpolation: { escapeValue: false, prefix: "{", suffix: "}" },
+        returnNull: false,
+        keySeparator: false,
+        nsSeparator: false,
+      });
+    }
     return lang;
   })();
 })(window);

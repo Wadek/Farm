@@ -7,6 +7,7 @@ from app.db import get_db
 from app.models import Node, Produce, Listing, ListingStatus
 from app.models.user import User, UserRole
 from app.dependencies import get_current_user
+from app.services.produce_image import produce_image_url, _norm_category
 
 router = APIRouter(tags=["produce"])
 
@@ -154,19 +155,39 @@ def _produce_view(p: Produce) -> dict:
     }
 
 
+def listing_image_url(l: Listing) -> str:
+    name = ((l.produce.name if l.produce else "") or "")
+    cat = _norm_category(l.produce.category if l.produce else None, name)
+    custom = getattr(l, "image_url", None)
+    if custom and (
+        "/vegetable.jpg" in custom
+        or (cat == "meat" and "/feed.jpg" in custom)
+        or custom.endswith("/produce/" + cat + ".jpg")
+    ):
+        # Category stub — prefer the name-matched woodcut.
+        custom = None
+    if custom:
+        return custom
+    return produce_image_url(name, cat)
+
+
 def _listing_view(l: Listing) -> dict:
     created_at = l.created_at.isoformat() if l.created_at else None
-    return {
+    private = bool(getattr(l, "private", False))
+    view = {
         "id": l.id,
         "node_id": l.node_id,
         "produce_id": l.produce_id,
         "produce_name": l.produce.name if l.produce else None,
-        "category": l.produce.category if l.produce else "produce",
+        "category": _norm_category(
+            l.produce.category if l.produce else None,
+            l.produce.name if l.produce else "",
+        ),
         "quantity_kg": l.quantity_kg,
         "unit": getattr(l, "unit", None) or "kg",
         "price_per_kg": l.price_per_kg,
         "is_free": l.is_free,
-        "pickup_point": l.pickup_point,
+        "pickup_point": "" if private else l.pickup_point,
         "available_from": l.available_from.isoformat() if l.available_from else None,
         "available_until": l.available_until.isoformat() if l.available_until else None,
         "perpetual": bool(getattr(l, "perpetual", False)) or (
@@ -174,6 +195,7 @@ def _listing_view(l: Listing) -> dict:
         ),
         "demo": bool(getattr(l, "demo", False)),
         "featured": bool(getattr(l, "featured", False)),
+        "claimed": bool(l.node and l.node.claimed_at and l.node.owner_id),
         "status": l.status,
         "created_at": created_at,
         "node_name": l.node.name if l.node else None,
@@ -183,7 +205,12 @@ def _listing_view(l: Listing) -> dict:
         "node_lng": l.node.lng if l.node else None,
         "farm_created_at": l.node.created_at.isoformat() if l.node and l.node.created_at else None,
         "drop": _drop_brief(l),
+        "image_url": listing_image_url(l),
+        "private": private,
     }
+    if private and getattr(l, "privacy_iv", None) and getattr(l, "privacy_ct", None):
+        view["lockbox"] = {"v": l.privacy_v or "1", "iv": l.privacy_iv, "ct": l.privacy_ct}
+    return view
 
 
 def _drop_brief(l: Listing) -> dict | None:

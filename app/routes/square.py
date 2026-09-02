@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from app.db import get_db
@@ -11,9 +12,15 @@ from app.models.ask import PickupAsk, AskStatus
 from app.models.flare import DemandFlare, FlareStatus
 from app.models.user import User, UserRole
 from app.dependencies import get_current_user
-from app.routes.produce import _haversine, _listing_view
+from app.routes.produce import _haversine, _listing_view, _norm_category
 
 router = APIRouter(tags=["square"])
+
+
+class LockboxIn(BaseModel):
+    v: str | int = 1
+    iv: str
+    ct: str
 
 
 class LotIn(BaseModel):
@@ -27,6 +34,8 @@ class LotIn(BaseModel):
     co2_kg_per_kg: float = 0.4
     perpetual: bool = False
     demo: bool = False
+    private: bool = False
+    lockbox: LockboxIn | None = None
 
 
 class StallOpen(BaseModel):
@@ -76,6 +85,22 @@ def _node_distance_km(node: Node, lat: float | None, lng: float | None) -> float
     return _haversine(lat, lng, node.lat, node.lng)
 
 
+def _listing_distance_km(listing: Listing, lat: float | None, lng: float | None) -> float | None:
+    """Farm-gate uses the farm. A REKO lot uses the nearer of farm or drop."""
+    if lat is None or lng is None:
+        return None
+    node = listing.node
+    farm_km = _haversine(lat, lng, node.lat, node.lng) if node else None
+    drop = getattr(listing, "drop", None)
+    ring = drop.ring if drop else None
+    if ring and ring.lat is not None and ring.lng is not None:
+        drop_km = _haversine(lat, lng, ring.lat, ring.lng)
+        if farm_km is None:
+            return drop_km
+        return min(farm_km, drop_km)
+    return farm_km
+
+
 def _stall_view(node: Node, km: float | None = None, listing: Listing | None = None) -> dict:
     claimed = node.claimed_at is not None
     owner_name = node.owner.name if node.owner else ""
@@ -101,6 +126,8 @@ def _stall_view(node: Node, km: float | None = None, listing: Listing | None = N
         "claim_id": node.claim_id,
         "claimed_at": _iso(node.claimed_at),
         "is_unclaimed": not claimed,
+        "claim_pending": bool(getattr(node, "claim_pending_user_id", None)) and not claimed,
+        "claim_pending_user_id": getattr(node, "claim_pending_user_id", None) or "",
         "created_at": _iso(node.created_at),
         "matched_flares": [],
         "goods": [],
@@ -136,7 +163,7 @@ def market_square(
     stalls: dict[str, dict] = {}
     for listing in listings:
         node = listing.node
-        km = _node_distance_km(node, lat, lng)
+        km = _listing_distance_km(listing, lat, lng)
         if km is not None and km > radius_km:
             continue
 
@@ -243,6 +270,7 @@ def open_stall(
 
     created = []
     for lot in payload.lots:
+        cat = _norm_category(lot.category, lot.produce_name)
         produce = (
             db.query(Produce)
             .filter(Produce.node_id == node.id, Produce.name == lot.produce_name)
@@ -253,7 +281,7 @@ def open_stall(
                 id=str(uuid.uuid4()),
                 node_id=node.id,
                 name=lot.produce_name,
-                category=lot.category,
+                category=cat,
                 quantity_kg=lot.quantity_kg,
                 kcal_per_kg=lot.kcal_per_kg,
                 co2_kg_per_kg=lot.co2_kg_per_kg,
@@ -262,6 +290,7 @@ def open_stall(
             db.flush()
         else:
             produce.quantity_kg = (produce.quantity_kg or 0) + lot.quantity_kg
+            produce.category = cat
 
         perpetual = bool(lot.perpetual)
         listing = Listing(
@@ -280,6 +309,10 @@ def open_stall(
             available_from=drop.starts_at if drop else (None if perpetual else payload.available_from),
             available_until=drop.ends_at if drop else (None if perpetual else payload.available_until),
             status=ListingStatus.active,
+            private=bool(lot.private or getattr(current_user, "privacy", False) or lot.lockbox),
+            privacy_v=str(lot.lockbox.v) if lot.lockbox else None,
+            privacy_iv=lot.lockbox.iv if lot.lockbox else None,
+            privacy_ct=lot.lockbox.ct if lot.lockbox else None,
         )
         db.add(listing)
         created.append(listing)
@@ -301,7 +334,7 @@ def open_stall(
 def catalog(
     lat: float | None = None,
     lng: float | None = None,
-    radius_km: float = 40.0,
+    radius_km: float = 80.0,
     db: Session = Depends(get_db),
 ):
     """Flat grocery list across the farmer network. Skip the shop."""
@@ -313,7 +346,7 @@ def catalog(
                 **good,
                 "farm_name": stall["farm_name"],
                 "farmer_name": stall["farmer_name"],
-                "pickup_point": good.get("pickup_point") or stall["pickup_point"],
+                "pickup_point": "" if good.get("private") else (good.get("pickup_point") or stall["pickup_point"]),
                 "available_from": good.get("available_from") or stall["available_from"],
                 "available_until": good.get("available_until") or stall["available_until"],
                 "distance_km": stall["distance_km"],
@@ -328,7 +361,10 @@ def catalog(
     items.sort(key=lambda g: ((g.get("drop") or {}).get("starts_at") or ""), reverse=True)
     items.sort(key=lambda g: 0 if g.get("drop") else 1)
     items.sort(key=lambda g: 0 if g.get("featured") else 1)
-    return {"items": items, "count": len(items), "flares": square["flares"]}
+    return JSONResponse(
+        {"items": items, "count": len(items), "flares": square["flares"]},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.post("/listings/{listing_id}/gate")
