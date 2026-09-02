@@ -177,7 +177,9 @@ def listing_image_url(l: Listing) -> str:
     name = ((l.produce.name if l.produce else "") or "")
     cat = _norm_category(l.produce.category if l.produce else None, name)
     custom = getattr(l, "image_url", None)
-    if custom and "/vegetable.jpg" not in custom:
+    if custom and ("/vegetable.jpg" in custom or (cat == "meat" and "/feed.jpg" in custom)):
+        custom = None
+    if custom:
         return custom
     return f"/static/produce/{cat}.jpg"
 

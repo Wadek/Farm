@@ -110,6 +110,27 @@ def test_browse_listings_public(client):
     assert pic.headers["content-type"].startswith("image/")
 
 
+def test_organic_lamb_is_meat_not_feed(client):
+    token = _register_and_token(client, "lamb-farmer@test.com")
+    node_id = _create_node(client, token)
+    resp = client.post("/stalls", json={
+        "node_id": node_id,
+        "pickup_point": "Farm gate",
+        "lots": [{
+            "produce_name": "Organic lamb", "category": "feed",
+            "quantity_kg": 4, "price_per_kg": 22, "perpetual": True,
+        }],
+    }, headers=_auth(token))
+    assert resp.status_code == 201, resp.text
+    lot = resp.json()["lots"][0]
+    assert lot["category"] == "meat"
+    assert lot["image_url"] == "/static/produce/meat.jpg"
+    catalog = client.get("/catalog").json()["items"]
+    lamb = next(i for i in catalog if i["produce_name"] == "Organic lamb")
+    assert lamb["category"] == "meat"
+    assert lamb["image_url"] == "/static/produce/meat.jpg"
+
+
 def test_browse_listings_with_radius(client):
     token = _register_and_token(client)
     node_id = _create_node(client, token)

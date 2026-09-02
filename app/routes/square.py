@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from app.db import get_db
@@ -11,7 +12,7 @@ from app.models.ask import PickupAsk, AskStatus
 from app.models.flare import DemandFlare, FlareStatus
 from app.models.user import User, UserRole
 from app.dependencies import get_current_user
-from app.routes.produce import _haversine, _listing_view
+from app.routes.produce import _haversine, _listing_view, _norm_category
 
 router = APIRouter(tags=["square"])
 
@@ -253,6 +254,7 @@ def open_stall(
 
     created = []
     for lot in payload.lots:
+        cat = _norm_category(lot.category, lot.produce_name)
         produce = (
             db.query(Produce)
             .filter(Produce.node_id == node.id, Produce.name == lot.produce_name)
@@ -263,7 +265,7 @@ def open_stall(
                 id=str(uuid.uuid4()),
                 node_id=node.id,
                 name=lot.produce_name,
-                category=lot.category,
+                category=cat,
                 quantity_kg=lot.quantity_kg,
                 kcal_per_kg=lot.kcal_per_kg,
                 co2_kg_per_kg=lot.co2_kg_per_kg,
@@ -272,6 +274,7 @@ def open_stall(
             db.flush()
         else:
             produce.quantity_kg = (produce.quantity_kg or 0) + lot.quantity_kg
+            produce.category = cat
 
         perpetual = bool(lot.perpetual)
         listing = Listing(
@@ -342,7 +345,10 @@ def catalog(
     items.sort(key=lambda g: ((g.get("drop") or {}).get("starts_at") or ""), reverse=True)
     items.sort(key=lambda g: 0 if g.get("drop") else 1)
     items.sort(key=lambda g: 0 if g.get("featured") else 1)
-    return {"items": items, "count": len(items), "flares": square["flares"]}
+    return JSONResponse(
+        {"items": items, "count": len(items), "flares": square["flares"]},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.post("/listings/{listing_id}/gate")
