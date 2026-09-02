@@ -13,6 +13,7 @@ from app.dependencies import require_organizer
 from app.routes.produce import _listing_view
 from app.routes.square import _iso
 from app.services.privacy import admin_farm_view, admin_listing_view
+from app.services import webpush as push_svc
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -167,6 +168,18 @@ def decide_claim(
             body=body,
         ))
     db.commit()
+    if farmer_id:
+        try:
+            push_svc.send_to_user(
+                db,
+                farmer_id,
+                title="Farm claim",
+                body=body,
+                tag=f"farm-claim-{node.id}",
+                url="/",
+            )
+        except Exception:
+            pass
     return {"node_id": node.id, "farm_name": node.name, "status": "claimed" if payload.approve else "declined"}
 
 

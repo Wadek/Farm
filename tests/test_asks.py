@@ -101,6 +101,7 @@ def test_service_worker_and_manifest(client):
     assert sw.status_code == 200
     assert "showNotification" in sw.text
     assert 'addEventListener("push"' in sw.text
+    assert 'postMessage({ type: "open", url })' in sw.text
     reply = client.get("/r/demo")
     assert reply.status_code == 200
     assert "tänään 18" in reply.text
@@ -182,6 +183,9 @@ def test_service_worker_and_manifest(client):
     assert "filterRing" in page.text
     assert 'data-ring="all"' in page.text
     assert 'data-ring="saved"' in page.text
+    assert "function showAccountForClaim" in page.text
+    assert "function resumePendingFarmClaim" in page.text
+    assert 't("Farm claim")' in page.text
     assert "const PRODUCE_CATALOG" in page.text
     assert "function filterProduceSet" in page.text
     assert 't("Item not found, add a new item")' in page.text

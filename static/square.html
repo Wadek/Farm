@@ -221,6 +221,7 @@ let activeView = "browse";
 let filterQ = "";
 let filterRing = "all";
 let favs = JSON.parse(localStorage.getItem("sk_favs") || "[]");
+const CLAIM_FARM_KEY = "sk_claim_farm";
 const CATS = ["greens","root","berries","eggs","dairy","meat","preserve","feed"];
 const PRODUCE_EXTRA_KEY = "sk_produce_extra";
 const PRODUCE_CATALOG = [
@@ -430,6 +431,13 @@ function navItems() {
   ];
 }
 function defaultView() { return me ? "browse" : "home"; }
+function bootView() {
+  try {
+    const v = new URLSearchParams(location.search).get("view");
+    if (v === "ledger" && me && me.role === "organizer") return "ledger";
+  } catch {}
+  return defaultView();
+}
 function titles() {
   return { home: t("Satokori"), browse: t("Satokori"), reko: t("REKO"), farms: t("Farms"), listings: t("Sell"), basket: t("Orders"), account: t("You"), visit: t("Field visit"), ledger: t("Ledger"), admin: t("Admin") };
 }
@@ -658,9 +666,10 @@ async function login(email, password) {
   applyChrome();
   enableNotifications();
   startNotifyLoop();
-  show("browse");
   toast(t("Signed in"));
-  if (me.role === "farmer" || me.role === "organizer") {
+  const resumed = await resumePendingFarmClaim();
+  if (!resumed) show("browse");
+  if (!resumed && (me.role === "farmer" || me.role === "organizer")) {
     try {
       const nodes = await api("/nodes");
       if (!nodes.length) toast(t("Claim your farm on the map, or add a new one from Sell."));
@@ -1356,8 +1365,37 @@ async function loadFarms() {
   bindClaimButtons(document.getElementById("farms"));
   paintOpenRings(document.getElementById("map-rings"));
 }
+function showAccountForClaim() {
+  show("account");
+  const reg = document.querySelector('#auth-seg [data-auth-mode="register"]');
+  if (reg) reg.click();
+  const roleSel = document.querySelector("#register-form select[name=role]");
+  if (roleSel) roleSel.value = "farmer";
+}
+async function resumePendingFarmClaim() {
+  let nodeId = "";
+  try { nodeId = sessionStorage.getItem(CLAIM_FARM_KEY) || ""; } catch {}
+  if (!nodeId) return false;
+  try { sessionStorage.removeItem(CLAIM_FARM_KEY); } catch {}
+  if (role() !== "farmer" && role() !== "organizer") {
+    toast(t("Farmer accounts only"));
+    return false;
+  }
+  try {
+    await claimFarm(nodeId);
+    return true;
+  } catch (err) {
+    toast(err.message);
+    return false;
+  }
+}
 async function claimFarm(nodeId, claimId) {
-  if (role() === "guest") { show("account"); toast(t("Create a farmer account first")); return; }
+  if (role() === "guest") {
+    if (nodeId) { try { sessionStorage.setItem(CLAIM_FARM_KEY, nodeId); } catch {} }
+    showAccountForClaim();
+    toast(t("Create a farmer account, then you can claim this farm."));
+    return;
+  }
   if (role() !== "farmer" && role() !== "organizer") { toast(t("Farmer accounts only")); return; }
   const body = {};
   if (nodeId) body.node_id = nodeId;
@@ -1734,15 +1772,22 @@ async function loadMyListings() {
     } catch (e) { toast(e.message); }
   });
 }
+async function decideFarmClaim(nodeId, approve) {
+  await api("/admin/claims", { method: "POST", body: JSON.stringify({ node_id: nodeId, approve }) });
+  toast(approve ? t("Claim approved") : t("Claim declined"));
+  if (activeView === "ledger") loadLedger();
+  if (activeView === "admin") loadAdmin();
+}
 async function loadLedger() {
   const rows = await api("/ledger");
   const el = document.getElementById("ledger");
   if (!rows.length) { el.innerHTML = `<p class="meta">${t("No trades or records in the ledger yet.")}</p>`; return; }
   el.innerHTML = rows.map(r => `
     <div class="basket-line">
-      <div><b>${r.type === "inventory" ? "INVENTORY" : r.type === "request" ? r.status === "pending" ? "REQUEST PENDING" : r.status === "picked_up" ? "PICKED UP" : r.status === "withdrawn" ? "WITHDRAWN" : r.status === "declined" ? "DECLINED REQUEST" : "CONFIRMED REQUEST" : r.type === "farm_onboarding" ? "FARM ONBOARDED" : r.from_farm}</b>${r.type !== "trade" ? ` · ${r.from_farm}` : ""}${r.buyer ? ` → ${r.buyer}` : ""}
+      <div><b>${r.type === "inventory" ? "INVENTORY" : r.type === "request" ? r.status === "pending" ? "REQUEST PENDING" : r.status === "picked_up" ? "PICKED UP" : r.status === "withdrawn" ? "WITHDRAWN" : r.status === "declined" ? "DECLINED REQUEST" : "CONFIRMED REQUEST" : r.type === "farm_claim" ? t("Farm claim") : r.type === "farm_onboarding" ? "FARM ONBOARDED" : r.from_farm}</b>${r.type !== "trade" ? ` · ${r.from_farm}` : ""}${r.buyer ? ` → ${r.buyer}` : ""}
         <div class="meta">${r.produce || ""}${r.quantity_kg != null ? ` · ${r.quantity_kg} ${r.unit || "kg"}` : ""} · event ${fmtTimestamp(r.created_at)}${r.note ? " · " + r.note : ""}${r.picked_up_by ? " · marked by " + r.picked_up_by : ""}${r.claim_id ? " · claim ID: " + r.claim_id : ""}</div></div>
-      <div>${r.type === "inventory" ? r.status : r.type === "request" ? r.status === "pending" ? "Awaiting reply" : r.status === "pending_verification" ? "Awaiting verification" : r.status === "picked_up" ? "Transaction complete" : r.status === "withdrawn" ? "Withdrawn" : r.status === "declined" ? "Declined" : "Pickup ready" : r.type === "farm_onboarding" ? (r.status === "claimed" ? "Claimed" : "Awaiting claim · " + r.claim_id) : r.myc_tokens_minted + " MYC"}
+      <div>${r.type === "inventory" ? r.status : r.type === "request" ? r.status === "pending" ? "Awaiting reply" : r.status === "pending_verification" ? "Awaiting verification" : r.status === "picked_up" ? "Transaction complete" : r.status === "withdrawn" ? "Withdrawn" : r.status === "declined" ? "Declined" : "Pickup ready" : r.type === "farm_claim" ? t("Approve or decline this claim.") : r.type === "farm_onboarding" ? (r.status === "claimed" ? "Claimed" : "Awaiting claim · " + r.claim_id) : r.myc_tokens_minted + " MYC"}
+        ${role() === "organizer" && r.type === "farm_claim" && r.status === "pending" ? `<div class="btn-row"><button class="btn primary" type="button" data-claim-ok="${esc(r.id)}">${t("Approve")}</button><button class="btn ghost" type="button" data-claim-no="${esc(r.id)}">${t("Decline")}</button></div>` : ""}
         ${role() === "organizer" && r.type === "request" && r.status !== "picked_up" && r.status !== "withdrawn" && r.status !== "declined" ? `<button class="btn ghost" data-remind="${r.id}">Prompt trade</button>` : ""}
         ${role() === "organizer" && r.type === "request" && r.status === "picked_up" ? `<button class="btn ghost" data-undo="${r.id}">Undo trade</button>` : ""}
         ${role() === "organizer" && r.type === "request" && r.status !== "withdrawn" && r.status !== "declined" && r.status !== "picked_up" ? `<button class="btn ghost" data-withdraw="${r.id}">Withdraw order</button>` : ""}
@@ -1762,12 +1807,20 @@ async function loadLedger() {
     try { await api(`/asks/${b.dataset.withdraw}/withdraw`, { method: "POST" }); toast(t("Order withdrawn")); loadLedger(); }
     catch (e) { toast(e.message); }
   });
+  el.querySelectorAll("[data-claim-ok]").forEach(b => b.onclick = async () => {
+    try { await decideFarmClaim(b.dataset.claimOk, true); }
+    catch (e) { toast(e.message); }
+  });
+  el.querySelectorAll("[data-claim-no]").forEach(b => b.onclick = async () => {
+    try { await decideFarmClaim(b.dataset.claimNo, false); }
+    catch (e) { toast(e.message); }
+  });
 }
 document.getElementById("add-lot").onclick = () => lotRow(document.getElementById("lots"));
 document.getElementById("v-add-lot").onclick = () => lotRow(document.getElementById("v-lots"));
 document.getElementById("claim-farm-form").onsubmit = async (e) => {
   e.preventDefault();
-  if (role() === "guest") { show("account"); toast(t("Log in or create a farmer account to claim this farm")); return; }
+  if (role() === "guest") { showAccountForClaim(); toast(t("Create a farmer account, then you can claim this farm.")); return; }
   if (role() !== "farmer" && role() !== "organizer") { toast(t("Only farmer accounts can claim farms")); return; }
   try {
     const res = await api("/nodes/claim", { method: "POST", body: JSON.stringify({ claim_id: e.target.claim_id.value.trim() }) });
@@ -1930,11 +1983,11 @@ async function loadAdmin() {
         </div>
       </div>`).join("") : `<p class="meta">${t("Nothing listed")}</p>`);
     claimsEl.querySelectorAll("[data-claim-ok]").forEach(b => b.onclick = async () => {
-      try { await api("/admin/claims", { method: "POST", body: JSON.stringify({ node_id: b.dataset.claimOk, approve: true }) }); toast(t("Claim approved")); loadAdmin(); }
+      try { await decideFarmClaim(b.dataset.claimOk, true); }
       catch (e) { toast(e.message); }
     });
     claimsEl.querySelectorAll("[data-claim-no]").forEach(b => b.onclick = async () => {
-      try { await api("/admin/claims", { method: "POST", body: JSON.stringify({ node_id: b.dataset.claimNo, approve: false }) }); toast(t("Claim declined")); loadAdmin(); }
+      try { await decideFarmClaim(b.dataset.claimNo, false); }
       catch (e) { toast(e.message); }
     });
   }
@@ -2241,8 +2294,15 @@ function boot() {
   renderAuth();
   applyChrome();
   bindHome();
-  show(defaultView());
+  show(bootView());
   if (me) { enableNotifications(); startNotifyLoop(); }
+  if (navigator.serviceWorker) {
+    navigator.serviceWorker.addEventListener("message", (e) => {
+      const data = e.data || {};
+      if (data.type !== "open") return;
+      if (String(data.url || "").indexOf("view=ledger") >= 0 && role() === "organizer") show("ledger");
+    });
+  }
 }
 if (window.i18nReady) window.i18nReady.then(boot).catch(() => boot());
 else boot();

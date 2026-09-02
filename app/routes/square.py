@@ -633,7 +633,27 @@ def public_ledger(
         }
         for ask in asks
     )
+    claim_rows = []
     if current_user.role == UserRole.organizer:
+        pending_nodes = (
+            db.query(Node)
+            .options(joinedload(Node.claim_pending_user), joinedload(Node.owner))
+            .filter(Node.claim_pending_user_id.isnot(None), Node.claimed_at.is_(None))
+            .order_by(Node.claim_pending_at.desc())
+            .all()
+        )
+        claim_rows = [{
+            "id": node.id,
+            "type": "farm_claim",
+            "direction": "incoming",
+            "status": "pending",
+            "from_farm": node.name,
+            "produce": "Farm claim",
+            "buyer": node.claim_pending_user.name if node.claim_pending_user else "",
+            "note": node.claim_pending_user.email if node.claim_pending_user else "",
+            "claim_id": node.claim_id,
+            "created_at": _iso(node.claim_pending_at or node.created_at),
+        } for node in pending_nodes]
         rows.extend({
             "id": node.id,
             "type": "farm_onboarding",
@@ -663,4 +683,6 @@ def public_ledger(
         "created_at": _iso(listing.created_at),
     } for listing in inventory_query.limit(limit).all())
     rows.sort(key=lambda row: row["created_at"] or "", reverse=True)
-    return rows[:limit]
+    other = [r for r in rows if r.get("type") != "farm_claim"]
+    rest = max(0, limit - len(claim_rows))
+    return claim_rows + other[:rest]

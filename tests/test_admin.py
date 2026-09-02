@@ -123,6 +123,51 @@ def test_farmer_claims_unclaimed_farm_by_node_id(client):
     assert stall["farmer_name"] == "Niina"
 
 
+def test_farm_claim_push_and_ledger(client, monkeypatch):
+    from app.services import webpush as push_svc
+
+    sent = []
+
+    def fake_send(db, user_id, title="Satokori", body="", tag="satokori", url="/"):
+        sent.append({"user_id": user_id, "title": title, "body": body, "tag": tag, "url": url})
+        return 1
+
+    monkeypatch.setattr(push_svc, "send_to_user", fake_send)
+    admin, admin_id = _register(client, "claim-push-admin@test.com", "Admin", "organizer")
+    farmer, farmer_id = _register(client, "claim-push-farmer@test.com", "Niina", "farmer")
+    farm = client.post("/onboard", json={
+        "farmer_name": "Placeholder",
+        "farm_name": "Toikantila",
+        "pickup_point": "Pirttimäentie 178",
+        "lat": 60.5084,
+        "lng": 24.7616,
+    }, headers=_auth(admin)).json()
+    claimed = client.post("/nodes/claim", json={"node_id": farm["node_id"]}, headers=_auth(farmer))
+    assert claimed.status_code == 200, claimed.text
+    assert claimed.json()["status"] == "pending"
+    assert any(p["user_id"] == admin_id and p["title"] == "Farm claim" for p in sent)
+    assert any("asked to claim Toikantila" in p["body"] for p in sent)
+    assert any(p.get("url") == "/?view=ledger" for p in sent)
+    ledger = client.get("/ledger", headers=_auth(admin)).json()
+    row = next(r for r in ledger if r["type"] == "farm_claim")
+    assert row["from_farm"] == "Toikantila"
+    assert row["status"] == "pending"
+    assert row["buyer"] == "Niina"
+    assert row["id"] == farm["node_id"]
+    html = client.get("/").text
+    assert "function showAccountForClaim" in html
+    assert "sk_claim_farm" in html
+    assert "function resumePendingFarmClaim" in html
+    assert 't("Farm claim")' in html
+    assert "data-claim-ok" in html
+    sent.clear()
+    approved = client.post("/admin/claims", json={"node_id": farm["node_id"], "approve": True}, headers=_auth(admin))
+    assert approved.status_code == 200, approved.text
+    assert any(p["user_id"] == farmer_id and "approved" in p["body"] for p in sent)
+    after = client.get("/ledger", headers=_auth(admin)).json()
+    assert not any(r["type"] == "farm_claim" and r["id"] == farm["node_id"] for r in after)
+
+
 def test_admin_overview_lists_farms(client):
     admin, _ = _register(client, "overview-admin@test.com", "Admin", "organizer")
     farmer, _ = _register(client, "overview-farmer@test.com", "Maija", "farmer")
