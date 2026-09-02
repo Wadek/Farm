@@ -153,6 +153,8 @@
   "Amount": "Määrä",
   "€ / unit": "€ / yksikkö",
   "Milk, berries, kale…": "Maito, marjat, lehtikaali…",
+  "Item not found, add a new item": "Tuotetta ei löydy, lisää uusi",
+  "Pick an item, or add a new one.": "Valitse tuote listasta tai lisää uusi.",
   "Sign in as a farmer to list items": "Kirjaudu viljelijänä listataksesi",
   "No farm on your account yet": "Tilillä ei ole vielä tilaa",
   "Add your farm above, then list this week’s harvest.": "Lisää tila yllä, sitten listaa sato.",

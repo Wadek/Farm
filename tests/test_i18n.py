@@ -34,6 +34,8 @@ def test_finnish_catalog_is_not_english_echo():
     assert EN["Lehtikaali (kale)"] == "Kale"
     assert FI["I'll be there"] == "Tulen"
     assert FI["Not this week"] == "En tällä viikolla"
+    assert FI["Item not found, add a new item"] == "Tuotetta ei löydy, lisää uusi"
+    assert FI["Pick an item, or add a new one."] == "Valitse tuote listasta tai lisää uusi."
 
 
 def test_i18n_bootstrap_uses_i18next():
@@ -66,6 +68,8 @@ def test_i18n_bootstrap_uses_i18next():
     assert 'html lang="fi"' in html
     assert 'filterRing === "saved"' in html
     assert "function produceSrc" in html
+    assert "const PRODUCE_CATALOG" in html
+    assert "function filterProduceSet" in html
     assert "function produceLabel" in boot
     assert "produceLabel(item.produce_name)" in html
     assert "openSettings" in html

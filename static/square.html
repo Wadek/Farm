@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css?v=24">
+<link rel="stylesheet" href="/static/css/app.css?v=25">
 </head>
 <body>
 <header id="topbar">
@@ -222,6 +222,44 @@ let filterQ = "";
 let filterRing = "all";
 let favs = JSON.parse(localStorage.getItem("sk_favs") || "[]");
 const CATS = ["greens","root","berries","eggs","dairy","meat","preserve","feed"];
+const PRODUCE_EXTRA_KEY = "sk_produce_extra";
+const PRODUCE_CATALOG = [
+  { name: "Raw milk", cat: "dairy" },
+  { name: "Tinkimaito", cat: "dairy" },
+  { name: "Milk", cat: "dairy" },
+  { name: "Farm eggs", cat: "eggs" },
+  { name: "Organic eggs", cat: "eggs" },
+  { name: "Pasture eggs", cat: "eggs" },
+  { name: "Ostrich eggs", cat: "eggs" },
+  { name: "Farm beef", cat: "meat" },
+  { name: "Organic lamb", cat: "meat" },
+  { name: "Beef", cat: "meat" },
+  { name: "Lamb", cat: "meat" },
+  { name: "Strawberries", cat: "berries" },
+  { name: "Organic strawberries", cat: "berries" },
+  { name: "Farm strawberries", cat: "berries" },
+  { name: "Raspberries", cat: "berries" },
+  { name: "Blueberries", cat: "berries" },
+  { name: "Tyrni", cat: "berries" },
+  { name: "Haskap (hunajamarja)", cat: "berries" },
+  { name: "Lehtikaali (kale)", cat: "greens" },
+  { name: "Cabbage", cat: "greens" },
+  { name: "Organic vegetables", cat: "greens" },
+  { name: "Farm vegetables", cat: "greens" },
+  { name: "Vegetables", cat: "greens" },
+  { name: "Tomatoes", cat: "greens" },
+  { name: "Carrots", cat: "root" },
+  { name: "Farm honey", cat: "preserve" },
+  { name: "Honey", cat: "preserve" },
+  { name: "Berry juice", cat: "preserve" },
+  { name: "Oat flakes", cat: "preserve" },
+  { name: "Organic flour", cat: "preserve" },
+  { name: "Alpaca yarn", cat: "preserve" },
+  { name: "Hay", cat: "feed" },
+  { name: "Hay bales", cat: "feed" },
+  { name: "Small-square hay", cat: "feed" },
+];
+let produceSuggestBound = false;
 const HERO = { dairy:"--hero-dairy", greens:"--hero-greens", berries:"--hero-berries", eggs:"--hero-eggs", root:"--hero-root", preserve:"--hero-preserve", feed:"--hero-feed", produce:"--hero-produce", meat:"--hero-root" };
 const PRODUCE_ICONS = { dairy:1, eggs:1, greens:1, berries:1, root:1, preserve:1, feed:1, produce:1, meat:1 };
 function normCat(c) {
@@ -1366,12 +1404,161 @@ async function paintOpenRings(el) {
     });
   } catch { el.innerHTML = ""; }
 }
+function loadProduceExtra() {
+  try { return JSON.parse(localStorage.getItem(PRODUCE_EXTRA_KEY) || "[]"); } catch { return []; }
+}
+function saveProduceExtra(list) {
+  try { localStorage.setItem(PRODUCE_EXTRA_KEY, JSON.stringify(list)); } catch {}
+}
+function produceSet() {
+  const seen = new Set();
+  const out = [];
+  function add(name, cat) {
+    const n = String(name || "").trim();
+    if (!n) return;
+    const key = n.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ name: n, cat: cat || "produce" });
+  }
+  PRODUCE_CATALOG.forEach(p => add(p.name, p.cat));
+  loadProduceExtra().forEach(p => add(p.name, p.cat));
+  out.sort((a, b) => produceLabel(a.name).localeCompare(produceLabel(b.name), dateLocale()));
+  return out;
+}
+function produceSearchBlob(item) {
+  return [
+    item.name,
+    produceLabel(item.name),
+    typeof tIn === "function" ? tIn("en", item.name) : "",
+    typeof tIn === "function" ? tIn("fi", item.name) : "",
+  ].join(" ").toLowerCase();
+}
+function filterProduceSet(q) {
+  const items = produceSet();
+  const s = String(q || "").trim().toLowerCase();
+  if (!s) return items;
+  return items.filter(item => produceSearchBlob(item).includes(s));
+}
+function exactProduce(q) {
+  const s = String(q || "").trim().toLowerCase();
+  if (!s) return null;
+  return produceSet().find(item =>
+    item.name.toLowerCase() === s ||
+    produceLabel(item.name).toLowerCase() === s ||
+    (typeof tIn === "function" && (tIn("en", item.name).toLowerCase() === s || tIn("fi", item.name).toLowerCase() === s))
+  ) || null;
+}
+function closeProduceSuggest(except) {
+  document.querySelectorAll(".item-suggest").forEach(el => {
+    if (el !== except) el.classList.add("hidden");
+  });
+}
+function applyProducePick(row, item, how) {
+  const input = row.querySelector("[name=name]");
+  const cat = row.querySelector("[name=cat]");
+  row.dataset.picked = how || "set";
+  row.dataset.produceName = item.name;
+  if (input) input.value = produceLabel(item.name);
+  if (cat && item.cat && CATS.indexOf(item.cat) >= 0) cat.value = item.cat;
+  closeProduceSuggest();
+}
+function addProduceNew(row, typed) {
+  const name = String(typed || "").trim();
+  if (!name) return;
+  const catEl = row.querySelector("[name=cat]");
+  const cat = catEl ? catEl.value : "produce";
+  const extra = loadProduceExtra();
+  if (!extra.some(p => String(p.name || "").toLowerCase() === name.toLowerCase())) {
+    extra.push({ name, cat });
+    saveProduceExtra(extra);
+  }
+  applyProducePick(row, { name, cat }, "new");
+}
+function paintProduceSuggest(row) {
+  const box = row.querySelector(".item-suggest");
+  const input = row.querySelector("[name=name]");
+  if (!box || !input) return;
+  const q = input.value;
+  const matches = filterProduceSet(q);
+  const exact = exactProduce(q);
+  let html = matches.map(item =>
+    `<button type="button" class="item-hit" data-name="${esc(item.name)}" data-cat="${esc(item.cat)}">${esc(produceLabel(item.name))}</button>`
+  ).join("");
+  const typed = String(q || "").trim();
+  if (typed && !matches.length) {
+    html += `<button type="button" class="item-new">${t("Item not found, add a new item")}</button>`;
+  }
+  box.innerHTML = html;
+  box.classList.toggle("hidden", !html);
+  box.onmousedown = (e) => e.preventDefault();
+  box.querySelectorAll(".item-hit").forEach(b => b.onclick = () => {
+    applyProducePick(row, { name: b.dataset.name, cat: b.dataset.cat }, "set");
+  });
+  const add = box.querySelector(".item-new");
+  if (add) add.onclick = () => addProduceNew(row, typed);
+}
+function bindProduceSuggestOnce() {
+  if (produceSuggestBound) return;
+  produceSuggestBound = true;
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".item-pick")) closeProduceSuggest();
+  });
+}
+function bindProducePicker(row) {
+  bindProduceSuggestOnce();
+  const input = row.querySelector("[name=name]");
+  if (!input) return;
+  input.addEventListener("focus", () => {
+    closeProduceSuggest(row.querySelector(".item-suggest"));
+    paintProduceSuggest(row);
+  });
+  input.addEventListener("input", () => {
+    const exact = exactProduce(input.value);
+    if (exact) {
+      row.dataset.picked = "set";
+      row.dataset.produceName = exact.name;
+    } else {
+      row.dataset.picked = "";
+      row.dataset.produceName = "";
+    }
+    paintProduceSuggest(row);
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { closeProduceSuggest(); return; }
+    if (e.key !== "Enter") return;
+    const box = row.querySelector(".item-suggest");
+    if (!box || box.classList.contains("hidden")) return;
+    const first = box.querySelector(".item-hit") || box.querySelector(".item-new");
+    if (!first) return;
+    e.preventDefault();
+    first.click();
+  });
+}
+function confirmLotPicks(root) {
+  [...root.querySelectorAll(".lot-row")].forEach(row => {
+    if (row.dataset.picked) return;
+    const exact = exactProduce((row.querySelector("[name=name]") || {}).value);
+    if (exact) applyProducePick(row, exact, "set");
+  });
+  const missing = [...root.querySelectorAll(".lot-row")].some(row => !row.dataset.picked || !row.dataset.produceName);
+  if (missing) {
+    toast(t("Pick an item, or add a new one."));
+    return false;
+  }
+  return true;
+}
 function lotRow(target) {
   const wrap = document.createElement("div");
   wrap.className = "lot-row card";
   wrap.innerHTML = `
     <div class="row3">
-      <label>${t("Item")} <input name="name" required placeholder="${t("Milk, berries, kale…")}"></label>
+      <div class="item-pick">
+        <label>${t("Item")}
+          <input name="name" required autocomplete="off" spellcheck="false" placeholder="${t("Milk, berries, kale…")}">
+        </label>
+        <div class="item-suggest hidden" role="listbox"></div>
+      </div>
       <label>${t("Amount")} <input name="qty" type="number" min="0.1" step="0.1" value="5" required></label>
       <label>${t("Unit")}
         <select name="unit">${UNITS.map(u => `<option value="${u}" ${u==="kg"?"selected":""}>${u}</option>`).join("")}</select>
@@ -1396,6 +1583,7 @@ function lotRow(target) {
       <input name="perpetual" type="checkbox" style="width:auto;min-height:22px"> ${t("Always available")}
     </label>`;
   target.appendChild(wrap);
+  bindProducePicker(wrap);
   const sel = document.getElementById("stall-channel");
   if (sel && sel.value && sel.value !== "gate") {
     const cb = wrap.querySelector("[name=perpetual]");
@@ -1408,7 +1596,7 @@ function lotRow(target) {
 }
 function lotsFrom(root) {
   return [...root.querySelectorAll(".lot-row")].map(row => ({
-    produce_name: row.querySelector("[name=name]").value,
+    produce_name: row.dataset.produceName || row.querySelector("[name=name]").value,
     category: row.querySelector("[name=cat]").value,
     quantity_kg: Number(row.querySelector("[name=qty]").value),
     unit: row.querySelector("[name=unit]").value,
@@ -1627,7 +1815,9 @@ document.getElementById("stall-form").onsubmit = async (e) => {
   e.preventDefault();
   const nodeId = document.getElementById("stall-node").value;
   if (!nodeId) { toast(t("No farm on this account")); return; }
-  const lots = lotsFrom(document.getElementById("lots"));
+  const lotsRoot = document.getElementById("lots");
+  if (!confirmLotPicks(lotsRoot)) return;
+  const lots = lotsFrom(lotsRoot);
   const channel = document.getElementById("stall-channel").value;
   const dropId = channel && channel !== "gate" ? channel : "";
   const needsWindow = !dropId && lots.some(l => !l.perpetual);
@@ -1670,6 +1860,8 @@ document.getElementById("stall-form").onsubmit = async (e) => {
 document.getElementById("visit-form").onsubmit = async (e) => {
   e.preventDefault();
   if (role() !== "organizer") { toast(t("Admin only")); return; }
+  const visitLots = document.getElementById("v-lots");
+  if (!confirmLotPicks(visitLots)) return;
   try {
     const body = await api("/onboard", { method: "POST", body: JSON.stringify({
       farmer_name: document.getElementById("v-farmer").value,
@@ -1680,7 +1872,7 @@ document.getElementById("visit-form").onsubmit = async (e) => {
       lng: Number(document.getElementById("v-lng").value),
       available_from: new Date(document.getElementById("v-from").value).toISOString(),
       available_until: new Date(document.getElementById("v-until").value).toISOString(),
-      lots: lotsFrom(document.getElementById("v-lots")),
+      lots: lotsFrom(visitLots),
     })});
     const box = document.getElementById("visit-result");
     box.classList.remove("hidden");
