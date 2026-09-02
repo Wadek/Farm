@@ -100,6 +100,7 @@ def test_service_worker_and_manifest(client):
     sw = client.get("/sw.js")
     assert sw.status_code == 200
     assert "showNotification" in sw.text
+    assert 'addEventListener("push"' in sw.text
     manifest = client.get("/static/manifest.webmanifest")
     assert manifest.status_code == 200
     assert "Satokori" in manifest.text

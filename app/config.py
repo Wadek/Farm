@@ -29,5 +29,10 @@ class Settings(BaseSettings):
     twilio_token: str = ""
     twilio_from: str = ""
 
+    # Web Push (VAPID). Empty = generate and persist under data/vapid.json
+    vapid_private_key: str = ""
+    vapid_public_key: str = ""
+    vapid_contact: str = "mailto:satokori@wakalabs.net"
+
 
 settings = Settings()
