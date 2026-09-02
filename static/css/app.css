@@ -237,6 +237,12 @@ input, select, textarea {
   border-radius: 8px; background: var(--surface); min-height: 44px; margin-top: 3px;
 }
 .leaflet-map { height: 220px; border-radius: 8px; margin: 6px 0 10px; }
+#farms-map.leaflet-map {
+  height: 50vh;
+  height: 50dvh;
+  min-height: 280px;
+  margin: 0 0 10px;
+}
 
 .toast {
   position: fixed; left: 50%; bottom: calc(var(--tabh) + 10px);

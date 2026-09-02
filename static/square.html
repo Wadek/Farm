@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="/static/css/app.css?v=25">
+<link rel="stylesheet" href="/static/css/app.css?v=26">
 </head>
 <body>
 <header id="topbar">
@@ -41,8 +41,8 @@
   </section>
   <section id="view-farms" class="hidden">
     <div id="farms-map" class="leaflet-map"></div>
-    <div id="map-rings" class="grid"></div>
     <div class="grid" id="farms"></div>
+    <div id="map-rings" class="grid"></div>
   </section>
   <section id="view-basket" class="hidden">
     <p class="meta" id="basket-meta" data-i18n="Pickup asks and replies live here — same place every time.">Pickup asks and replies live here — same place every time.</p>
@@ -412,6 +412,9 @@ function icn(name) {
   if (name === "logo") {
     return `<img class="mark" src="/static/logo.jpg" width="26" height="26" alt="Satokori">`;
   }
+  if (name === "farm") {
+    return `<img class="mark" src="/static/farm.jpg" width="26" height="26" alt="">`;
+  }
   const p = {
     map: '<path d="M12 21s7-7.2 7-12a7 7 0 10-14 0c0 4.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.2"/>',
     sell: '<path d="M12 5v14M5 12h14"/>',
@@ -424,7 +427,7 @@ function icn(name) {
 function navItems() {
   return [
     ["browse", t("Satokori"), "logo"],
-    ["farms", t("Map"), "map"],
+    ["farms", t("Farms"), "farm"],
     ["listings", t("Sell"), "sell"],
     ["basket", t("Orders"), "orders"],
     ["account", t("You"), "you"],
@@ -1301,6 +1304,9 @@ async function loadBasketLedger() {
 function tileLayer() {
   return L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" });
 }
+function liveGoods(s) {
+  return (s && s.goods || []).filter(g => g && g.status !== "sold_out" && Number(g.quantity_kg) > 0);
+}
 function ensureFarmsMap() {
   if (farmsMap) return;
   farmsMap = L.map("farms-map").setView([HERE.lat, HERE.lng], 10);
@@ -1326,7 +1332,8 @@ async function loadFarms() {
   ringMarkers.forEach(m => farmsMap.removeLayer(m));
   farmMarkers = square.stalls.map(s => {
     const unclaimed = s.is_unclaimed || s.farmer_name === "Unclaimed";
-    const popup = `<b>${s.farm_name}</b>${unclaimed ? " (" + t("Unclaimed") + ")" : ""}<br>${s.description || s.pickup_point || ""}<br>${fmtWhen(s.available_from, s.available_until)}${s.goods && s.goods.length ? "<br>" + s.goods.map(g => produceLabel(g.produce_name)).join(", ") : ""}`;
+    const goods = liveGoods(s);
+    const popup = `<b>${s.farm_name}</b>${unclaimed ? " (" + t("Unclaimed") + ")" : ""}<br>${s.description || s.pickup_point || ""}<br>${fmtWhen(s.available_from, s.available_until)}${goods.length ? "<br>" + goods.map(g => produceLabel(g.produce_name)).join(", ") : ""}`;
     const marker = unclaimed
       ? L.circleMarker([s.lat, s.lng], { radius: 11, color: "#b86132", fillColor: "#d4a017", fillOpacity: 0.9, weight: 2 })
       : L.marker([s.lat, s.lng]);
@@ -1351,11 +1358,12 @@ async function loadFarms() {
     const unclaimed = s.is_unclaimed || !s.farmer_name || s.farmer_name === "Unclaimed";
     const place = s.pickup_point || s.description || "";
     const km = s.distance_km != null ? s.distance_km + " km" : "";
+    const goods = liveGoods(s);
     return `
     <article class="card">
       <h3>${esc(s.farm_name)}</h3>
       <div class="meta">${unclaimed ? t("Open to claim") : esc(s.farmer_name)} · ${esc(place)}${km ? " · " + km : ""}</div>
-      ${s.goods && s.goods.length ? s.goods.map(g => `<div class="meta">${esc(produceLabel(g.produce_name))} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("") : `<p class="meta">${t("No produce listed yet.")}</p>`}
+      ${goods.length ? goods.map(g => `<div class="meta">${esc(produceLabel(g.produce_name))} · ${qtyLabel(g)} · ${priceLabel(g)}</div>`).join("") : `<p class="meta">${t("No produce listed yet.")}</p>`}
       ${unclaimed && !s.claim_pending ? `<button class="btn primary" type="button" data-claim-node="${esc(s.node_id)}">${t("This is my farm")}</button>` : ""}
       ${s.claim_pending && me && s.claim_pending_user_id === me.id ? `<p class="meta">${t("Waiting for admin to approve your claim.")}</p>` : ""}
       ${s.claim_pending && !(me && s.claim_pending_user_id === me.id) ? `<p class="meta">${t("Claim pending admin approval.")}</p>` : ""}
@@ -1710,7 +1718,7 @@ async function loadMyListings() {
   }
   const square = await api("/square");
   const mine = square.stalls.filter(s => !s.is_unclaimed && nodes.some(n => n.id === s.node_id));
-  const items = mine.flatMap(s => s.goods.map(g => ({ ...g, farm_name: s.farm_name })));
+  const items = mine.flatMap(s => liveGoods(s).map(g => ({ ...g, farm_name: s.farm_name })));
   if (!items.length) {
     list.innerHTML = `<p class="meta">${t("Nothing listed at your stalls yet. Use the Add items tab to list produce.")}</p>`;
     const goAdd = list.querySelector("#go-add-items");
@@ -1736,7 +1744,7 @@ async function loadMyListings() {
         <input name="qty" type="number" min="0.1" max="${left}" step="0.1" placeholder="${t("other amount")}">
         <button class="btn ghost" type="submit">${t("Sold")}</button>
       </form>
-      <button class="btn ghost" type="button" data-soldout="${g.id}" style="margin-top:.4rem">${t("Sold out")}</button>`}
+      <button class="btn ghost" type="button" data-remove="${g.id}" style="margin-top:.4rem">${t("Remove")}</button>`}
     </article>`;
   }).join("");
 
@@ -1744,8 +1752,7 @@ async function loadMyListings() {
     try {
       await api(`/listings/${id}/gate`, { method: "POST", body: JSON.stringify({ quantity_kg: Number(qty) }) });
       toast(t("Stock updated"));
-      loadMyListings();
-      loadCatalog();
+      refreshSellAndFarms();
     } catch (e) { toast(e.message); }
   }
   list.querySelectorAll("[data-gate]").forEach(b => b.onclick = () => markSold(b.dataset.gate, b.dataset.qty));
@@ -1755,22 +1762,25 @@ async function loadMyListings() {
     if (!qty) { toast(t("Enter an amount")); return; }
     markSold(f.dataset.custom, qty);
   });
-  list.querySelectorAll("[data-soldout]").forEach(b => b.onclick = async () => {
+  list.querySelectorAll("[data-remove]").forEach(b => b.onclick = async () => {
     try {
-      await api(`/listings/${b.dataset.soldout}/sold-out`, { method: "POST" });
-      toast(t("Marked sold out"));
-      loadMyListings();
-      loadCatalog();
+      await api(`/listings/${b.dataset.remove}/sold-out`, { method: "POST" });
+      toast(t("Removed"));
+      refreshSellAndFarms();
     } catch (e) { toast(e.message); }
   });
   list.querySelectorAll("[data-relist]").forEach(b => b.onclick = async () => {
     try {
       await api(`/listings/${b.dataset.relist}/relist`, { method: "POST", body: JSON.stringify({}) });
       toast(t("Relisted"));
-      loadMyListings();
-      loadCatalog();
+      refreshSellAndFarms();
     } catch (e) { toast(e.message); }
   });
+}
+function refreshSellAndFarms() {
+  loadMyListings();
+  loadCatalog();
+  if (activeView === "farms") loadFarms();
 }
 async function decideFarmClaim(nodeId, approve) {
   await api("/admin/claims", { method: "POST", body: JSON.stringify({ node_id: nodeId, approve }) });
