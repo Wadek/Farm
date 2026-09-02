@@ -216,11 +216,30 @@ function normCat(c) {
   return c;
 }
 function heroVar(cat) { return HERO[normCat(cat)] || "--hero-produce"; }
+const PRODUCE_NAME_ICONS = [
+  [["ostrich", "strutsi"], "ostrich-egg.jpg"],
+  [["lehtikaali", "kale"], "greens.jpg"],
+  [["raspberry", "raspberr", "vadelma"], "raspberry.jpg"],
+  [["blueberry", "blueberr", "mustikka"], "blueberry.jpg"],
+  [["strawberry", "strawberr", "mansikka"], "strawberry.jpg"],
+  [["cabbage", "kerakaali", "kaali"], "cabbage.jpg"],
+  [["lettuce", "salaatti", "chard", "mangold", "vegetable", "vegetables"], "lettuce.jpg"],
+  [["honey", "hunaja"], "honey.jpg"],
+  [["juice", "mehu"], "juice.jpg"],
+  [["yarn", "wool", "alpaca", "lanka"], "yarn.jpg"],
+  [["oat", "kaura", "flake", "hiutale"], "oats.jpg"],
+  [["flour", "jauho"], "oats.jpg"],
+];
 function produceSrc(item) {
   const name = String((item && item.produce_name) || "").toLowerCase();
   let cat = normCat(item && item.category);
   if (/(beef|lamb|meat|liha|karitsa|nauta|poro)/.test(name)) cat = "meat";
-  if (item && item.image_url && !/\/vegetable\.jpg$/.test(item.image_url)) return item.image_url;
+  const api = item && item.image_url;
+  if (api && !/\/(vegetable|produce|dairy|eggs|greens|berries|root|preserve|feed|meat)\.jpg$/.test(api)) return api;
+  for (let i = 0; i < PRODUCE_NAME_ICONS.length; i++) {
+    const keys = PRODUCE_NAME_ICONS[i][0];
+    for (let k = 0; k < keys.length; k++) if (name.indexOf(keys[k]) !== -1) return "/static/produce/" + PRODUCE_NAME_ICONS[i][1];
+  }
   if (!PRODUCE_ICONS[cat]) cat = "produce";
   return "/static/produce/" + cat + ".jpg";
 }

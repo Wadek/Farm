@@ -7,6 +7,7 @@ from app.db import get_db
 from app.models import Node, Produce, Listing, ListingStatus
 from app.models.user import User, UserRole
 from app.dependencies import get_current_user
+from app.services.produce_image import produce_image_url, _norm_category
 
 router = APIRouter(tags=["produce"])
 
@@ -154,34 +155,20 @@ def _produce_view(p: Produce) -> dict:
     }
 
 
-_PRODUCE_ICONS = {
-    "dairy", "eggs", "greens", "berries", "root",
-    "preserve", "feed", "produce", "meat",
-}
-_MEAT_WORDS = ("beef", "lamb", "meat", "liha", "karitsa", "nauta", "poro")
-
-
-def _norm_category(cat: str | None, name: str = "") -> str:
-    c = (cat or "produce").lower()
-    if c in ("vegetable", "vegetables"):
-        c = "greens"
-    n = (name or "").lower()
-    if any(w in n for w in _MEAT_WORDS):
-        c = "meat"
-    if c not in _PRODUCE_ICONS:
-        c = "produce"
-    return c
-
-
 def listing_image_url(l: Listing) -> str:
     name = ((l.produce.name if l.produce else "") or "")
     cat = _norm_category(l.produce.category if l.produce else None, name)
     custom = getattr(l, "image_url", None)
-    if custom and ("/vegetable.jpg" in custom or (cat == "meat" and "/feed.jpg" in custom)):
+    if custom and (
+        "/vegetable.jpg" in custom
+        or (cat == "meat" and "/feed.jpg" in custom)
+        or custom.endswith("/produce/" + cat + ".jpg")
+    ):
+        # Category stub — prefer the name-matched woodcut.
         custom = None
     if custom:
         return custom
-    return f"/static/produce/{cat}.jpg"
+    return produce_image_url(name, cat)
 
 
 def _listing_view(l: Listing) -> dict:

@@ -110,6 +110,71 @@ def test_browse_listings_public(client):
     assert pic.headers["content-type"].startswith("image/")
 
 
+def test_listing_name_picks_a_satokori_woodcut():
+    from pathlib import Path
+    from app.services.produce_image import produce_image_url
+    cases = [
+        ("Farm honey", "preserve", "honey.jpg"),
+        ("Berry juice", "preserve", "juice.jpg"),
+        ("Oat flakes", "preserve", "oats.jpg"),
+        ("Organic flour", "preserve", "oats.jpg"),
+        ("Alpaca yarn", "preserve", "yarn.jpg"),
+        ("Ostrich eggs", "eggs", "ostrich-egg.jpg"),
+        ("Raspberries", "berries", "raspberry.jpg"),
+        ("blueberries", "berries", "blueberry.jpg"),
+        ("Organic strawberries", "berries", "strawberry.jpg"),
+        ("Cabbage", "greens", "cabbage.jpg"),
+        ("Lehtikaali (kale)", "greens", "greens.jpg"),
+        ("Organic vegetables", "greens", "lettuce.jpg"),
+        ("Hunaja", "preserve", "honey.jpg"),
+        ("Mustikka", "berries", "blueberry.jpg"),
+        ("Vadelma", "berries", "raspberry.jpg"),
+        ("Mansikka", "berries", "strawberry.jpg"),
+        ("Kaura", "preserve", "oats.jpg"),
+        ("Strutsin munat", "eggs", "ostrich-egg.jpg"),
+        ("Raw milk", "dairy", "dairy.jpg"),
+    ]
+    pack = Path("static/produce")
+    for name, cat, filename in cases:
+        assert produce_image_url(name, cat) == f"/static/produce/{filename}", name
+        assert (pack / filename).is_file(), filename
+
+
+def test_stall_upload_gets_named_woodcut(client):
+    token = _register_and_token(client, "woodcut-farmer@test.com")
+    node_id = _create_node(client, token)
+    lots = [
+        {"produce_name": "Farm honey", "category": "preserve", "quantity_kg": 1, "price_per_kg": 8, "perpetual": True},
+        {"produce_name": "Berry juice", "category": "preserve", "quantity_kg": 1, "price_per_kg": 6, "perpetual": True},
+        {"produce_name": "Oat flakes", "category": "preserve", "quantity_kg": 2, "price_per_kg": 4, "perpetual": True},
+        {"produce_name": "Alpaca yarn", "category": "preserve", "quantity_kg": 1, "price_per_kg": 30, "perpetual": True},
+        {"produce_name": "Ostrich eggs", "category": "eggs", "quantity_kg": 1, "price_per_kg": 12, "perpetual": True},
+        {"produce_name": "Raspberries", "category": "berries", "quantity_kg": 1, "price_per_kg": 10, "perpetual": True},
+        {"produce_name": "Cabbage", "category": "greens", "quantity_kg": 2, "price_per_kg": 3, "perpetual": True},
+    ]
+    resp = client.post("/stalls", json={
+        "node_id": node_id, "pickup_point": "Farm gate", "lots": lots,
+    }, headers=_auth(token))
+    assert resp.status_code == 201, resp.text
+    want = {
+        "Farm honey": "/static/produce/honey.jpg",
+        "Berry juice": "/static/produce/juice.jpg",
+        "Oat flakes": "/static/produce/oats.jpg",
+        "Alpaca yarn": "/static/produce/yarn.jpg",
+        "Ostrich eggs": "/static/produce/ostrich-egg.jpg",
+        "Raspberries": "/static/produce/raspberry.jpg",
+        "Cabbage": "/static/produce/cabbage.jpg",
+    }
+    for lot in resp.json()["lots"]:
+        assert lot["image_url"] == want[lot["produce_name"]], lot
+        pic = client.get(lot["image_url"])
+        assert pic.status_code == 200, lot["image_url"]
+        assert pic.headers["content-type"].startswith("image/")
+    catalog = {i["produce_name"]: i["image_url"] for i in client.get("/catalog").json()["items"]}
+    for name, src in want.items():
+        assert catalog[name] == src
+
+
 def test_organic_lamb_is_meat_not_feed(client):
     token = _register_and_token(client, "lamb-farmer@test.com")
     node_id = _create_node(client, token)
