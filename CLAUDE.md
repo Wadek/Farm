@@ -37,7 +37,8 @@ Prior versions for reference (do not port code blindly — use for concept refer
 ```
 venv:     /home/waka/projects/Farm/venv
 run:      ./venv/bin/uvicorn main:app --reload
-test:     ./venv/bin/pytest tests/ -v
+test:     pytest tests/ -v
+ship:     frontier hygiene → plan → apply → git push → PR (human merges main)
 claude:   /home/waka/.local/bin/claude
 db:       data/farm.db (gitignored)
 ```

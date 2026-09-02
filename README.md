@@ -10,3 +10,23 @@ docker compose up -d --build
 
 Local: http://127.0.0.1:8791  
 Public (after tunnel): https://satokori.wakalabs.net
+
+## Ship
+
+Frontier is the only path to GitHub. Spec: `D:\wakalabs\frontier\PIPELINE.md`.
+
+1. Feature branch (`frontier/…`). Never commit or push `main`.
+2. Clean commit.
+3. `frontier hygiene` (advise).
+4. `frontier plan` must exit 0.
+5. `frontier apply` must exit 0.
+6. `git push` through the Frontier shim. Never `--no-verify`.
+7. Open a PR into the stack (or into `main`). Human merges. Agents do not merge to `main`.
+
+Tests are not a substitute for plan/apply. Run them verbose:
+
+```
+pytest tests/ -v
+```
+
+GitHub Actions `verify.yml` re-runs that suite on every PR. It does not replace the local gate.
