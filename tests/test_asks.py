@@ -108,6 +108,10 @@ def test_service_worker_and_manifest(client):
     page = client.get("/")
     assert page.status_code == 200
     assert 'id="tabbar"' in page.text
+    assert 'class="mark"' in page.text
+    assert "search_placeholder" not in page.text
+    assert "cat.greens" not in page.text
+    assert 'data-i18n-placeholder="Milk, eggs, kale…"' in page.text
     assert 'id="view-admin"' in page.text
     assert 'id="claim-open"' in page.text
     assert "maija@naapuri.fi" not in page.text
@@ -121,6 +125,10 @@ def test_service_worker_and_manifest(client):
     assert i18n.status_code == 200
     assert "Pyydä noutoa" in i18n.text
     assert "Kirjaudu" in i18n.text
+    assert "Vihreät" in i18n.text
+    assert "Maito, munat, lehtikaali…" in i18n.text
+    assert "search_placeholder" not in i18n.text
+    assert "cat.greens" not in i18n.text
     assert "Ask to pick up" in page.text or "tile-hero" in page.text
     css = client.get("/static/css/app.css")
     assert css.status_code == 200
@@ -129,6 +137,10 @@ def test_service_worker_and_manifest(client):
     assert "min-height: 44px" in css.text
     assert "tile-flag" in css.text
     assert "admin-tiles" in css.text
+    assert "#tabbar button .mark" in css.text
+    logo = client.get("/static/logo.jpg")
+    assert logo.status_code == 200
+    assert len(logo.content) > 1000
     manifest = client.get("/static/manifest.webmanifest")
     assert manifest.status_code == 200
     assert "Satokori" in manifest.text

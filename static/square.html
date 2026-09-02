@@ -18,7 +18,7 @@
 <header id="topbar">
   <button type="button" id="loc-btn">Hyvinkää<small>40 km</small></button>
   <div class="searchf" id="search-wrap">
-    <input id="q" type="search" placeholder="Milk, eggs, kale…" data-i18n-placeholder="search_placeholder" autocomplete="off">
+    <input id="q" type="search" placeholder="Milk, eggs, kale…" data-i18n-placeholder="Milk, eggs, kale…" autocomplete="off">
   </div>
   <div id="page-title" class="hidden"></div>
   <div id="lang-switch" class="lang">
@@ -278,8 +278,10 @@ function applyLang() {
   else if (activeView === "visit") paintStatic();
 }
 function icn(name) {
+  if (name === "logo") {
+    return `<img class="mark" src="/static/logo.jpg" width="26" height="26" alt="Satokori">`;
+  }
   const p = {
-    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
     map: '<path d="M12 21s7-7.2 7-12a7 7 0 10-14 0c0 4.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.2"/>',
     sell: '<path d="M12 5v14M5 12h14"/>',
     orders: '<path d="M6 7h15l-1.4 8.2a2 2 0 01-2 1.8H9.2a2 2 0 01-2-1.6L5 4H2"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/>',
@@ -289,7 +291,7 @@ function icn(name) {
 }
 function navItems() {
   return [
-    ["browse", t("Search"), "search"],
+    ["browse", t("Search"), "logo"],
     ["farms", t("Map"), "map"],
     ["listings", t("Sell"), "sell"],
     ["basket", t("Orders"), "orders"],
@@ -457,7 +459,14 @@ function money(item) {
   if (item.is_free || item.price_per_kg === 0) return t("Ask");
   return item.price_per_kg.toFixed(2) + " €";
 }
-function catLabel(c) { return t(c === "all" ? "All" : "cat." + c); }
+function catLabel(c) {
+  const labels = {
+    all: "All", greens: "Greens", vegetable: "Vegetables", root: "Roots",
+    berries: "Berries", eggs: "Eggs", dairy: "Dairy", preserve: "Preserves",
+    feed: "Feed", produce: "Produce",
+  };
+  return t(labels[(c || "").toLowerCase()] || c);
+}
 function renderChips(items) {
   const found = new Set(items.map(i => (i.category || "").toLowerCase()).filter(Boolean));
   const list = ["all"].concat(CATS.filter(c => c !== "all" && found.has(c)));
